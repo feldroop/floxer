@@ -1,10 +1,10 @@
-#include <iostream>
-#include <filesystem>
-#include <string>
-
 #include <cli.hpp>
 #include <io.hpp>
 #include <pex.hpp>
+
+#include <iostream>
+#include <filesystem>
+#include <string>
 
 int main(int argc, char** argv) {
     auto const opt = cli::parse_options(argc, argv);
