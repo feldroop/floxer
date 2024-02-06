@@ -16,9 +16,10 @@ public:
     pex_tree() = delete;
     pex_tree(
         size_t const total_query_length,
-        uint8_t const num_query_errors
-        // uint8_t const num_errors_for_search = 0
-    ) : leaf_query_length{total_query_length / (num_query_errors + 1)} {
+        uint8_t const num_query_errors,
+        uint8_t const num_errors_for_search_ = 0
+    ) : leaf_query_length{total_query_length / (num_query_errors + 1)},
+        num_errors_for_search{num_errors_for_search_} {
         // use 1 based indices until final computation to make sure to match pseudocode
         add_nodes(
             1, 
@@ -62,7 +63,8 @@ private:
     std::vector<node> inner_nodes;
     std::vector<node> leafs;
 
-    size_t const leaf_query_length; 
+    size_t const leaf_query_length;
+    uint8_t const num_errors_for_search;
 
     void add_nodes(
         size_t const query_index_from,
@@ -80,7 +82,7 @@ private:
             num_errors
         };
 
-        if (num_errors == 0) {
+        if (num_errors <= num_errors_for_search) {
             leafs.push_back(curr_node);
         } else {
             size_t const curr_node_id = inner_nodes.size();

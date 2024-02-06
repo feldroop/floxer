@@ -7,9 +7,20 @@ target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE fmindex-collection:
 # target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "${CMAKE_CURRENT_LIST_DIR}/../include")
 target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra")
 
-#An object library (without main) to be used in multiple targets.
-add_library ("${PROJECT_NAME}_lib" STATIC floxer.cpp)
-target_link_libraries ("${PROJECT_NAME}_lib" PUBLIC "${PROJECT_NAME}_interface")
+add_library (cli_lib STATIC cli.cpp)
+target_link_libraries (cli_lib PUBLIC "${PROJECT_NAME}_interface")
+
+add_library (io_lib STATIC io.cpp)
+target_link_libraries (io_lib PUBLIC "${PROJECT_NAME}_interface")
+
+add_library (pex_lib STATIC pex.cpp)
+target_link_libraries (pex_lib PUBLIC "${PROJECT_NAME}_interface")
 
 add_executable ("${PROJECT_NAME}" main.cpp)
-target_link_libraries ("${PROJECT_NAME}" PRIVATE "${PROJECT_NAME}_lib")
+target_link_libraries (
+    "${PROJECT_NAME}"
+    PRIVATE
+    cli_lib
+    io_lib
+    pex_lib
+)
