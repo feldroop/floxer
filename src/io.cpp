@@ -1,18 +1,7 @@
-#include <filesystem>
-#include <string>
-#include <vector>
+#include <io.hpp>
 
-#include <ivio/ivio.h>
-
-class io {
-public:
-    struct input_data {
-        std::string reference_genome;
-        std::string reference_tags;
-        std::vector<ivio::fastq::record> queries;
-    };
-
-    static input_data read_inputs(
+namespace io {
+    input_data read_inputs(
         std::filesystem::path const& reference_genome_path,
         std::filesystem::path const& queries_path
     ) {

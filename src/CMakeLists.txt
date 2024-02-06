@@ -4,7 +4,7 @@ target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE sharg::sharg)
 target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE ivio::ivio)
 target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE ivsigma::ivsigma)
 target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE fmindex-collection::fmindex-collection)
-# target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "${CMAKE_CURRENT_LIST_DIR}/../include")
+target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../include")
 target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra")
 
 add_library (cli_lib STATIC cli.cpp)

@@ -2,8 +2,8 @@
 #include <filesystem>
 #include <string>
 
-#include "cli.cpp"
-#include "io.cpp"
+#include <cli.hpp>
+#include <io.hpp>
 #include "pex.cpp"   
 
 int main(int argc, char** argv) {

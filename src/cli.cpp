@@ -1,30 +1,9 @@
+#include <cli.hpp>
+
 #include <sharg/all.hpp>
 
-class cli {
-public:
-    struct options {
-        std::filesystem::path reference_genome;
-        std::filesystem::path queries;
-        std::filesystem::path output_file;
-    };
-
-    static options parse_options(int argc, char ** argv) {
-        options opt{};
-        sharg::parser cli_parser = create_cli_parser(argc, argv, opt);
-
-        try {
-            cli_parser.parse();
-        }
-        catch (sharg::parser_error const & e) {
-            std::cerr << "[CLI PARSER ERROR]\n" << e.what() << '\n';
-            exit(-1);
-        }
-
-        return opt;
-    }
-    
-private:
-    static sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
+namespace cli {
+    sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
         sharg::parser parser{"floxer", argc, argv};
 
         parser.info.author = "Felix Leander Droop";
@@ -64,4 +43,19 @@ private:
 
         return parser;
     }
-};
+
+    options parse_options(int argc, char ** argv) {
+        options opt{};
+        sharg::parser cli_parser = create_cli_parser(argc, argv, opt);
+
+        try {
+            cli_parser.parse();
+        }
+        catch (sharg::parser_error const & e) {
+            std::cerr << "[CLI PARSER ERROR]\n" << e.what() << '\n';
+            exit(-1);
+        }
+
+        return opt;
+    }
+}
