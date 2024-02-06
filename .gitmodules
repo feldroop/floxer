@@ -1,0 +1,12 @@
+[submodule "ivio"]
+	path = lib/ivio
+	url = https://github.com/iv-project/IVio
+[submodule "sharg"]
+	path = lib/sharg
+	url = https://github.com/seqan/sharg-parser
+[submodule "fmindex"]
+	path = lib/fmindex
+	url = https://github.com/SGSSGene/fmindex-collection
+[submodule "ivsigma"]
+	path = lib/ivsigma
+	url = https://github.com/iv-project/IVSigma
