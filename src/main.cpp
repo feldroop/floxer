@@ -4,7 +4,7 @@
 
 #include <cli.hpp>
 #include <io.hpp>
-#include "pex.cpp"   
+#include <pex.hpp>
 
 int main(int argc, char** argv) {
     auto const opt = cli::parse_options(argc, argv);
