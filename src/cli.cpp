@@ -24,7 +24,9 @@ namespace cli {
             .long_id = "reference", 
             .description = "The reference genome in which floxer will search the queries, i.e. the haystack.",
             .required = true,
-            .validator = sharg::input_file_validator{{"fa", "fasta", ".fna"}}
+            .validator = sharg::input_file_validator{
+                {"fa", "fasta", ".fna", ".ffn", ".fas", ".faa", "mpfa", ".frn"}
+            }
         });
         parser.add_option(opt.queries, sharg::config{
             .short_id = 'q', 
