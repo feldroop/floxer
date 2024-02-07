@@ -22,7 +22,8 @@ namespace cli {
         parser.add_option(opt.reference_genome, sharg::config{
             .short_id = 'r', 
             .long_id = "reference", 
-            .description = "The reference genome in which floxer will search the queries, i.e. the haystack.",
+            .description = "The reference genome in which floxer will search the queries, i.e. the haystack."
+                "Only valid dna sequences using [AaCcGgTt] characters are allowed.",
             .required = true,
             .validator = sharg::input_file_validator{
                 {"fa", "fasta", ".fna", ".ffn", ".fas", ".faa", "mpfa", ".frn"}
@@ -31,7 +32,8 @@ namespace cli {
         parser.add_option(opt.queries, sharg::config{
             .short_id = 'q', 
             .long_id = "query", 
-            .description = "The queries which floxer will search in the reference, i.e. the needles.",
+            .description = "The queries which floxer will search in the reference, i.e. the needles."
+                "Queries that contain character other than [AaCcGgTt] are skipped.",
             .required = true,
             .validator = sharg::input_file_validator{{"fq", "fastq"}}
         });
