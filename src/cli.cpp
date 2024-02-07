@@ -15,7 +15,7 @@ namespace cli {
         parser.info.email = "felix.droop@fu-berlin.de";
         parser.info.short_description = "FM-index longread PEX-based aligner";
         parser.info.synopsis = {
-            "./floxer --reference hg38.fasta --query reads.fastq --output mapped_reads.bam"
+            "./floxer --reference hg38.fasta --query reads.fastq --errors 7 --output mapped_reads.bam"
         };
         parser.info.version = "0.0.0";
 
@@ -41,6 +41,20 @@ namespace cli {
             .description = "The file where the results will be stored.",
             .required = true,
             .validator = sharg::output_file_validator{{"bam", "sam"}}
+        });
+        parser.add_option(opt.query_num_errors, sharg::config{
+            .short_id = 'e', 
+            .long_id = "errors", 
+            .description = "The number of errors allowed in each query.",
+            .required = true,
+            .validator = sharg::arithmetic_range_validator{0, 2048}
+        });
+        parser.add_option(opt.pex_leaf_num_errors, sharg::config{
+            .short_id = 'p', 
+            .long_id = "pex-leaf-errors", 
+            .description = "The number of errors in the leaves of the PEX tree. "
+                "The seed sequences will be searched with this parameter using the FM-index.",
+            .validator = sharg::arithmetic_range_validator{0, 4}
         });
 
         return parser;

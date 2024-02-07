@@ -12,7 +12,9 @@ int main(int argc, char** argv) {
     std::cout << "---{ welcome to floxer }---\n\n"
         << "- reference path: " << opt.reference_genome.c_str() << '\n'
         << "- query path: " << opt.queries.c_str() << '\n'
-        << "- output path: " << opt.output_file.c_str() << "\n\n";
+        << "- output path: " << opt.output_file.c_str() << '\n'
+        << "- number of allowed errors in query: " << opt.query_num_errors << '\n'
+        << "- number of errors in PEX leaves: " << opt.pex_leaf_num_errors << "\n\n";
 
     std::cout << "---{ Reading input files..." << std::endl; 
     

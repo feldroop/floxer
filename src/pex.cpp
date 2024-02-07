@@ -13,10 +13,10 @@ size_t ceil_div(size_t const a, size_t const b) {
 
 pex_tree::pex_tree(
     size_t const total_query_length,
-    uint8_t const num_query_errors,
-    uint8_t const num_errors_for_search_
+    size_t const num_query_errors,
+    size_t const leaf_num_errors_
 ) : leaf_query_length{total_query_length / (num_query_errors + 1)},
-    num_errors_for_search{num_errors_for_search_} {
+    leaf_num_errors{leaf_num_errors_} {
     // use 1 based indices until final computation to make sure to match pseudocode
     add_nodes(
         1, 
@@ -31,7 +31,7 @@ std::string pex_tree::node::to_string() const {
     s << "{ parent_id: " << parent_id <<
         ", from: " << query_index_from <<
         ", to: " << query_index_to <<
-        ", errors: " << static_cast<int>(num_errors) << " }";
+        ", errors: " << num_errors << " }";
     return s.str();
 }
 
@@ -51,11 +51,11 @@ void pex_tree::debug_print() {
 void pex_tree::add_nodes(
     size_t const query_index_from,
     size_t const query_index_to,
-    uint8_t const num_errors, 
+    size_t const num_errors, 
     size_t const parent_id
 ) {
     // is this the correct meaning of this variable?
-    size_t const num_leafs_left = ceil_div(static_cast<size_t>(num_errors + 1), 2);
+    size_t const num_leafs_left = ceil_div(num_errors + 1, 2);
 
     node const curr_node = {
         parent_id,
@@ -64,7 +64,7 @@ void pex_tree::add_nodes(
         num_errors
     };
 
-    if (num_errors <= num_errors_for_search) {
+    if (num_errors <= leaf_num_errors) {
         leafs.push_back(curr_node);
     } else {
         size_t const curr_node_id = inner_nodes.size();

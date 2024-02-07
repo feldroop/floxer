@@ -12,15 +12,15 @@ public:
     pex_tree() = delete;
     pex_tree(
         size_t const total_query_length,
-        uint8_t const num_query_errors,
-        uint8_t const num_errors_for_search_ = 0
+        size_t const num_query_errors,
+        size_t const leaf_num_errors_ = 0
     );
 
     struct node {
         size_t const parent_id;
         size_t const query_index_from;
         size_t const query_index_to;
-        uint8_t const num_errors;
+        size_t const num_errors;
 
         std::string to_string() const;
     };
@@ -34,12 +34,12 @@ private:
     std::vector<node> leafs;
 
     size_t const leaf_query_length;
-    uint8_t const num_errors_for_search;
+    size_t const leaf_num_errors;
 
     void add_nodes(
         size_t const query_index_from,
         size_t const query_index_to,
-        uint8_t const num_errors, 
+        size_t const num_errors, 
         size_t const parent_id
     );
 };
