@@ -26,7 +26,7 @@ namespace io {
             reference_genome.resize(reference_genome.size() + length);
             auto const span = std::span(reference_genome);
 
-            ivs::convert_char_to_rank<ivs::dna4>(record_view.seq, span.subspan(begin, length));
+            ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq, span.subspan(begin, length));
         }
 
         auto const result = ivs::verify_rank(reference_genome);
@@ -42,7 +42,7 @@ namespace io {
             std::string const tag(record_view.id);
             
             std::vector<uint8_t> sequence(record_view.seq.size());
-            ivs::convert_char_to_rank<ivs::dna4>(record_view.seq, sequence);
+            ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq, sequence);
 
             auto const result = ivs::verify_rank(sequence);
             if (result.has_value()) {
