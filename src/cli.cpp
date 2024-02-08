@@ -49,7 +49,7 @@ namespace cli {
             .long_id = "errors", 
             .description = "The number of errors allowed in each query.",
             .required = true,
-            .validator = sharg::arithmetic_range_validator{0, 2048}
+            .validator = sharg::arithmetic_range_validator{0, 4096}
         });
         parser.add_option(opt.pex_leaf_num_errors, sharg::config{
             .short_id = 'p', 
