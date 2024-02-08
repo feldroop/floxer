@@ -1,27 +1,21 @@
 #include <pex.hpp>
 
-#include <cmath>
 #include <iostream>
-#include <limits>
-#include <string>
+#include <utility>
 #include <sstream>
-#include <vector>
 
 size_t ceil_div(size_t const a, size_t const b) {
     return (a % b) ? a / b + 1 : a / b;
 }
 
-pex_tree::pex_tree(
-    size_t const total_query_length,
-    size_t const num_query_errors,
-    size_t const leaf_num_errors_
-) : leaf_query_length{total_query_length / (num_query_errors + 1)},
-    leaf_num_errors{leaf_num_errors_} {
+pex_tree::pex_tree(pex_tree_config const config) 
+    : leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
+    leaf_num_errors{config.leaf_num_errors} {
     // use 1 based indices until final computation to make sure to match pseudocode
     add_nodes(
         1, 
-        total_query_length,
-        num_query_errors,
+        config.total_query_length,
+        config.query_num_errors,
         null_id
     );
 }
@@ -36,16 +30,20 @@ std::string pex_tree::node::to_string() const {
 }
 
 
-void pex_tree::debug_print() {
+void pex_tree::debug_print() const{
     std::cout << "--- INNER NODES: ---\n";
     for (auto const& node : inner_nodes) {
         std::cout << node.to_string() << '\n';
     }
 
     std::cout << "--- LEAF NODES: ---\n";
-    for (auto const& node : leafs) {
+    for (auto const& node : leaves) {
         std::cout << node.to_string() << '\n';
     }
+}
+
+std::vector<pex_tree::node> const& pex_tree::get_leaves() const {
+    return leaves;
 }
 
 void pex_tree::add_nodes(
@@ -65,7 +63,7 @@ void pex_tree::add_nodes(
     };
 
     if (num_errors <= leaf_num_errors) {
-        leafs.push_back(curr_node);
+        leaves.push_back(curr_node);
     } else {
         size_t const curr_node_id = inner_nodes.size();
         inner_nodes.push_back(curr_node);
@@ -85,4 +83,9 @@ void pex_tree::add_nodes(
             curr_node_id
         );
     }
+}
+
+pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
+    auto [iter, _] = trees.try_emplace(config.total_query_length, config);
+    return iter->second;
 }
