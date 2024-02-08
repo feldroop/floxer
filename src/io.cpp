@@ -53,7 +53,7 @@ namespace io {
                 continue;
             }
             
-            queries.push_back(query { tag, sequence });
+            queries.emplace_back(tag, std::move(sequence));
         }
 
         return input_data { reference_genome, reference_combined_tags, queries };
