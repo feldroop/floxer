@@ -1,16 +1,14 @@
 #include <cli.hpp>
 #include <io.hpp>
 #include <pex.hpp>
+#include <search.hpp>
 
-#include<fmt/core.h>
-
-// temporary
-#include <span>
+#include <fmt/core.h>
+#include <fmt/ranges.h>
 
 #include <fmindex-collection/BiFMIndex.h>
 #include <fmindex-collection/occtable/InterleavedEPRV2.h>
-#include <fmindex-collection/search/SearchNg21.h>
-#include <search_schemes/generator/optimum.h>
+#include <fmindex-collection/search/SearchNg22.h>
 
 int main(int argc, char** argv) {
     auto const opt = cli::parse_options(argc, argv);
@@ -29,10 +27,9 @@ int main(int argc, char** argv) {
         input.reference_sequences, sampling_rate, num_threads
     );
 
-    // SIMON is the optimum search scheme the one I want?
-    auto const search_scheme = search_schemes::generator::optimum(0, opt.query_num_errors);
-
+    search_scheme_cache scheme_cache(opt.pex_leaf_num_errors);
     pex_tree_cache tree_cache{};
+
     for (auto const& query : input.queries) {
         auto const tree_config = pex_tree_config {
             .total_query_length = query.sequence.size(),
@@ -41,13 +38,19 @@ int main(int argc, char** argv) {
         };
 
         auto const& pex_tree = tree_cache.get(tree_config);
-
+        auto const& search_scheme = scheme_cache.get(pex_tree.leaf_query_length());
         auto const leaf_queries = pex_tree.generate_leaf_queries(query.sequence);
 
-        fmindex_collection::search_ng21::search(
-            index, leaf_queries, search_scheme, [&index] (size_t query_id, auto cursor, size_t errors) {
-                fmt::println("found leaf {}, {} times, {} errors", query_id, cursor.count(), errors);
+        fmt::print(
+            "queries:\n{}\nquery length: {}\n", 
+            leaf_queries, 
+            pex_tree.leaf_query_length()
+        );
 
+        fmindex_collection::search_ng22::search(
+            index, leaf_queries, search_scheme, [&index] (size_t const query_id, auto cursor, size_t const errors, auto const& thing) {
+                fmt::println("found leaf {}, {} times, {} errors, alignment: {}", query_id, cursor.count(), errors, thing);
+                
                 for (auto i{begin(cursor)}; i < end(cursor); ++i) {
                     auto const [reference_id, pos] = index.locate(i);
                     fmt::println("- reference {}, position {}", reference_id, pos);

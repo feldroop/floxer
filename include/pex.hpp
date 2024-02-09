@@ -24,9 +24,12 @@ public:
         size_t const num_errors;
 
         std::string to_string() const;
+        size_t query_length() const;
     };
 
     void debug_print() const;
+
+    size_t leaf_query_length() const;
 
     std::vector<std::span<const uint8_t>> generate_leaf_queries(std::vector<uint8_t> const& full_query) const;
 
@@ -36,7 +39,10 @@ private:
     std::vector<node> inner_nodes;
     std::vector<node> leaves;
 
-    size_t const leaf_query_length;
+    // this is only regarding the original paper where leaves have 0 errors 
+    size_t const no_error_leaf_query_length;
+    size_t actual_leaf_query_length;
+    
     size_t const leaf_num_errors;
 
     void add_nodes(

@@ -7,7 +7,7 @@ size_t ceil_div(size_t const a, size_t const b) {
 }
 
 pex_tree::pex_tree(pex_tree_config const config) 
-    : leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
+    : no_error_leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
     leaf_num_errors{config.leaf_num_errors} {
     // use 1 based indices until final computation to make sure to match pseudocode
     add_nodes(
@@ -16,6 +16,15 @@ pex_tree::pex_tree(pex_tree_config const config)
         config.query_num_errors,
         null_id
     );
+
+    size_t const first_leaf_query_length = leaves[0].query_length();
+    for (auto const& leaf : leaves) {
+        if (leaf.query_length() != first_leaf_query_length) {
+            fmt::println(stderr, "[WARNING] PEX tree leaves with different sizes");
+        }
+    }
+
+    actual_leaf_query_length = first_leaf_query_length;
 }
 
 std::string pex_tree::node::to_string() const {
@@ -29,6 +38,9 @@ std::string pex_tree::node::to_string() const {
     );
 }
 
+size_t pex_tree::node::query_length() const {
+    return query_index_to - query_index_from + 1;
+}
 
 void pex_tree::debug_print() const{
     fmt::println("--- INNER NODES: ---");
@@ -42,16 +54,19 @@ void pex_tree::debug_print() const{
     }
 }
 
+size_t pex_tree::leaf_query_length() const {
+    return actual_leaf_query_length;
+}
+
 std::vector<std::span<const uint8_t>> pex_tree::generate_leaf_queries(
     std::vector<uint8_t> const& full_query
 ) const {
-    std::vector<std::span<const uint8_t>> leaf_queries(leaves.size());
-    
+    std::vector<std::span<const uint8_t>> leaf_queries{};
+    leaf_queries.reserve(leaves.size());
+
     for (auto const& leaf : leaves) {
-        size_t const length = leaf.query_index_to - leaf.query_index_from + 1;
-        auto const leaf_query_span = std::span(full_query).subspan(leaf.query_index_from, length);
-        // workaround copy - why does this break down - this caused a segfault
-        leaf_queries.emplace_back(std::move(leaf_query_span)/*.begin(), leaf_query_span.end()*/);
+        auto const leaf_query_span = std::span(full_query).subspan(leaf.query_index_from, leaf.query_length());
+        leaf_queries.emplace_back(std::move(leaf_query_span));
     }   
 
     return leaf_queries;
@@ -74,12 +89,16 @@ void pex_tree::add_nodes(
     };
 
     if (num_errors <= leaf_num_errors) {
+        if (num_errors != leaf_num_errors) {
+            fmt::println(stderr, "[WARNING] PEX leaf query with smaller number of errors");
+        }
+
         leaves.push_back(curr_node);
     } else {
         size_t const curr_node_id = inner_nodes.size();
         inner_nodes.push_back(curr_node);
 
-        size_t const query_split_index = query_index_from + num_leafs_left * leaf_query_length;
+        size_t const query_split_index = query_index_from + num_leafs_left * no_error_leaf_query_length;
 
         add_nodes(
             query_index_from,

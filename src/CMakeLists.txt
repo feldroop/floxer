@@ -18,6 +18,9 @@ target_link_libraries (io_lib PUBLIC "${PROJECT_NAME}_interface")
 add_library (pex_lib STATIC pex.cpp)
 target_link_libraries (pex_lib PUBLIC "${PROJECT_NAME}_interface")
 
+add_library (search_lib STATIC search.cpp)
+target_link_libraries (search_lib PUBLIC "${PROJECT_NAME}_interface")
+
 add_executable ("${PROJECT_NAME}" main.cpp)
 target_link_libraries (
     "${PROJECT_NAME}"
@@ -25,4 +28,5 @@ target_link_libraries (
     cli_lib
     io_lib
     pex_lib
+    search_lib
 )
