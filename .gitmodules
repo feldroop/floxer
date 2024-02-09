@@ -10,3 +10,6 @@
 [submodule "ivsigma"]
 	path = lib/ivsigma
 	url = https://github.com/iv-project/IVSigma
+[submodule "fmt"]
+	path = lib/fmt
+	url = https://github.com/fmtlib/fmt

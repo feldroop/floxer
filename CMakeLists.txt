@@ -37,4 +37,6 @@ find_package(ivio REQUIRED PATHS lib/ivio)
 find_package(ivsigma REQUIRED PATHS lib/ivsigma)
 find_package(fmindex_collection REQUIRED PATHS lib/fmindex)
 
+add_subdirectory(lib/fmt)
+
 add_subdirectory(src)

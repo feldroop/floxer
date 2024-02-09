@@ -1,8 +1,6 @@
 #include <pex.hpp>
 
-#include <iostream>
-#include <utility>
-#include <sstream>
+#include <fmt/core.h>
 
 size_t ceil_div(size_t const a, size_t const b) {
     return (a % b) ? a / b + 1 : a / b;
@@ -21,24 +19,26 @@ pex_tree::pex_tree(pex_tree_config const config)
 }
 
 std::string pex_tree::node::to_string() const {
-    std::stringstream s{};
-    s << "{ parent_id: " << parent_id <<
-        ", from: " << query_index_from <<
-        ", to: " << query_index_to <<
-        ", errors: " << num_errors << " }";
-    return s.str();
+    return fmt::format(
+        "{{ parent_id: {}, from {}, to {}, errors {} }}",
+        parent_id,
+        query_index_from,
+        query_index_to,
+        num_errors
+
+    );
 }
 
 
 void pex_tree::debug_print() const{
-    std::cout << "--- INNER NODES: ---\n";
+    fmt::println("--- INNER NODES: ---");
     for (auto const& node : inner_nodes) {
-        std::cout << node.to_string() << '\n';
+        fmt::println("{}", node.to_string());
     }
 
-    std::cout << "--- LEAF NODES: ---\n";
+    fmt::print("--- LEAF NODES: ---\n");
     for (auto const& node : leaves) {
-        std::cout << node.to_string() << '\n';
+        fmt::println("{}", node.to_string());
     }
 }
 

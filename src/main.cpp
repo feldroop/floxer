@@ -2,7 +2,7 @@
 #include <io.hpp>
 #include <pex.hpp>
 
-#include <iostream>
+#include<fmt/core.h>
 
 // temporary
 #include <span>
@@ -15,12 +15,7 @@
 int main(int argc, char** argv) {
     auto const opt = cli::parse_options(argc, argv);
 
-    std::cout << "---{ welcome to floxer }---\n\n"
-        << "- reference path: " << opt.reference_genome.c_str() << '\n'
-        << "- query path: " << opt.queries.c_str() << '\n'
-        << "- output path: " << opt.output_file.c_str() << '\n'
-        << "- number of allowed errors in query: " << opt.query_num_errors << '\n'
-        << "- number of errors in PEX leaves: " << opt.pex_leaf_num_errors << "\n\n";
+    fmt::println("/.\\ \\'/ /.\\ \\'/ /.\\ welcome to floxer /.\\ \\'/ /.\\ \\'/ /.\\");
 
     auto const input = io::read_inputs(opt.reference_genome, opt.queries);
 
@@ -52,31 +47,21 @@ int main(int argc, char** argv) {
         for (auto const& leaf : pex_tree.get_leaves()) {
             size_t const length = leaf.query_index_to - leaf.query_index_from + 1;
             auto const leaf_query_span = std::span(query.sequence).subspan(leaf.query_index_from, length);
-            // workaround copy - why does is break down - this caused a segfault
+            // workaround copy - why does this break down - this caused a segfault
             leaf_queries.emplace_back(std::move(leaf_query_span)/*.begin(), leaf_query_span.end()*/);
         }   
 
-        std::cout << "Searching leaves for query " << query.tag << std::endl;
-
         fmindex_collection::search_ng21::search(
             index, leaf_queries, search_scheme, [&index] (size_t query_id, auto cursor, size_t errors) {
-                std::cout << "found leaf " << query_id 
-                    << ", " << cursor.count() << " times and " 
-                    << errors << " errors" << std::endl; 
+                fmt::println("found leaf {}, {} times, {} errors", query_id, cursor.count(), errors);
 
                 for (auto i{begin(cursor)}; i < end(cursor); ++i) {
                     auto const [reference_id, pos] = index.locate(i);
-                    std::cout << "-reference " << reference_id << " position " << pos << std::endl;
+                    fmt::println("- reference {}, position {}", reference_id, pos);
                 }
             }
         );
     }
-
-    std::cout << "---{ Verifiying hits..." << std::endl;
-
-    // TODO
-
-    std::cout << "                              ...done }---\n\n";
 
     return 0;
 }

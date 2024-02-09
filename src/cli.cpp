@@ -1,5 +1,6 @@
 #include <cli.hpp>
 
+#include <fmt/core.h>
 #include <sharg/all.hpp>
 
 namespace cli {
@@ -70,7 +71,7 @@ namespace cli {
             cli_parser.parse();
         }
         catch (sharg::parser_error const & e) {
-            std::cerr << "[CLI PARSER ERROR]\n" << e.what() << '\n';
+            fmt::print(stderr, "[CLI PARSER ERROR]\n{}\n", e.what());
             exit(-1);
         }
 

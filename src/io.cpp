@@ -1,10 +1,12 @@
 #include <io.hpp>
 
-#include <iostream>
+// obsoluete after multi reference sequence refactor
 #include <span>
 
 #include <ivio/ivio.h>
 #include <ivsigma/ivsigma.h>
+
+#include <fmt/core.h>
 
 namespace io {
     input_data read_inputs(
@@ -30,8 +32,9 @@ namespace io {
         }
 
         auto const result = ivs::verify_rank(reference_genome);
+        // TODO add the actual invalid character after multi reference sequence refactor
         if (result.has_value()) {
-            std::cerr << "[INPUT ERROR]\n The reference genome contains invalid characters." << std::endl;
+            fmt::println(stderr, "[INPUT ERROR]\nThe reference genome contains invalid characters.");
             exit(-1);
         }
 
@@ -47,9 +50,15 @@ namespace io {
             auto const result = ivs::verify_rank(sequence);
             if (result.has_value()) {
                 size_t const position = result.value();
-                std::cerr << "[INPUT WARNING]\nSkipped the query " << tag
-                    << " due to the invalid character " << sequence[position] 
-                    << " at position " << position << "." << std::endl;
+                fmt::print(
+                    stderr, 
+                    "[INPUT WARNING]\nSkipped the query {} "
+                    "due to the invalid character {} "
+                    "at position {}.\n",
+                    tag,
+                    sequence[position],
+                    position
+                );
                 continue;
             }
             
