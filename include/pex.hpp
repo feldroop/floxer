@@ -1,6 +1,7 @@
 #pragma once
 
 #include <limits>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,7 +28,7 @@ public:
 
     void debug_print() const;
 
-    std::vector<node> const& get_leaves() const;
+    std::vector<std::span<const uint8_t>> generate_leaf_queries(std::vector<uint8_t> const& full_query) const;
 
 private:
     static constexpr size_t null_id = std::numeric_limits<size_t>::max();

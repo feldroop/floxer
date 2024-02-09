@@ -42,13 +42,7 @@ int main(int argc, char** argv) {
 
         auto const& pex_tree = tree_cache.get(tree_config);
 
-        std::vector<std::span<const uint8_t>> leaf_queries(pex_tree.get_leaves().size());
-        for (auto const& leaf : pex_tree.get_leaves()) {
-            size_t const length = leaf.query_index_to - leaf.query_index_from + 1;
-            auto const leaf_query_span = std::span(query.sequence).subspan(leaf.query_index_from, length);
-            // workaround copy - why does this break down - this caused a segfault
-            leaf_queries.emplace_back(std::move(leaf_query_span)/*.begin(), leaf_query_span.end()*/);
-        }   
+        auto const leaf_queries = pex_tree.generate_leaf_queries(query.sequence);
 
         fmindex_collection::search_ng21::search(
             index, leaf_queries, search_scheme, [&index] (size_t query_id, auto cursor, size_t errors) {

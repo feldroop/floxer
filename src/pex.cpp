@@ -42,8 +42,19 @@ void pex_tree::debug_print() const{
     }
 }
 
-std::vector<pex_tree::node> const& pex_tree::get_leaves() const {
-    return leaves;
+std::vector<std::span<const uint8_t>> pex_tree::generate_leaf_queries(
+    std::vector<uint8_t> const& full_query
+) const {
+    std::vector<std::span<const uint8_t>> leaf_queries(leaves.size());
+    
+    for (auto const& leaf : leaves) {
+        size_t const length = leaf.query_index_to - leaf.query_index_from + 1;
+        auto const leaf_query_span = std::span(full_query).subspan(leaf.query_index_from, length);
+        // workaround copy - why does this break down - this caused a segfault
+        leaf_queries.emplace_back(std::move(leaf_query_span)/*.begin(), leaf_query_span.end()*/);
+    }   
+
+    return leaf_queries;
 }
 
 void pex_tree::add_nodes(
