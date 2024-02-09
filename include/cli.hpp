@@ -4,7 +4,7 @@
 
 namespace cli {
     struct options {
-        std::filesystem::path reference_genome;
+        std::filesystem::path reference_sequence;
         std::filesystem::path queries;
         std::filesystem::path output_file;
         size_t query_num_errors;

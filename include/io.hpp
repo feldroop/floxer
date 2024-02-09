@@ -11,13 +11,13 @@ namespace io {
     };
 
     struct input_data {
-        std::vector<uint8_t> const reference_genome;
+        std::vector<uint8_t> const reference_sequence;
         std::string const reference_combined_tags;
         std::vector<query> const queries;
     };
 
     input_data read_inputs(
-        std::filesystem::path const& reference_genome_path,
+        std::filesystem::path const& reference_sequence_path,
         std::filesystem::path const& queries_path
     );
 }

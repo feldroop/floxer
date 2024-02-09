@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
 
     fmt::println("/.\\ \\'/ /.\\ \\'/ /.\\ welcome to floxer /.\\ \\'/ /.\\ \\'/ /.\\");
 
-    auto const input = io::read_inputs(opt.reference_genome, opt.queries);
+    auto const input = io::read_inputs(opt.reference_sequence, opt.queries);
 
     size_t constexpr Sigma = 5; // DNA + Sentinel
     using Table = fmindex_collection::occtable::interleavedEPR16V2::OccTable<Sigma>;
@@ -25,9 +25,9 @@ int main(int argc, char** argv) {
     size_t const sampling_rate = 16; // what are good values for my use case?
     size_t const num_threads = 1;
 
-    std::vector<std::vector<uint8_t>> const reference_genomes{std::move(input.reference_genome)};
+    std::vector<std::vector<uint8_t>> const reference_sequences{std::move(input.reference_sequence)};
     auto const index = fmindex_collection::BiFMIndex<Table>(
-        reference_genomes, sampling_rate, num_threads
+        reference_sequences, sampling_rate, num_threads
     );
 
     // SIMON is the optimum search scheme the one I want?

@@ -20,11 +20,11 @@ namespace cli {
         };
         parser.info.version = "0.0.0";
 
-        parser.add_option(opt.reference_genome, sharg::config{
+        parser.add_option(opt.reference_sequence, sharg::config{
             .short_id = 'r', 
             .long_id = "reference", 
-            .description = "The reference genome in which floxer will search the queries, i.e. the haystack."
-                "Only valid dna sequences using [AaCcGgTt] characters are allowed.",
+            .description = "The reference sequence in which floxer will search the queries, i.e. the haystack."
+                "Only valid DNA sequences using [AaCcGgTt] characters are allowed.",
             .required = true,
             .validator = sharg::input_file_validator{
                 {"fa", "fasta", ".fna", ".ffn", ".fas", ".faa", "mpfa", ".frn"}
