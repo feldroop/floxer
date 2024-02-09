@@ -11,8 +11,8 @@ namespace io {
     };
 
     struct input_data {
-        std::vector<uint8_t> const reference_sequence;
-        std::string const reference_combined_tags;
+        std::vector<std::vector<uint8_t>> const reference_sequences;
+        std::vector<std::string> const reference_tags;
         std::vector<query> const queries;
     };
 

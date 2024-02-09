@@ -23,7 +23,7 @@ namespace cli {
         parser.add_option(opt.reference_sequence, sharg::config{
             .short_id = 'r', 
             .long_id = "reference", 
-            .description = "The reference sequence in which floxer will search the queries, i.e. the haystack."
+            .description = "The reference sequences in which floxer will search the queries, i.e. the haystack."
                 "Only valid DNA sequences using [AaCcGgTt] characters are allowed.",
             .required = true,
             .validator = sharg::input_file_validator{
