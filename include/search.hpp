@@ -1,8 +1,8 @@
 #pragma once 
 
-#include <search_schemes/Scheme.h>
-
 #include <unordered_map>
+
+#include <search_schemes/Scheme.h>
 
 class search_scheme_cache {
 public:

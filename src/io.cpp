@@ -1,15 +1,19 @@
 #include <io.hpp>
 
+#include <fstream>
+
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
+
 #include <ivio/ivio.h>
 #include <ivsigma/ivsigma.h>
 
 #include <fmt/core.h>
 
 namespace io {
-    input_data read_inputs(
-        std::filesystem::path const& reference_sequence_path,
-        std::filesystem::path const& queries_path
-    ) {
+    reference_input read_reference(std::filesystem::path const& reference_sequence_path) {
         auto reference_reader = ivio::fasta::reader{{ .input = reference_sequence_path }};
 
         std::vector<std::vector<uint8_t>> reference_sequences{};
@@ -38,6 +42,10 @@ namespace io {
             reference_tags.emplace_back(record_view.id);
         }
 
+        return reference_input { reference_sequences, reference_tags };
+    }
+
+    std::vector<query> read_queries(std::filesystem::path const& queries_path) {
         auto query_reader = ivio::fastq::reader{{ .input = queries_path }};
         std::vector<query> queries{};
 
@@ -65,6 +73,20 @@ namespace io {
             queries.emplace_back(tag, std::move(sequence));
         }
 
-        return input_data { reference_sequences, reference_tags, queries };
+        return queries;
     }
-};
+
+    void save_index_and_data(FloxerFMIndexWithMetaData const& _index, std::filesystem::path const& _index_path) {
+        auto ofs     = std::ofstream(_index_path, std::ios::binary);
+        auto archive = cereal::BinaryOutputArchive{ofs};
+        archive(_index);
+    }
+
+    FloxerFMIndexWithMetaData load_index_and_data(std::filesystem::path const& _index_path) {
+        auto ifs     = std::ifstream(_index_path, std::ios::binary);
+        auto archive = cereal::BinaryInputArchive{ifs};
+        auto index = FloxerFMIndexWithMetaData{};
+        archive(index);
+        return index;
+    }
+}

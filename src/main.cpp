@@ -1,40 +1,75 @@
 #include <cli.hpp>
+#include <floxer_fmindex.hpp>
 #include <io.hpp>
 #include <pex.hpp>
 #include <search.hpp>
 
 #include <algorithm>
+#include <limits>
 #include <unordered_map>
 
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
-#include <fmindex-collection/BiFMIndex.h>
-#include <fmindex-collection/occtable/InterleavedEPRV2.h>
 #include <fmindex-collection/search/SearchNg21.h>
 
-int main(int argc, char** argv) {
-    auto const opt = cli::parse_options(argc, argv);
+bool better_hit_exists_at(
+    size_t const pos, 
+    size_t const threshold,
+    std::unordered_map<size_t, size_t> & hits
+) {
+    auto const iter = hits.find(pos);
+    return iter != hits.end() && iter->second <= threshold;
+}
 
+int main(int argc, char** argv) {
     fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
 
-    auto const input = io::read_inputs(opt.reference_sequence, opt.queries);
+    auto const opt = cli::parse_and_validate_options(argc, argv);
 
-    size_t constexpr Sigma = 5; // DNA + Sentinel
-    using Table = fmindex_collection::occtable::interleavedEPR16V2::OccTable<Sigma>;
+    FloxerFMIndexWithMetaData index_and_data;
+    if (opt.reference_sequence.empty()) {
+        try {
+            index_and_data = io::load_index_and_data(opt.index_path);
+        } catch (const std::exception& e) {
+            fmt::print(
+                stderr,
+                "[INPUT ERROR]\nAn error occured while trying to load the index from "
+                "the file {}.\n{}\n",
+                opt.index_path.c_str(),
+                e.what()
+            );
+        }
+    } else {
+        auto reference_input = io::read_reference(opt.reference_sequence);
+        
+        size_t const suffix_array_sampling_rate = 16; // FIGURE OUT LATER what are good values for my use case?
+        size_t const num_threads_index_construction = 1;
+        
+        index_and_data.index = FloxerFMIndex(
+            reference_input.sequences,
+            suffix_array_sampling_rate,
+            num_threads_index_construction
+        );
 
-    size_t const sampling_rate = 16; // what are good values for my use case?
-    size_t const num_threads = 1;
+        index_and_data.reference_tags = std::move(reference_input.tags);
+        
+        if (!opt.index_path.empty()) {
+            io::save_index_and_data(index_and_data, opt.index_path);
+        }
+    }
 
-    auto const index = fmindex_collection::BiFMIndex<Table>(
-        input.reference_sequences, sampling_rate, num_threads
-    );
+    size_t const num_reference_sequences = index_and_data.reference_tags.size();
+    auto const& index = index_and_data.index;
+    auto const queries = io::read_queries(opt.queries);
 
-    // for now assume every leaf has the same number of errors
+    // FIX LATER for now assume every leaf has the same number of errors
     search_scheme_cache scheme_cache(opt.pex_leaf_num_errors);
     pex_tree_cache tree_cache{};
 
-    for (auto const& query : input.queries) {
+    for (auto const& query : queries) {
+        fmt::println("query {}:", query.tag);
+
         auto const tree_config = pex_tree_config {
             .total_query_length = query.sequence.size(),
             .query_num_errors = opt.query_num_errors,
@@ -42,46 +77,65 @@ int main(int argc, char** argv) {
         };
 
         auto const& pex_tree = tree_cache.get(tree_config);
-        // for now assume every leaf has the same length
+        // FIX LATER for now assume every leaf has the same length
         auto const& search_scheme = scheme_cache.get(pex_tree.leaf_query_length());
         auto const leaf_queries = pex_tree.generate_leaf_queries(query.sequence);
-
-        std::vector<std::unordered_map<size_t, size_t>> useful_hits(leaf_queries.size());
+        
+        // REFACTOR LATER useful_hits[query_id][reference_id][hit_pos] -> num_errors
+        using hit_map = std::vector<std::vector<std::unordered_map<size_t, size_t>>>;
+        hit_map useful_hits(
+            leaf_queries.size(), 
+            std::vector<std::unordered_map<size_t, size_t>>(num_reference_sequences)
+        );
 
         fmindex_collection::search_ng21::search(
-            index, leaf_queries, search_scheme, [&index, &useful_hits] (size_t const query_id, auto cursor, size_t const errors) {                
+            index,
+            leaf_queries,
+            search_scheme,
+            [&index, &useful_hits] (size_t const query_id, auto cursor, size_t const errors) {                
                 auto & useful_query_hits = useful_hits[query_id];
 
-                for (auto hits{begin(cursor)}; hits < end(cursor); ++hits) {
-                    auto const [reference_id, pos] = index.locate(hits);
+                for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
+                    auto const [reference_id, pos] = index.locate(hit);
+                    auto & useful_query_to_reference_hits = useful_query_hits[reference_id];
 
-                    size_t const start = errors <= pos ? pos - errors : 0ul; // protect against underflow
-                    size_t const end = pos + errors;
-                    bool better_hit_exists = false;
-                    for (size_t neighborhood_pos = start; neighborhood_pos <= end; ++neighborhood_pos) {
-                        auto const iter = useful_query_hits.find(neighborhood_pos);
-                        if (iter != useful_query_hits.end() && iter->second < errors) {
-                            better_hit_exists = true;
+                    for (size_t dist = errors; dist != std::numeric_limits<size_t>::max(); --dist) {
+                        size_t const threshold = errors - dist;
+                        size_t const upper_pos = pos + dist;
+                        if (better_hit_exists_at(upper_pos, threshold, useful_query_to_reference_hits)) {
+                            break;
+                        }
+
+                        // this if is only true if we checked all of the possible better hits
+                        // hence we insert now and break to not do the repetitive check
+                        if (dist == 0) {
+                            // FIX LATER if we can't assume that the hits are reported in asceding order of 
+                            // number of errors, some cleanup needs to be done here or later
+                            useful_query_to_reference_hits[pos] = errors;
+                            break;
+                        }
+
+                        size_t const lower_pos = dist <= pos ? pos - dist : 0ul; // protect against underflow
+                        if (better_hit_exists_at(lower_pos, threshold, useful_query_to_reference_hits)) {
                             break;
                         }
                     }
-
-                    // if we can't assume that the hits are reported in asceding order of number of errors,
-                    // some cleanup needs to be done here or later
-
-                    if (better_hit_exists) {
-                        continue;
-                    }
-
-                    useful_query_hits[pos] = errors;
                 }
             }
         );
 
-        for (size_t i = 0; i < leaf_queries.size(); ++i) {
-            fmt::println("query: {}", leaf_queries[i]);
-            for (auto const & entry : useful_hits[i]) {
-                fmt::println("    - {}, {} error{}", entry.first, entry.second, entry.second == 1 ? "" : "s");
+        for (size_t query_id = 0; query_id < leaf_queries.size(); ++query_id) {
+            fmt::println("    leaf: {}", leaf_queries[query_id]);
+            for (size_t reference_id = 0; reference_id < num_reference_sequences; ++ reference_id) {
+                for (auto const & entry : useful_hits[query_id][reference_id]) {
+                    fmt::println(
+                        "        - at {}, reference: {}, {} error{}", 
+                        entry.first,
+                        index_and_data.reference_tags[reference_id],
+                        entry.second,
+                        entry.second == 1 ? "" : "s"
+                    );
+                }
             }
         }
     }
