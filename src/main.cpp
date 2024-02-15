@@ -60,6 +60,64 @@ void erase_useless_hits(hit_list & hits) {
     }
 }
 
+hit_list search_fastq_query(
+    io::query const& fastq_query,
+    FloxerFMIndex const& index,
+    pex_tree const& tree,
+    search_scheme_cache& scheme_cache,
+    size_t const num_reference_sequences
+) {
+    // FIX LATER for now assume every leaf has the same length
+    auto const& search_scheme = scheme_cache.get(tree.leaf_query_length());
+    auto const leaf_queries = tree.generate_leaf_queries(fastq_query.sequence);
+    
+    hit_list hits(
+        leaf_queries.size(), 
+        std::vector<std::vector<hit>>(num_reference_sequences)
+    );
+
+    fmindex_collection::search_ng21::search(
+        index,
+        leaf_queries,
+        search_scheme,
+        [&index, &hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
+            auto& query_hits = hits[leaf_query_id];
+
+            for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
+                auto const [reference_id, pos] = index.locate(hit);
+                query_hits[reference_id].emplace_back(pos, errors);
+            }
+        }
+    );
+
+    erase_useless_hits(hits);
+
+    return hits;
+}
+
+void print_hits(
+    hit_list const& hits,
+    std::vector<std::span<const uint8_t>> leaf_queries,
+    std::vector<std::string> const& reference_tags
+) {
+    for (size_t leaf_query_id = 0; leaf_query_id < hits.size(); ++leaf_query_id) {
+        fmt::println("    leaf: {}", leaf_queries[leaf_query_id]);
+
+        auto const& query_hits = hits[leaf_query_id];
+        for (size_t reference_id = 0; reference_id < query_hits.size(); ++ reference_id) {
+            for (auto const& hit : query_hits[reference_id]) {
+                fmt::println(
+                    "        - at {}, reference: {}, {} error{}", 
+                    hit.position,
+                    reference_tags[reference_id],
+                    hit.num_errors,
+                    hit.num_errors == 1 ? "" : "s"
+                );
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
 
@@ -113,46 +171,22 @@ int main(int argc, char** argv) {
             .leaf_num_errors = opt.pex_leaf_num_errors
         };
 
-        auto const& pex_tree = tree_cache.get(tree_config);
-        // FIX LATER for now assume every leaf has the same length
-        auto const& search_scheme = scheme_cache.get(pex_tree.leaf_query_length());
-        auto const leaf_queries = pex_tree.generate_leaf_queries(fastq_query.sequence);
-        
-        hit_list hits(
-            leaf_queries.size(), 
-            std::vector<std::vector<hit>>(num_reference_sequences)
-        );
+        auto const& tree = tree_cache.get(tree_config);
 
-        fmindex_collection::search_ng21::search(
+        auto const hits = search_fastq_query(
+            fastq_query,
             index,
-            leaf_queries,
-            search_scheme,
-            [&index, &hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
-                auto & query_hits = hits[leaf_query_id];
-
-                for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
-                    auto const [reference_id, pos] = index.locate(hit);
-                    query_hits[reference_id].emplace_back(pos, errors);
-                }
-            }
+            tree, 
+            scheme_cache,
+            num_reference_sequences
         );
 
-        erase_useless_hits(hits);
-
-        for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
-            fmt::println("    leaf: {}", leaf_queries[leaf_query_id]);
-            for (size_t reference_id = 0; reference_id < num_reference_sequences; ++ reference_id) {
-                for (auto const & hit : hits[leaf_query_id][reference_id]) {
-                    fmt::println(
-                        "        - at {}, reference: {}, {} error{}", 
-                        hit.position,
-                        index_and_data.reference_tags[reference_id],
-                        hit.num_errors,
-                        hit.num_errors == 1 ? "" : "s"
-                    );
-                }
-            }
-        }
+        // temporary
+        print_hits(
+            hits, 
+            tree.generate_leaf_queries(fastq_query.sequence), 
+            index_and_data.reference_tags
+        );
     }
 
     return 0;
