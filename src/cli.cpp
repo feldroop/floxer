@@ -66,7 +66,7 @@ namespace cli {
             .long_id = "pex-leaf-errors", 
             .description = "The number of errors in the leaves of the PEX tree. "
                 "The seed sequences will be searched with this parameter using the FM-index.",
-            .validator = sharg::arithmetic_range_validator{0, 4}
+            .validator = sharg::arithmetic_range_validator{0, 3}
         });
         parser.add_option(opt.num_threads, sharg::config{
             .short_id = 't', 
