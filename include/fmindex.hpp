@@ -5,10 +5,10 @@
 
 size_t constexpr Sigma = 5; // DNA + Sentinel
 using Table = fmindex_collection::occtable::EprV2_16<Sigma>;
-using FloxerFMIndex = fmindex_collection::BiFMIndex<Table>;
+using fmindex = fmindex_collection::BiFMIndex<Table>;
 
-struct FloxerFMIndexWithMetaData {
-    FloxerFMIndex index;
+struct fmindex_with_metadata {
+    fmindex index;
     std::vector<std::string> reference_tags;
 
     template<class Archive>
