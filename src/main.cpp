@@ -44,12 +44,11 @@ int main(int argc, char** argv) {
         auto reference_input = io::read_reference(opt.reference_sequence);
         
         size_t const suffix_array_sampling_rate = 16; // FIGURE OUT LATER what are good values for my use case?
-        size_t const num_threads_index_construction = 1;
         
         index_and_data.index = FloxerFMIndex(
             reference_input.sequences,
             suffix_array_sampling_rate,
-            num_threads_index_construction
+            opt.num_threads
         );
 
         index_and_data.reference_tags = std::move(reference_input.tags);

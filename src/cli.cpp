@@ -68,6 +68,12 @@ namespace cli {
                 "The seed sequences will be searched with this parameter using the FM-index.",
             .validator = sharg::arithmetic_range_validator{0, 4}
         });
+        parser.add_option(opt.num_threads, sharg::config{
+            .short_id = 't', 
+            .long_id = "threads", 
+            .description = "The number of threads to use in the different steps of the program.",
+            .validator = sharg::arithmetic_range_validator{1, 64}
+        });
 
         return parser;
     }
