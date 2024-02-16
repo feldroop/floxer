@@ -16,9 +16,10 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 include (cmake/ccache.cmake)
 require_ccache ()
 
-# for the fmindex library
+# for the CPM package manager
 include(cmake/CPM.cmake)
 
+# dependencies
 CPMaddPackage(
     NAME cereal
     GITHUB_REPOSITORY USCiLab/cereal
@@ -30,13 +31,16 @@ CPMaddPackage(
         "WITH_WERROR OFF"
     EXCLUDE_FROM_ALL TRUE
 )
-
-# dependencies
 find_package(sharg REQUIRED PATHS lib/sharg/build_system)
 find_package(ivio REQUIRED PATHS lib/ivio)
 find_package(ivsigma REQUIRED PATHS lib/ivsigma)
 find_package(fmindex_collection REQUIRED PATHS lib/fmindex)
-
 add_subdirectory(lib/fmt)
 
+# floxer source code
 add_subdirectory(src)
+
+# testing
+list (APPEND CMAKE_CTEST_ARGUMENTS "--output-on-failure")
+enable_testing ()
+add_subdirectory (test)

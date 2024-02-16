@@ -4,11 +4,9 @@
 #include <pex.hpp>
 #include <search.hpp>
 
-#include <algorithm>
-#include <limits>
-#include <unordered_map>
-
+#include <exception>
 #include <vector>
+#include <span>
 
 #include <fmt/core.h>
 #include <fmt/ranges.h>
@@ -53,12 +51,14 @@ int main(int argc, char** argv) {
                 opt.index_path.c_str(),
                 e.what()
             );
+            exit(-1);
         }
     } else {
         auto reference_input = io::read_reference(opt.reference_sequence);
-        
-        size_t const suffix_array_sampling_rate = 16; // FIGURE OUT LATER what are good values for my use case?
-        
+
+        // FIGURE OUT LATER what are good values for my use case?
+        size_t const suffix_array_sampling_rate = 16; 
+
         index_and_data.index = fmindex(
             reference_input.sequences,
             suffix_array_sampling_rate,
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
         );
 
         index_and_data.reference_tags = std::move(reference_input.tags);
-        
+
         if (!opt.index_path.empty()) {
             io::save_index_and_data(index_and_data, opt.index_path);
         }
