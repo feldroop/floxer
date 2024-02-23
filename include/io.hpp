@@ -22,8 +22,8 @@ std::vector<query> read_queries(std::filesystem::path const& queries_path);
 
 reference_input read_reference(std::filesystem::path const& reference_sequence_path);
 
-void save_index_and_data(fmindex_with_metadata const& _index, std::filesystem::path const& _index_path);
+void save_index(fmindex const& _index, std::filesystem::path const& _index_path);
 
-fmindex_with_metadata load_index_and_data(std::filesystem::path const& _index_path);
+fmindex load_index(std::filesystem::path const& _index_path);
 
 } // namespace io

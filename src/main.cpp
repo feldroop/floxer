@@ -5,44 +5,23 @@
 #include <search.hpp>
 
 #include <exception>
+#include <filesystem>
 #include <vector>
 #include <span>
 
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
-void print_hits(
-    search::hit_list const& hits,
-    std::vector<std::span<const uint8_t>> leaf_queries,
-    std::vector<std::string> const& reference_tags
-) {
-    for (size_t leaf_query_id = 0; leaf_query_id < hits.size(); ++leaf_query_id) {
-        fmt::println("    leaf: {}", leaf_queries[leaf_query_id]);
-
-        auto const& query_hits = hits[leaf_query_id];
-        for (size_t reference_id = 0; reference_id < query_hits.size(); ++ reference_id) {
-            for (auto const& hit : query_hits[reference_id]) {
-                fmt::println(
-                    "        - at {}, reference: {}, {} error{}", 
-                    hit.position,
-                    reference_tags[reference_id],
-                    hit.num_errors,
-                    hit.num_errors == 1 ? "" : "s"
-                );
-            }
-        }
-    }
-}
-
 int main(int argc, char** argv) {
     fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
 
     auto const opt = cli::parse_and_validate_options(argc, argv);
 
-    fmindex_with_metadata index_and_data;
-    if (opt.reference_sequence.empty()) {
+    auto const reference_input = io::read_reference(opt.reference_sequence);
+    fmindex index;
+    if (!opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
         try {
-            index_and_data = io::load_index_and_data(opt.index_path);
+            index = io::load_index(opt.index_path);
         } catch (const std::exception& e) {
             fmt::print(
                 stderr,
@@ -54,26 +33,20 @@ int main(int argc, char** argv) {
             exit(-1);
         }
     } else {
-        auto reference_input = io::read_reference(opt.reference_sequence);
-
         // FIGURE OUT LATER what are good values for my use case?
         size_t const suffix_array_sampling_rate = 16; 
 
-        index_and_data.index = fmindex(
+        index = fmindex(
             reference_input.sequences,
             suffix_array_sampling_rate,
             opt.num_threads
         );
 
-        index_and_data.reference_tags = std::move(reference_input.tags);
-
         if (!opt.index_path.empty()) {
-            io::save_index_and_data(index_and_data, opt.index_path);
+            io::save_index(index, opt.index_path);
         }
     }
 
-    size_t const num_reference_sequences = index_and_data.reference_tags.size();
-    auto const& index = index_and_data.index;
     auto const fastq_queries = io::read_queries(opt.queries);
 
     // FIX LATER for now assume every leaf has the same number of errors
@@ -90,21 +63,16 @@ int main(int argc, char** argv) {
         };
 
         auto const& tree = tree_cache.get(tree_config);
-
-        auto const hits = search_fastq_query(
+        size_t const num_found = tree.search(
+            reference_input.sequences,
             fastq_query.sequence,
-            index,
-            tree, 
             scheme_cache,
-            num_reference_sequences
+            index
         );
 
-        // temporary
-        print_hits(
-            hits, 
-            tree.generate_leaf_queries(fastq_query.sequence), 
-            index_and_data.reference_tags
-        );
+        if (num_found > 0) {
+            fmt::println("found {} times, yay", num_found);
+        }
     }
 
     return 0;

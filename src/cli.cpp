@@ -25,10 +25,10 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
 
     parser.add_option(opt.reference_sequence, sharg::config{
         .short_id = 'r', 
-        .long_id = "reference", 
+        .long_id = "reference",
         .description = "The reference sequences in which floxer will search the queries, i.e. the haystack."
-            "Only valid DNA sequences using [AaCcGgTt] characters are allowed. "
-            "May be omitted if an existing index file is given instead.",
+            "Only valid DNA sequences using [AaCcGgTt] characters are allowed.",
+        .required = true,
         .validator = sharg::input_file_validator{
             {"fa", "fasta", "fna", "ffn", "fas", "faa", "mpfa", "frn"}
         }
@@ -52,8 +52,8 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
         .short_id = 'i', 
         .long_id = "index", 
         .description = "The file where the constructed FM-index will be stored for later use. "
-            "If the file already exists and no reference file is given, the index will be read"
-            " from it instead of newly constructed."
+            "If the file already exists, the index will be read "
+            "from it instead of newly constructed."
     });
     parser.add_option(opt.query_num_errors, sharg::config{
         .short_id = 'e', 
@@ -89,23 +89,6 @@ options parse_and_validate_options(int argc, char ** argv) {
     catch (sharg::parser_error const & e) {
         fmt::print(stderr, "[CLI PARSER ERROR]\n{}\n", e.what());
         exit(-1);
-    }
-    
-    if (opt.reference_sequence.empty() && (opt.index_path.empty() || !std::filesystem::exists(opt.index_path))) {
-        fmt::print(
-            stderr, 
-            "[CLI ERROR]\nNeither a reference sequence file nor an "
-            "existing index file was given.\n"
-        );
-        exit(-1);
-    }
-    
-    if (!opt.reference_sequence.empty() && !opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
-        fmt::print(
-            stderr, 
-            "[CLI WARNING]\nExisting index file AND reference sequence were given.\n"
-            "The index will be newly constructed and the file will be overridden.\n"
-        );
     }
 
     return opt;

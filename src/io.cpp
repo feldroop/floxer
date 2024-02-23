@@ -77,16 +77,16 @@ std::vector<query> read_queries(std::filesystem::path const& queries_path) {
     return queries;
 }
 
-void save_index_and_data(fmindex_with_metadata const& _index, std::filesystem::path const& _index_path) {
+void save_index(fmindex const& _index, std::filesystem::path const& _index_path) {
     auto ofs     = std::ofstream(_index_path, std::ios::binary);
     auto archive = cereal::BinaryOutputArchive{ofs};
     archive(_index);
 }
 
-fmindex_with_metadata load_index_and_data(std::filesystem::path const& _index_path) {
+fmindex load_index(std::filesystem::path const& _index_path) {
     auto ifs     = std::ifstream(_index_path, std::ios::binary);
     auto archive = cereal::BinaryInputArchive{ifs};
-    auto index = fmindex_with_metadata{};
+    auto index = fmindex{};
     archive(index);
     return index;
 }
