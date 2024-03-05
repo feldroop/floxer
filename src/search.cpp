@@ -67,17 +67,12 @@ void erase_useless_hits(hit_list & hits) {
     }
 }
 
-hit_list search_fastq_query(
-    std::vector<uint8_t> const& fastq_query,
+hit_list search_leaf_queries(
+    std::vector<std::span<const uint8_t>> const& leaf_queries,
     fmindex const& index,
-    pex_tree const& tree,
-    search_scheme_cache& scheme_cache,
+    search_schemes::Scheme const& search_scheme,
     size_t const num_reference_sequences
-) {
-    // FIX LATER for now assume every leaf has the same length
-    auto const& search_scheme = scheme_cache.get(tree.leaf_query_length());
-    auto const leaf_queries = tree.generate_leaf_queries(fastq_query);
-    
+) {    
     hit_list hits(
         leaf_queries.size(), 
         std::vector<std::vector<hit>>(num_reference_sequences)

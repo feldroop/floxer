@@ -1,4 +1,5 @@
 #include <pex.hpp>
+#include <verification.hpp>
 
 #include <fmt/core.h>
 
@@ -27,49 +28,71 @@ pex_tree::pex_tree(pex_tree_config const config)
     actual_leaf_query_length = first_leaf_query_length;
 }
 
-std::string pex_tree::node::to_string() const {
-    return fmt::format(
-        "{{ parent_id: {}, from {}, to {}, errors {} }}",
-        parent_id,
-        query_index_from,
-        query_index_to,
-        num_errors
-
-    );
-}
-
 size_t pex_tree::node::query_length() const {
     return query_index_to - query_index_from + 1;
 }
 
-void pex_tree::debug_print() const{
-    fmt::println("--- INNER NODES: ---");
-    for (auto const& node : inner_nodes) {
-        fmt::println("{}", node.to_string());
-    }
-
-    fmt::print("--- LEAF NODES: ---\n");
-    for (auto const& node : leaves) {
-        fmt::println("{}", node.to_string());
-    }
-}
-
-size_t pex_tree::leaf_query_length() const {
-    return actual_leaf_query_length;
-}
-
-std::vector<std::span<const uint8_t>> pex_tree::generate_leaf_queries(
-    std::vector<uint8_t> const& full_query
+size_t pex_tree::search(
+    std::vector<io::record> const& references,
+    std::span<const uint8_t> const fastq_query,
+    search::search_scheme_cache& scheme_cache,
+    fmindex const& index
 ) const {
-    std::vector<std::span<const uint8_t>> leaf_queries{};
-    leaf_queries.reserve(leaves.size());
+    auto const leaf_queries = generate_leaf_queries(fastq_query);
+    // FIX LATER for now assume every leaf has the same length
+    auto const& search_scheme = scheme_cache.get(actual_leaf_query_length);
+    
+    auto const hits = search::search_leaf_queries(
+        leaf_queries,
+        index,
+        search_scheme,
+        references.size()
+    );
 
-    for (auto const& leaf : leaves) {
-        auto const leaf_query_span = std::span(full_query).subspan(leaf.query_index_from, leaf.query_length());
-        leaf_queries.emplace_back(std::move(leaf_query_span));
-    }   
+    size_t num_hits = 0;
+    for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
+        for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+            auto const reference = std::span<const uint8_t>(references[reference_id].sequence);
+            for (auto const& hit : hits[leaf_query_id][reference_id]) {
+                // this depends on the implementation of generate_leave_queries returning the
+                // leaf queries in the same order as the leaves (which it should always do!)
+                auto pex_node = leaves.at(leaf_query_id);
+                size_t const leaf_query_index_from = pex_node.query_index_from;
+                pex_node = inner_nodes[pex_node.parent_id];
+                bool is_candidate = true;
 
-    return leaf_queries;
+                while (is_candidate) {
+                    int64_t const start_signed = static_cast<int64_t>(hit.position) - 
+                        (leaf_query_index_from - pex_node.query_index_from)
+                        - pex_node.num_errors;
+                    size_t const start = start_signed >= 0 ? start_signed : 0;
+                    size_t const length = pex_node.query_length() + 2 * pex_node.num_errors + 1;
+
+                    auto const& this_node_query = fastq_query.subspan(
+                        pex_node.query_index_from,
+                        pex_node.query_length()
+                    );
+
+                    auto const alignment = verification::query_occurs(
+                        reference.subspan(start, length),
+                        this_node_query,
+                        pex_node.num_errors
+                    );
+
+                    is_candidate = alignment.has_value();
+                    
+                    if (pex_node.parent_id == null_id) break;
+                    pex_node = inner_nodes[pex_node.parent_id];
+                }
+
+                if (is_candidate) {
+                    ++num_hits;
+                }
+            }
+        }
+    }
+
+    return num_hits;
 }
 
 void pex_tree::add_nodes(
@@ -113,6 +136,20 @@ void pex_tree::add_nodes(
             curr_node_id
         );
     }
+}
+
+std::vector<std::span<const uint8_t>> pex_tree::generate_leaf_queries(
+    std::span<const uint8_t> const& full_query
+) const {
+    std::vector<std::span<const uint8_t>> leaf_queries{};
+    leaf_queries.reserve(leaves.size());
+
+    for (auto const& leaf : leaves) {
+        auto const leaf_query_span = full_query.subspan(leaf.query_index_from, leaf.query_length());
+        leaf_queries.emplace_back(std::move(leaf_query_span));
+    }   
+
+    return leaf_queries;
 }
 
 pex_tree const& pex_tree_cache::get(pex_tree_config const config) {

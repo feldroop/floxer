@@ -1,10 +1,16 @@
 #pragma once
 
+#include <fmindex.hpp>
+#include <io.hpp>
+#include <search.hpp>
+
 #include <limits>
 #include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <fmindex-collection/concepts.h>
 
 struct pex_tree_config {
     size_t const total_query_length;
@@ -18,20 +24,20 @@ public:
     pex_tree(pex_tree_config const config);
 
     struct node {
-        size_t const parent_id;
-        size_t const query_index_from;
-        size_t const query_index_to;
-        size_t const num_errors;
+        size_t parent_id;
+        size_t query_index_from;
+        size_t query_index_to;
+        size_t num_errors;
 
-        std::string to_string() const;
         size_t query_length() const;
     };
 
-    void debug_print() const;
-
-    size_t leaf_query_length() const;
-
-    std::vector<std::span<const uint8_t>> generate_leaf_queries(std::vector<uint8_t> const& full_query) const;
+    size_t search(
+        std::vector<io::record> const& references,
+        std::span<const uint8_t> const fastq_query,
+        search::search_scheme_cache& scheme_cache,
+        fmindex const& index
+    ) const;
 
 private:
     static constexpr size_t null_id = std::numeric_limits<size_t>::max();
@@ -39,8 +45,10 @@ private:
     std::vector<node> inner_nodes;
     std::vector<node> leaves;
 
-    // this is only regarding the original paper where leaves have 0 errors 
+    // this refers to the original version where leaves have 0 errors 
     size_t const no_error_leaf_query_length;
+    // this is the leaf query length we get with the version where
+    // the leaves might have > 0 errors
     size_t actual_leaf_query_length;
     
     size_t const leaf_num_errors;
@@ -51,6 +59,8 @@ private:
         size_t const num_errors, 
         size_t const parent_id
     );
+
+    std::vector<std::span<const uint8_t>> generate_leaf_queries(std::span<const uint8_t> const& full_query) const;
 };
 
 class pex_tree_cache {

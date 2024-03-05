@@ -30,6 +30,7 @@ CPMaddPackage(
         "BUILD_DOC OFF"
         "WITH_WERROR OFF"
     EXCLUDE_FROM_ALL TRUE
+    SYSTEM YES
 )
 find_package(sharg REQUIRED PATHS lib/sharg/build_system)
 find_package(ivio REQUIRED PATHS lib/ivio)

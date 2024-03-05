@@ -6,20 +6,12 @@ CPMAddPackage(
     OPTIONS "INSTALL_GTEST OFF" "gtest_force_shared_crt"
 )
 
-add_executable(search_test search_test.cpp)
+add_executable(verification_test verification_test.cpp)
 target_link_libraries(
-    search_test
+    verification_test
     GTest::gtest_main
-    pex_lib
-    search_lib
+    verification_lib
 )
 
-add_executable(pex_tree_test pex_tree_test.cpp)
-target_link_libraries(
-    pex_tree_test
-    GTest::gtest_main
-    pex_lib
-)
-
-add_test(NAME search COMMAND search_test)
-add_test(NAME pex_tree COMMAND pex_tree_test)
+add_test(NAME verification COMMAND verification_test)
+# TODO add more tests once the core of the program is more or less stable

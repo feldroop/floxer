@@ -14,67 +14,57 @@
 
 namespace io {
 
-reference_input read_reference(std::filesystem::path const& reference_sequence_path) {
-    auto reference_reader = ivio::fasta::reader{{ .input = reference_sequence_path }};
+template<typename Reader>
+std::vector<record> read_input_records(Reader && reader, bool const is_queries = false) {
+    std::vector<record> records{};
 
-    std::vector<std::vector<uint8_t>> reference_sequences{};
-    std::vector<std::string> reference_tags{};
-
-    for (auto const record_view : reference_reader) {
-        std::vector<uint8_t> sequence(record_view.seq.size());
-        ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq, sequence);
+    for (auto const record_view : reader) {
+        std::string const tag(record_view.id);
+        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
 
         auto const result = ivs::verify_rank(sequence);
         if (result.has_value()) {
             size_t const position = result.value();
-            fmt::print(
-                stderr, 
-                "[INPUT ERROR]\nThe reference sequence {} "
-                "contians the invalid character {} "
-                "at position {}.\n",
-                record_view.id,
-                sequence[position],
-                position
-            );
-            exit(-1);
+
+            if (is_queries) {
+                fmt::print(
+                    stderr,
+                    "[INPUT WARNING]\nSkipped the query {} "
+                    "due to the invalid character {} "
+                    "at position {}.\n",
+                    record_view.id,
+                    sequence[position],
+                    position
+                );
+
+                continue;
+            } else {
+                fmt::print(
+                    stderr, 
+                    "[INPUT ERROR]\nThe reference sequence {} "
+                    "contians the invalid character {} "
+                    "at position {}.\n",
+                    record_view.id,
+                    sequence[position],
+                    position
+                );
+
+                exit(-1);
+            }
         }
 
-        reference_sequences.emplace_back(std::move(sequence));
-        reference_tags.emplace_back(record_view.id);
+        records.emplace_back(tag, std::move(sequence));
     }
 
-    return reference_input { reference_sequences, reference_tags };
+    return records;
 }
 
-std::vector<query> read_queries(std::filesystem::path const& queries_path) {
-    auto query_reader = ivio::fastq::reader{{ .input = queries_path }};
-    std::vector<query> queries{};
+std::vector<record> read_references(std::filesystem::path const& reference_sequence_path) {
+    return read_input_records(ivio::fasta::reader{{ .input = reference_sequence_path }});
+}
 
-    for (auto const record_view : query_reader) {
-        std::string const tag(record_view.id);
-
-        std::vector<uint8_t> sequence(record_view.seq.size());
-        ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq, sequence);
-
-        auto const result = ivs::verify_rank(sequence);
-        if (result.has_value()) {
-            size_t const position = result.value();
-            fmt::print(
-                stderr, 
-                "[INPUT WARNING]\nSkipped the query {} "
-                "due to the invalid character {} "
-                "at position {}.\n",
-                record_view.id,
-                sequence[position],
-                position
-            );
-            continue;
-        }
-        
-        queries.emplace_back(tag, std::move(sequence));
-    }
-
-    return queries;
+std::vector<record> read_queries(std::filesystem::path const& queries_path) {
+    return read_input_records(ivio::fastq::reader{{ .input = queries_path }}, true);
 }
 
 void save_index(fmindex const& _index, std::filesystem::path const& _index_path) {

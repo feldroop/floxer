@@ -1,7 +1,8 @@
 #pragma once 
 
-#include <vector>
+#include <span>
 #include <unordered_map>
+#include <vector>
 
 #include <search_schemes/Scheme.h>
 
@@ -31,11 +32,10 @@ struct hit {
 // REFACTOR LATER hits[leaf_query_id][reference_id] -> hits
 using hit_list = std::vector<std::vector<std::vector<hit>>>;
 
-hit_list search_fastq_query(
-    std::vector<uint8_t> const& fastq_query,
+hit_list search_leaf_queries(
+    std::vector<std::span<const uint8_t>> const& leaf_queries,
     fmindex const& index,
-    pex_tree const& tree,
-    search_scheme_cache& scheme_cache,
+    search_schemes::Scheme const& search_scheme,
     size_t const num_reference_sequences
 );
 
