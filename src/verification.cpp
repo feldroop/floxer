@@ -8,6 +8,9 @@
 #include <tuple>
 #include <utility>
 
+#include <fmt/core.h>
+#include <fmt/ranges.h>
+
 namespace verification {
 
 enum class trace_t {
@@ -41,6 +44,16 @@ char format_as(alignment_variant v) {
 
 size_t query_alignment::length_in_reference() {
     return end_in_reference - start_in_reference;
+}
+
+std::string format_as(query_alignment const& alignment) {
+    return fmt::format(
+        "[{}, {}), {} errors, {}",
+        alignment.start_in_reference,
+        alignment.end_in_reference,
+        alignment.num_errors,
+        alignment.alignment
+    );
 }
 
 std::vector<alignment_variant> alignment_from_string(std::string const& s) {
@@ -246,7 +259,9 @@ void collect_and_write_alignments(
             continue;
         }
 
-        if (found_alignments.contains_equal_or_better_alignment_at_end_position(i, curr_num_errors)) {
+        if (
+            found_alignments.contains_equal_or_better_alignment_at_end_position(i, curr_num_errors)
+        ) {
             continue;
         }
 

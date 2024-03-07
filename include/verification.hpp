@@ -28,6 +28,8 @@ struct query_alignment {
     size_t length_in_reference();
 };
 
+std::string format_as(query_alignment const& alignment);
+
 std::vector<alignment_variant> alignment_from_string(std::string const& s);
 
 class full_reference_alignments {

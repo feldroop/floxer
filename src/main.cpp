@@ -81,13 +81,7 @@ int main(int argc, char** argv) {
             }
 
             for (auto const& alignment : std::views::values(reference_alignments)) {
-                fmt::println(
-                    "\t\t- [{}, {}), {} errors, {}",
-                    alignment.start_in_reference,
-                    alignment.end_in_reference,
-                    alignment.num_errors,
-                    alignment.alignment
-                );
+                fmt::println("\t\t- {}", alignment);
             }
         }
 
