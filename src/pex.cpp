@@ -148,8 +148,10 @@ void pex_tree::hierarchical_verification(
             (leaf_query_index_from - pex_node.query_index_from)
             - pex_node.num_errors;
         size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
-        size_t const reference_span_length = pex_node.query_length() + 2 * pex_node.num_errors + 1;
-
+        size_t const reference_span_length = std::min(
+            pex_node.query_length() + 2 * pex_node.num_errors + 1,
+            reference.size() - reference_span_start
+        );
         auto const& this_node_query = fastq_query.subspan(
             pex_node.query_index_from,
             pex_node.query_length()
