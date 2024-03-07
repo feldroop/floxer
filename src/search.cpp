@@ -36,9 +36,17 @@ bool hit::is_better_than(hit const& other) {
         position_difference <= other.num_errors - num_errors;
 }
 
+static constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
+
+void hit::mark_for_erasure() {
+    num_errors = erase_marker;
+}
+
+bool hit::should_be_erased() const {
+    return num_errors == erase_marker;
+}
+
 void erase_useless_hits(hit_list & hits) {
-    static constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
-    
     for (auto & query_hits : hits) {
         for (auto & query_to_ref_hits : query_hits) {
             // this must stay, otherwise the expression in the below for loop head could underflow
@@ -48,21 +56,23 @@ void erase_useless_hits(hit_list & hits) {
 
             std::ranges::sort(query_to_ref_hits, {}, [] (hit const& h) { return h.position; });
 
-            for (size_t i = 0; i < query_to_ref_hits.size() - 1; ++i) {
+            for (size_t i = 0; i < query_to_ref_hits.size() - 1;) {
                 auto & current_hit = query_to_ref_hits[i];
                 size_t j = i + 1;
 
-                while (j < query_to_ref_hits.size() && current_hit.is_better_than(query_to_ref_hits[j])) { 
-                    query_to_ref_hits[j].num_errors = erase_marker;
-                    ++j; 
+                while (j < query_to_ref_hits.size() && current_hit.is_better_than(query_to_ref_hits[j])) {
+                    query_to_ref_hits[j].mark_for_erasure();
+                    ++j;
                 }
 
                 if (j < query_to_ref_hits.size() && query_to_ref_hits[j].is_better_than(current_hit)) {
-                    current_hit.num_errors = erase_marker;
+                    current_hit.mark_for_erasure();
                 }
+
+                i = j;
             }
 
-            std::erase_if(query_to_ref_hits, [] (hit const& h) { return h.num_errors == erase_marker; } );
+            std::erase_if(query_to_ref_hits, [] (hit const& h) { return h.should_be_erased(); } );
         }
     }
 }

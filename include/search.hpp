@@ -27,6 +27,8 @@ struct hit {
     size_t num_errors;
 
     bool is_better_than(hit const& other);
+    void mark_for_erasure();
+    bool should_be_erased() const;
 };
 
 // REFACTOR LATER hits[leaf_query_id][reference_id] -> hits
