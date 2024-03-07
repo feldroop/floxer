@@ -1,5 +1,4 @@
 #include <pex.hpp>
-#include <verification.hpp>
 
 #include <fmt/core.h>
 
@@ -32,7 +31,7 @@ size_t pex_tree::node::query_length() const {
     return query_index_to - query_index_from + 1;
 }
 
-size_t pex_tree::search(
+std::vector<std::unordered_map<size_t, verification::query_alignment>> pex_tree::search(
     std::vector<io::record> const& references,
     std::span<const uint8_t> const fastq_query,
     search::search_scheme_cache& scheme_cache,
@@ -49,50 +48,29 @@ size_t pex_tree::search(
         references.size()
     );
 
-    size_t num_hits = 0;
+    // alignments[reference_id][end_position] -> alignment of fastq query to this reference
+    std::vector<std::unordered_map<size_t, verification::query_alignment>> alignments(
+        references.size()
+    );
+
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
             auto const reference = std::span<const uint8_t>(references[reference_id].sequence);
+            auto & references_alignments = alignments[reference_id];
+            
             for (auto const& hit : hits[leaf_query_id][reference_id]) {
-                // this depends on the implementation of generate_leave_queries returning the
-                // leaf queries in the same order as the leaves (which it should always do!)
-                auto pex_node = leaves.at(leaf_query_id);
-                size_t const leaf_query_index_from = pex_node.query_index_from;
-                pex_node = inner_nodes[pex_node.parent_id];
-                bool is_candidate = true;
-
-                while (is_candidate) {
-                    int64_t const start_signed = static_cast<int64_t>(hit.position) - 
-                        (leaf_query_index_from - pex_node.query_index_from)
-                        - pex_node.num_errors;
-                    size_t const start = start_signed >= 0 ? start_signed : 0;
-                    size_t const length = pex_node.query_length() + 2 * pex_node.num_errors + 1;
-
-                    auto const& this_node_query = fastq_query.subspan(
-                        pex_node.query_index_from,
-                        pex_node.query_length()
-                    );
-
-                    auto const alignment = verification::query_occurs(
-                        reference.subspan(start, length),
-                        this_node_query,
-                        pex_node.num_errors
-                    );
-
-                    is_candidate = alignment.has_value();
-                    
-                    if (pex_node.parent_id == null_id) break;
-                    pex_node = inner_nodes[pex_node.parent_id];
-                }
-
-                if (is_candidate) {
-                    ++num_hits;
-                }
+                hierarchical_verification(
+                    hit,
+                    leaf_query_id,
+                    fastq_query,
+                    reference,
+                    references_alignments
+                );
             }
         }
     }
 
-    return num_hits;
+    return alignments;
 }
 
 void pex_tree::add_nodes(
@@ -150,6 +128,53 @@ std::vector<std::span<const uint8_t>> pex_tree::generate_leaf_queries(
     }   
 
     return leaf_queries;
+}
+
+void pex_tree::hierarchical_verification(
+    search::hit const& hit,
+    size_t const leaf_query_id,
+    std::span<const uint8_t> const fastq_query,
+    std::span<const uint8_t> const reference,
+    std::unordered_map<size_t, verification::query_alignment>& reference_alignments
+) const {
+    // this depends on the implementation of generate_leave_queries returning the
+    // leaf queries in the same order as the leaves (which it should always do!)
+    auto pex_node = leaves.at(leaf_query_id);
+    size_t const leaf_query_index_from = pex_node.query_index_from;
+    pex_node = inner_nodes[pex_node.parent_id];
+
+    while (true) {
+        int64_t const start_signed = static_cast<int64_t>(hit.position) - 
+            (leaf_query_index_from - pex_node.query_index_from)
+            - pex_node.num_errors;
+        size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
+        size_t const reference_span_length = pex_node.query_length() + 2 * pex_node.num_errors + 1;
+
+        auto const& this_node_query = fastq_query.subspan(
+            pex_node.query_index_from,
+            pex_node.query_length()
+        );
+
+        bool const curr_node_is_root = pex_node.parent_id == null_id;
+
+        auto const alignments_wrapper = verification::full_reference_alignments(
+            reference_span_start, reference_alignments
+        );
+
+        bool const query_found = verification::align_query(
+            reference.subspan(reference_span_start, reference_span_length),
+            this_node_query,
+            pex_node.num_errors,
+            curr_node_is_root,
+            alignments_wrapper // useful and adequate alignments are written into this
+        );
+
+        if (!query_found || curr_node_is_root) {
+            break;
+        }
+
+        pex_node = inner_nodes.at(pex_node.parent_id);
+    }
 }
 
 pex_tree const& pex_tree_cache::get(pex_tree_config const config) {

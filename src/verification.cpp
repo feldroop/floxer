@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <compare>
 #include <limits>
 #include <ranges>
 #include <stdexcept>
@@ -23,6 +22,22 @@ struct scoring_t {
 
 using score_matrix_t = std::vector<std::vector<int>>;
 using traceback_matrix_t = std::vector<std::vector<trace_t>>;
+
+char format_as(alignment_variant v) {
+    switch (v) {
+        case alignment_variant::match:
+            return 'M';
+        
+        case alignment_variant::deletion:
+            return 'D';
+
+        case alignment_variant::insertion:
+            return 'I';
+        
+        default:
+            return 'X';
+    }
+}
 
 size_t query_alignment::length_in_reference() {
     return end_in_reference - start_in_reference;
@@ -53,11 +68,37 @@ std::vector<alignment_variant> alignment_from_string(std::string const& s) {
     return alignment;
 }
 
-constexpr scoring_t edit_distance() {
+scoring_t edit_distance() {
     return scoring_t {
         .gap_score = -1,
         .mismatch_score = -1,
         .match_score = 0
+    };
+}
+
+bool full_reference_alignments::contains_equal_or_better_alignment_at_end_position(
+    size_t const reference_span_end_position,
+    size_t const new_alignment_num_erros
+) const {
+    size_t const end_in_full_reference =
+        reference_span_start_offset + reference_span_end_position;
+    
+    auto const iter = alignments.find(end_in_full_reference);
+    
+    return iter != alignments.end() && iter->second.num_errors <= new_alignment_num_erros;
+}
+
+void full_reference_alignments::add(query_alignment && alignment_in_reference_span) {
+    size_t const start_in_full_reference = 
+        reference_span_start_offset + alignment_in_reference_span.start_in_reference;
+    size_t const end_in_full_reference = 
+        reference_span_start_offset + alignment_in_reference_span.end_in_reference;
+
+    alignments[end_in_full_reference] = verification::query_alignment{
+        .start_in_reference = start_in_full_reference,
+        .end_in_reference = end_in_full_reference,
+        .num_errors = alignment_in_reference_span.num_errors,
+        .alignment = std::move(alignment_in_reference_span.alignment)
     };
 }
 
@@ -137,25 +178,10 @@ int find_best_score(score_matrix_t const& score_matrix) {
     return best_score;
 }
 
-std::vector<size_t> find_best_last_row_indices(
-    score_matrix_t const& score_matrix,
-    int const best_score
-) {
-    std::vector<size_t> best_last_row_indices{};
-    auto const& last_row = score_matrix.back();
-    for (size_t i = 0; i < last_row.size(); ++i) {
-        if (last_row[i] == best_score) {
-            best_last_row_indices.push_back(i);
-        }
-    }
-
-    return best_last_row_indices;
-}
-
 query_alignment traceback(
     size_t const traceback_start_index,
     traceback_matrix_t const& traceback_matrix,
-    size_t const best_num_errors
+    size_t const num_errors
 ) {
     size_t i = traceback_matrix.size() - 1;
     size_t j = traceback_start_index;
@@ -192,42 +218,56 @@ query_alignment traceback(
     return query_alignment {
         .start_in_reference = j,
         .end_in_reference = traceback_start_index,
-        .num_errors = best_num_errors,
+        .num_errors = num_errors,
         .alignment = alignment
     };
 }
 
-query_alignment tiebreak_alignment_choice(std::vector<query_alignment>& best_alignments) {
-    query_alignment & shortest_alignment = best_alignments.front();
-    for (size_t i = 1; i < best_alignments.size(); ++i) {
-        size_t const current_shortest_length = shortest_alignment.length_in_reference();
-        size_t const new_length = best_alignments[i].length_in_reference();
-        auto const ordering = new_length <=> current_shortest_length;
+void collect_and_write_alignments(
+    score_matrix_t const& score_matrix,
+    traceback_matrix_t const& traceback_matrix,
+    size_t const num_allowed_errors,
+    full_reference_alignments found_alignments
+) {
+    auto const& last_row_scores = score_matrix.back();
+
+    for (size_t i = 0; i < last_row_scores.size(); ++i) {
+        size_t const curr_num_errors = std::abs(last_row_scores[i]);
+        if (curr_num_errors > num_allowed_errors) {
+            continue;
+        }
+
+        size_t const left_neighbor_index = i == 0 ? i : i - 1;
+        size_t const right_neighbor_index = i == last_row_scores.size() - 1 ? i : i + 1;
 
         if (
-            ordering == std::strong_ordering::less ||
-            (
-                ordering == std::strong_ordering::equal &&
-                best_alignments[i].start_in_reference < shortest_alignment.start_in_reference
-            )
+            last_row_scores[i] < last_row_scores[left_neighbor_index] ||
+            last_row_scores[i] < last_row_scores[right_neighbor_index]
         ) {
-            shortest_alignment = best_alignments[i];
+            continue;
         }
-    }
 
-    return std::move(shortest_alignment);
+        if (found_alignments.contains_equal_or_better_alignment_at_end_position(i, curr_num_errors)) {
+            continue;
+        }
+
+        auto alignment = traceback(i, traceback_matrix, curr_num_errors);
+        found_alignments.add(std::move(alignment));
+    }
 }
 
-std::optional<query_alignment> query_occurs(
+bool align_query(
     std::span<const uint8_t> const reference,
     std::span<const uint8_t> const query,
-    size_t const num_allowed_errors
+    size_t const num_allowed_errors,
+    bool const output_alignments,
+    full_reference_alignments found_alignments
 ) {
     if (reference.empty() || query.empty()) {
         throw std::runtime_error("Empty sequences for verification alignment not allowed.");
     }
 
-    scoring_t constexpr scoring = edit_distance();
+    scoring_t const scoring = edit_distance();
 
     auto [score_matrix, traceback_matrix] = initialize_matrices(
         reference.size(), query.size(), scoring
@@ -241,22 +281,16 @@ std::optional<query_alignment> query_occurs(
 
     size_t const best_num_errors = std::abs(best_score);
     if (best_num_errors > num_allowed_errors) {
-        return std::nullopt;
+        return false;
     }
 
-    std::vector<size_t> const best_last_row_indices = find_best_last_row_indices(score_matrix, best_score);
-
-    std::vector<query_alignment> best_alignments{};
-    for (size_t const last_row_index : best_last_row_indices) {
-        auto alignment = traceback(
-            last_row_index,
-            traceback_matrix,
-            best_num_errors
+    if (output_alignments) {
+        collect_and_write_alignments(
+            score_matrix, traceback_matrix, num_allowed_errors, found_alignments
         );
-        best_alignments.emplace_back(std::move(alignment));
     }
 
-    return tiebreak_alignment_choice(best_alignments);
+    return true;
 }
 
 } // namespace verification

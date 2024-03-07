@@ -3,6 +3,7 @@
 #include <fmindex.hpp>
 #include <io.hpp>
 #include <search.hpp>
+#include <verification.hpp>
 
 #include <limits>
 #include <span>
@@ -32,7 +33,8 @@ public:
         size_t query_length() const;
     };
 
-    size_t search(
+    // return[reference_id][alignment_end_position] -> alignment data
+    std::vector<std::unordered_map<size_t, verification::query_alignment>> search(
         std::vector<io::record> const& references,
         std::span<const uint8_t> const fastq_query,
         search::search_scheme_cache& scheme_cache,
@@ -60,7 +62,16 @@ private:
         size_t const parent_id
     );
 
+    // returns queries in the same order as the leavesare stored in the tree
     std::vector<std::span<const uint8_t>> generate_leaf_queries(std::span<const uint8_t> const& full_query) const;
+
+    void hierarchical_verification(
+        search::hit const& hit,
+        size_t const leaf_query_id,
+        std::span<const uint8_t> const fastq_query,
+        std::span<const uint8_t> const reference,
+        std::unordered_map<size_t, verification::query_alignment>& reference_alignments
+    ) const;
 };
 
 class pex_tree_cache {

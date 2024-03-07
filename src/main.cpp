@@ -64,17 +64,35 @@ int main(int argc, char** argv) {
         };
 
         auto const& tree = tree_cache.get(tree_config);
-        size_t const num_found = tree.search(
+        auto const alignments = tree.search(
             references,
             fastq_query.sequence,
             scheme_cache,
             index
         );
 
-        if (num_found > 0) {
-            fmt::println("\tfound {} times, yay", num_found);
-        } else {
-            fmt::println("\tnot found");
+        bool found_any_alignments = false;
+        for (size_t reference_id = 0; reference_id < alignments.size(); ++reference_id) {
+            auto const& reference_alignments = alignments[reference_id];
+            
+            if (!reference_alignments.empty()) {
+                fmt::println("\tto reference {}", reference_id);
+                found_any_alignments = true;
+            }
+
+            for (auto const& alignment : std::views::values(reference_alignments)) {
+                fmt::println(
+                    "\t\t- [{}, {}), {} errors, {}",
+                    alignment.start_in_reference,
+                    alignment.end_in_reference,
+                    alignment.num_errors,
+                    alignment.alignment
+                );
+            }
+        }
+
+        if (!found_any_alignments) {
+            fmt::println("\t found no alignments");
         }
     }
 
