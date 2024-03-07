@@ -122,10 +122,9 @@ std::tuple<score_matrix_t, traceback_matrix_t> initialize_matrices(
         traceback_matrix[i][0] = trace_t::only_query;
     }
 
-    auto & first_matrix_row = score_matrix.front();
     auto & first_traceback_row = traceback_matrix.front();
-    for (size_t j = 0; j < first_matrix_row.size(); ++j) {
-        // first_matrix_row[j] stays zero because of semiglobal alignment
+    for (size_t j = 0; j < first_traceback_row.size(); ++j) {
+        // first_score_matrix_row[j] stays zero because of semiglobal alignment
         first_traceback_row[0] = trace_t::none;
     }
 
