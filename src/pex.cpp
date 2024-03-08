@@ -31,7 +31,7 @@ size_t pex_tree::node::query_length() const {
     return query_index_to - query_index_from + 1;
 }
 
-std::vector<std::unordered_map<size_t, verification::query_alignment>> pex_tree::search(
+std::vector<std::map<size_t, verification::query_alignment>> pex_tree::search(
     std::vector<io::record> const& references,
     std::span<const uint8_t> const fastq_query,
     search::search_scheme_cache& scheme_cache,
@@ -49,7 +49,7 @@ std::vector<std::unordered_map<size_t, verification::query_alignment>> pex_tree:
     );
 
     // alignments[reference_id][end_position] -> alignment of fastq query to this reference
-    std::vector<std::unordered_map<size_t, verification::query_alignment>> alignments(
+    std::vector<std::map<size_t, verification::query_alignment>> alignments(
         references.size()
     );
 
@@ -57,7 +57,7 @@ std::vector<std::unordered_map<size_t, verification::query_alignment>> pex_tree:
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
             auto const reference = std::span<const uint8_t>(references[reference_id].sequence);
             auto & references_alignments = alignments[reference_id];
-            
+
             for (auto const& hit : hits[leaf_query_id][reference_id]) {
                 hierarchical_verification(
                     hit,
@@ -135,8 +135,8 @@ void pex_tree::hierarchical_verification(
     size_t const leaf_query_id,
     std::span<const uint8_t> const fastq_query,
     std::span<const uint8_t> const reference,
-    std::unordered_map<size_t, verification::query_alignment>& reference_alignments
-) const {
+    std::map<size_t, verification::query_alignment>& reference_alignments
+) const {    
     // this depends on the implementation of generate_leave_queries returning the
     // leaf queries in the same order as the leaves (which it should always do!)
     auto pex_node = leaves.at(leaf_query_id);
@@ -159,7 +159,7 @@ void pex_tree::hierarchical_verification(
 
         bool const curr_node_is_root = pex_node.parent_id == null_id;
 
-        auto const alignments_wrapper = verification::full_reference_alignments(
+        auto alignments_wrapper = verification::alignment_output_gatekeeper(
             reference_span_start, reference_alignments
         );
 
@@ -168,7 +168,7 @@ void pex_tree::hierarchical_verification(
             this_node_query,
             pex_node.num_errors,
             curr_node_is_root,
-            alignments_wrapper // useful and adequate alignments are written into this
+            alignments_wrapper // useful alignments are written into this
         );
 
         if (!query_found || curr_node_is_root) {

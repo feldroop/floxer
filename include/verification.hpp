@@ -1,10 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace verification {
@@ -14,6 +15,10 @@ enum class alignment_variant {
 };
 
 char format_as(alignment_variant v);
+
+enum class alignment_quality_comparison {
+    unrelated, equal, better, worse
+};
 
 struct query_alignment {
     // half open range [start_in_reference, end_in_reference)
@@ -26,28 +31,37 @@ struct query_alignment {
     std::vector<alignment_variant> alignment;
 
     size_t length_in_reference();
+
+    alignment_quality_comparison local_quality_comparison_versus(
+        size_t const other_end_in_reference,
+        size_t const other_num_errors
+    ) const;
 };
 
 std::string format_as(query_alignment const& alignment);
 
 std::vector<alignment_variant> alignment_from_string(std::string const& s);
 
-class full_reference_alignments {
+// important invariant: there are only useful (locally optimal) alignments stored in this class
+// the other job of this class is to transform the indices of the computed alignment for a span
+// the indices of the whole reference
+class alignment_output_gatekeeper {
     size_t const reference_span_start_offset;
-    std::unordered_map<size_t, query_alignment>& alignments;
+    std::map<size_t, query_alignment>& useful_existing_alignments;
 public:
-    full_reference_alignments(
+    alignment_output_gatekeeper(
         size_t const reference_span_start_offset_,
-        std::unordered_map<size_t, query_alignment>& alignments_
-    ) : reference_span_start_offset{reference_span_start_offset_}, alignments{alignments_} 
+        std::map<size_t, query_alignment>& useful_existing_alignments_
+    ) : reference_span_start_offset{reference_span_start_offset_},
+        useful_existing_alignments{useful_existing_alignments_} 
     {}
 
-    bool contains_equal_or_better_alignment_at_end_position(
-        size_t const reference_span_end_position,
-        size_t const new_alignment_num_erros
-    ) const;
-
-    void add(query_alignment && alignment_in_reference_span);
+    // returns whether the alignment was added
+    bool add_alignment_if_its_useful(
+        size_t const candidate_reference_span_end_position,
+        size_t const candidate_num_erros,
+        std::function<query_alignment()> const compute_alignment_to_reference_span
+    );
 };
 
 // return whether an alignment between query and reference with at most the given number
@@ -64,7 +78,7 @@ bool align_query(
     std::span<const uint8_t> query,
     size_t const num_allowed_errors,
     bool const output_alignments,
-    full_reference_alignments found_alignments
+    alignment_output_gatekeeper& alignment_gatekeeper
 );
 
 } // namespace verification

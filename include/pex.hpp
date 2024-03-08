@@ -6,6 +6,7 @@
 #include <verification.hpp>
 
 #include <limits>
+#include <map>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -34,7 +35,7 @@ public:
     };
 
     // return[reference_id][alignment_end_position] -> alignment data
-    std::vector<std::unordered_map<size_t, verification::query_alignment>> search(
+    std::vector<std::map<size_t, verification::query_alignment>> search(
         std::vector<io::record> const& references,
         std::span<const uint8_t> const fastq_query,
         search::search_scheme_cache& scheme_cache,
@@ -70,7 +71,7 @@ private:
         size_t const leaf_query_id,
         std::span<const uint8_t> const fastq_query,
         std::span<const uint8_t> const reference,
-        std::unordered_map<size_t, verification::query_alignment>& reference_alignments
+        std::map<size_t, verification::query_alignment>& reference_alignments
     ) const;
 };
 

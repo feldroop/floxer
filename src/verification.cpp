@@ -1,6 +1,7 @@
 #include <verification.hpp>
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <limits>
 #include <ranges>
@@ -46,6 +47,35 @@ size_t query_alignment::length_in_reference() {
     return end_in_reference - start_in_reference;
 }
 
+alignment_quality_comparison query_alignment::local_quality_comparison_versus(
+    size_t const other_end_in_reference,
+    size_t const other_num_errors
+) const {
+    size_t const distance_in_reference = end_in_reference >= other_end_in_reference ? 
+        end_in_reference - other_end_in_reference :
+        other_end_in_reference - end_in_reference;
+    
+    size_t num_errors_difference;
+    alignment_quality_comparison potential_comparison;
+
+    if (num_errors > other_num_errors) {
+        num_errors_difference = num_errors - other_num_errors;
+        potential_comparison = alignment_quality_comparison::worse;
+    } else if (num_errors == other_num_errors) {
+        num_errors_difference = 0;
+        potential_comparison = alignment_quality_comparison::equal;
+    } else {
+        num_errors_difference = other_num_errors - num_errors;
+        potential_comparison = alignment_quality_comparison::better;
+    }
+    
+    if (distance_in_reference > num_errors_difference) {
+        return alignment_quality_comparison::unrelated;
+    }
+
+    return potential_comparison;
+}
+
 std::string format_as(query_alignment const& alignment) {
     return fmt::format(
         "[{}, {}), {} errors, {}",
@@ -89,30 +119,92 @@ scoring_t edit_distance() {
     };
 }
 
-bool full_reference_alignments::contains_equal_or_better_alignment_at_end_position(
-    size_t const reference_span_end_position,
-    size_t const new_alignment_num_erros
-) const {
-    size_t const end_in_full_reference =
-        reference_span_start_offset + reference_span_end_position;
+bool alignment_output_gatekeeper::add_alignment_if_its_useful(
+    size_t const candidate_reference_span_end_position,
+    size_t const candidate_num_erros,
+    std::function<query_alignment()> const compute_alignment_to_reference_span
+) {
+    size_t const candidate_end_in_full_reference =
+        reference_span_start_offset + candidate_reference_span_end_position;
     
-    auto const iter = alignments.find(end_in_full_reference);
-    
-    return iter != alignments.end() && iter->second.num_errors <= new_alignment_num_erros;
-}
+    std::optional<size_t> worse_to_the_right_key = std::nullopt;
 
-void full_reference_alignments::add(query_alignment && alignment_in_reference_span) {
-    size_t const start_in_full_reference = 
-        reference_span_start_offset + alignment_in_reference_span.start_in_reference;
-    size_t const end_in_full_reference = 
-        reference_span_start_offset + alignment_in_reference_span.end_in_reference;
+    // first check to the right
+    auto iter = useful_existing_alignments.lower_bound(candidate_end_in_full_reference);
+    if (iter != useful_existing_alignments.end()) {
+        // this alignment might be at the exact same position or to the right of the candidate
+        auto const& existing_alignment = iter->second;
+        auto const existing_alignment_quality_ordering = existing_alignment.local_quality_comparison_versus(
+            candidate_end_in_full_reference,
+            candidate_num_erros
+        );
+        
+        switch (existing_alignment_quality_ordering) {
+            case alignment_quality_comparison::unrelated:
+                // new alignment could be added later
+                break;
+            case alignment_quality_comparison::equal:
+                return false;
+            case alignment_quality_comparison::better:
+                return false;
+            case alignment_quality_comparison::worse:
+                // new alignment will be added later and existing one will be deleted
+                worse_to_the_right_key = iter->first;
+                break;
+            default:
+                throw std::runtime_error("alignment quality comparison, this should be unreachable");
+        }
+    }
 
-    alignments[end_in_full_reference] = verification::query_alignment{
-        .start_in_reference = start_in_full_reference,
-        .end_in_reference = end_in_full_reference,
-        .num_errors = alignment_in_reference_span.num_errors,
-        .alignment = std::move(alignment_in_reference_span.alignment)
-    };
+    bool found_worse_to_the_left = false;
+    // now check the left
+    if (iter != useful_existing_alignments.begin()) {
+        --iter;
+        // this alignment is to the left of the candidate
+        auto const& existing_alignment = iter->second;
+        auto const existing_alignment_quality_ordering = existing_alignment.local_quality_comparison_versus(
+            candidate_end_in_full_reference,
+            candidate_num_erros
+        );
+
+        switch (existing_alignment_quality_ordering) {
+            case alignment_quality_comparison::unrelated:
+                // new alignment will be added later
+                break;
+            case alignment_quality_comparison::better:
+                // if this assert triggers, the invariant of the class was violated
+                assert(!worse_to_the_right_key.has_value());
+                return false;
+            case alignment_quality_comparison::worse:
+                // new alignment will be added later and existing one will be deleted
+                found_worse_to_the_left = true;
+                break;
+            // case alignment_quality_comparison::equal: <- shouln't be possible
+            default:
+                throw std::runtime_error("alignment quality comparison, this should be unreachable");
+        }
+    }
+
+    if (found_worse_to_the_left) {
+        useful_existing_alignments.erase(iter);
+    }
+
+    if (worse_to_the_right_key.has_value()) {
+        useful_existing_alignments.erase(worse_to_the_right_key.value());
+    }
+
+    auto reference_span_alignment = compute_alignment_to_reference_span();
+    useful_existing_alignments.emplace(
+        candidate_end_in_full_reference,
+        query_alignment {
+            .start_in_reference = reference_span_start_offset + reference_span_alignment.start_in_reference,
+            .end_in_reference = reference_span_start_offset + reference_span_alignment.end_in_reference,
+            .num_errors = reference_span_alignment.num_errors,
+            .alignment = std::move(reference_span_alignment.alignment)
+        }
+    );
+
+    return true;
 }
 
 std::tuple<score_matrix_t, traceback_matrix_t> initialize_matrices(
@@ -239,7 +331,7 @@ void collect_and_write_alignments(
     score_matrix_t const& score_matrix,
     traceback_matrix_t const& traceback_matrix,
     size_t const num_allowed_errors,
-    full_reference_alignments found_alignments
+    alignment_output_gatekeeper& alignment_gatekeeper
 ) {
     auto const& last_row_scores = score_matrix.back();
 
@@ -259,14 +351,9 @@ void collect_and_write_alignments(
             continue;
         }
 
-        if (
-            found_alignments.contains_equal_or_better_alignment_at_end_position(i, curr_num_errors)
-        ) {
-            continue;
-        }
-
-        auto alignment = traceback(i, traceback_matrix, curr_num_errors);
-        found_alignments.add(std::move(alignment));
+        alignment_gatekeeper.add_alignment_if_its_useful(i, curr_num_errors, [&] () {
+            return traceback(i, traceback_matrix, curr_num_errors);
+        });
     }
 }
 
@@ -275,7 +362,7 @@ bool align_query(
     std::span<const uint8_t> const query,
     size_t const num_allowed_errors,
     bool const output_alignments,
-    full_reference_alignments found_alignments
+    alignment_output_gatekeeper& alignment_gatekeeper
 ) {
     if (reference.empty() || query.empty()) {
         throw std::runtime_error("Empty sequences for verification alignment not allowed.");
@@ -300,7 +387,7 @@ bool align_query(
 
     if (output_alignments) {
         collect_and_write_alignments(
-            score_matrix, traceback_matrix, num_allowed_errors, found_alignments
+            score_matrix, traceback_matrix, num_allowed_errors, alignment_gatekeeper
         );
     }
 
