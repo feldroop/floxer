@@ -10,6 +10,7 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 TEST(floxer_test, verification_query_occurs) {
+    // TODO fix this according to new API and behavior
     using namespace verification;
 
     std::vector<uint8_t> const simple_reference{
@@ -32,9 +33,9 @@ TEST(floxer_test, verification_query_occurs) {
     std::vector<uint8_t> const noisy_query_1_of_each_error_type{1,3,2,0,1,0,1,1,0,1,0,3};
     
     for (size_t num_errors = 0; num_errors < 5; ++ num_errors) {
-        auto const result_simple_big_perfect = 
-            query_occurs(simple_reference, big_query_perfect_match, num_errors);
-        ASSERT_TRUE(result_simple_big_perfect.has_value());
+        bool const result_simple_big_perfect = 
+            query_occurs(simple_reference, big_query_perfect_match, num_errors, true);
+        ASSERT_TRUE(result_simple_big_perfect);
         auto const alignment_simple_big_perfect = result_simple_big_perfect.value();
         ASSERT_EQ(alignment_simple_big_perfect.num_errors, 0);
         ASSERT_EQ(alignment_simple_big_perfect.start_in_reference, 4);
@@ -44,9 +45,9 @@ TEST(floxer_test, verification_query_occurs) {
             alignment_from_string("MMMMMMMMMMMM")
         );
 
-        auto const result_simple_small_perfect = 
-            query_occurs(simple_reference, small_query_perfect_match, num_errors);
-        ASSERT_TRUE(result_simple_small_perfect.has_value());
+        bool const result_simple_small_perfect = 
+            query_occurs(simple_reference, small_query_perfect_match, num_errors, true);
+        ASSERT_TRUE(result_simple_small_perfect);
         auto const alignment_simple_small_perfect = result_simple_small_perfect.value();
         ASSERT_EQ(alignment_simple_small_perfect.num_errors, 0);
         ASSERT_EQ(alignment_simple_small_perfect.start_in_reference, 10);
@@ -56,9 +57,9 @@ TEST(floxer_test, verification_query_occurs) {
             alignment_from_string("MMMMM")
         );
 
-        auto const result_simple_tiny_perfect = 
-            query_occurs(simple_reference, tiny_query_perfect_match, num_errors);
-        ASSERT_TRUE(result_simple_tiny_perfect.has_value());
+        bool const result_simple_tiny_perfect = 
+            query_occurs(simple_reference, tiny_query_perfect_match, num_errors, true);
+        ASSERT_TRUE(result_simple_tiny_perfect);
         auto const alignment_simple_tiny_perfect = result_simple_tiny_perfect.value();
         ASSERT_EQ(alignment_simple_tiny_perfect.num_errors, 0);
         ASSERT_EQ(alignment_simple_tiny_perfect.start_in_reference, 0);
@@ -68,17 +69,17 @@ TEST(floxer_test, verification_query_occurs) {
             alignment_from_string("M")
         );
 
-        auto const result_simple_noisy_nope = 
+        bool const result_simple_noisy_nope = 
             query_occurs(simple_reference, noisy_query_2_inserts, num_errors);
-        ASSERT_TRUE(!result_simple_noisy_nope.has_value());
+        ASSERT_TRUE(!result_simple_noisy_nope);
     }
 
-    auto const result_simple_big1 = 
-        query_occurs(simple_reference, big_query_2_errors, 1);
-    ASSERT_TRUE(!result_simple_big1.has_value());
-    auto const result_simple_big2 = 
-        query_occurs(simple_reference, big_query_2_errors, 2);
-    ASSERT_TRUE(result_simple_big2.has_value());
+    bool const result_simple_big1 = 
+        query_occurs(simple_reference, big_query_2_errors, 1, true);
+    ASSERT_TRUE(!result_simple_big1);
+    bool const result_simple_big2 = 
+        query_occurs(simple_reference, big_query_2_errors, 2, true);
+    ASSERT_TRUE(result_simple_big2);
     auto const alignment_simple_big2 = result_simple_big2.value();
     ASSERT_EQ(alignment_simple_big2.num_errors, 2);
     ASSERT_EQ(alignment_simple_big2.start_in_reference, 5);
@@ -88,12 +89,12 @@ TEST(floxer_test, verification_query_occurs) {
         alignment_from_string("MMIMMMMMMIMM")
     );
 
-    auto const result_simple_small0 = 
-        query_occurs(simple_reference, small_query_1_error, 0);
-    ASSERT_TRUE(!result_simple_small0.has_value());
-    auto const result_simple_small1 = 
-        query_occurs(simple_reference, small_query_1_error, 1);
-    ASSERT_TRUE(result_simple_small1.has_value());
+    bool const result_simple_small0 = 
+        query_occurs(simple_reference, small_query_1_error, 0, true);
+    ASSERT_TRUE(!result_simple_small0);
+    bool const result_simple_small1 = 
+        query_occurs(simple_reference, small_query_1_error, 1, true);
+    ASSERT_TRUE(result_simple_small1);
     auto const alignment_simple_small1 = result_simple_small1.value();
     ASSERT_EQ(alignment_simple_small1.num_errors, 1);
     ASSERT_EQ(alignment_simple_small1.start_in_reference, 8);
@@ -102,12 +103,12 @@ TEST(floxer_test, verification_query_occurs) {
         alignment_simple_small1.alignment,
         alignment_from_string("IMMMMM")
     );
-    auto const noisy_2_inserts_0_allowed = 
-        query_occurs(noisy_reference, noisy_query_2_inserts, 0);
-    ASSERT_TRUE(!noisy_2_inserts_0_allowed.has_value());
-    auto const noisy_2_inserts_2_allowed = 
-        query_occurs(noisy_reference, noisy_query_2_inserts, 2);
-    ASSERT_TRUE(noisy_2_inserts_2_allowed.has_value());
+    bool const noisy_2_inserts_0_allowed = 
+        query_occurs(noisy_reference, noisy_query_2_inserts, 0, true);
+    ASSERT_TRUE(!noisy_2_inserts_0_allowed);
+    bool const noisy_2_inserts_2_allowed = 
+        query_occurs(noisy_reference, noisy_query_2_inserts, 2, true);
+    ASSERT_TRUE(noisy_2_inserts_2_allowed);
     auto const alignment_noisy_2_inserts_2_allowed = noisy_2_inserts_2_allowed.value();
     ASSERT_EQ(alignment_noisy_2_inserts_2_allowed.num_errors, 2);
     ASSERT_EQ(alignment_noisy_2_inserts_2_allowed.start_in_reference, 1);
@@ -117,12 +118,12 @@ TEST(floxer_test, verification_query_occurs) {
         alignment_from_string("MMMMIMMMIMM")
     );
 
-    auto const noisy_2_deletes_1_allowed = 
-        query_occurs(noisy_reference, noisy_query_2_deletes, 1);
-    ASSERT_TRUE(!noisy_2_deletes_1_allowed.has_value());
-    auto const noisy_2_deletes_2_allowed = 
-        query_occurs(noisy_reference, noisy_query_2_deletes, 2);
-    ASSERT_TRUE(noisy_2_deletes_2_allowed.has_value());
+    bool const noisy_2_deletes_1_allowed = 
+        query_occurs(noisy_reference, noisy_query_2_deletes, 1, true);
+    ASSERT_TRUE(!noisy_2_deletes_1_allowed);
+    bool const noisy_2_deletes_2_allowed = 
+        query_occurs(noisy_reference, noisy_query_2_deletes, 2, true);
+    ASSERT_TRUE(noisy_2_deletes_2_allowed);
     auto const alignment_noisy_2_deletes_2_allowed = noisy_2_deletes_2_allowed.value();
     ASSERT_EQ(alignment_noisy_2_deletes_2_allowed.num_errors, 2);
     ASSERT_EQ(alignment_noisy_2_deletes_2_allowed.start_in_reference, 8);
@@ -134,9 +135,9 @@ TEST(floxer_test, verification_query_occurs) {
         alignment_from_string("IMMDMMM")
     );
 
-    auto const noisy_all_3 = 
-        query_occurs(noisy_reference, noisy_query_1_of_each_error_type, 3);
-    ASSERT_TRUE(noisy_all_3.has_value());
+    bool const noisy_all_3 = 
+        query_occurs(noisy_reference, noisy_query_1_of_each_error_type, 3, true);
+    ASSERT_TRUE(noisy_all_3);
     auto const alignment_noisy_all_3 = noisy_all_3.value();
     ASSERT_EQ(alignment_noisy_all_3.num_errors, 3);
     ASSERT_EQ(alignment_noisy_all_3.start_in_reference, 1);
