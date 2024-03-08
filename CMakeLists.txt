@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.16)
 
-project (floxer VERSION 0.0.0)
+project (floxer VERSION 0.1.0)
 
 # Force language standard
 set(CMAKE_CXX_STANDARD 20)

@@ -21,7 +21,7 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
         "--errors 7 --output mapped_reads.bam",
         "./floxer --index hg38.index --query reads.fastq --errors 7 --output mapped_reads.bam",
     };
-    parser.info.version = "0.0.0";
+    parser.info.version = "0.1.0";
 
     parser.add_option(opt.reference_sequence, sharg::config{
         .short_id = 'r', 
