@@ -50,9 +50,8 @@ int main(int argc, char** argv) {
 
     auto const fastq_queries = io::read_queries(opt.queries);
 
-    // FIX LATER for now assume every leaf has the same number of errors
-    search::search_scheme_cache scheme_cache(opt.pex_leaf_num_errors);
-    pex_tree_cache tree_cache{};
+    search::search_scheme_cache scheme_cache;
+    pex_tree_cache tree_cache;
 
     for (auto const& fastq_query : fastq_queries) {
         fmt::println("query {}:", fastq_query.tag);
@@ -60,7 +59,7 @@ int main(int argc, char** argv) {
         auto const tree_config = pex_tree_config {
             .total_query_length = fastq_query.sequence.size(),
             .query_num_errors = opt.query_num_errors,
-            .leaf_num_errors = opt.pex_leaf_num_errors
+            .leaf_max_num_errors = opt.pex_leaf_num_errors
         };
 
         auto const& tree = tree_cache.get(tree_config);

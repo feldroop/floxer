@@ -17,7 +17,7 @@
 struct pex_tree_config {
     size_t const total_query_length;
     size_t const query_num_errors;
-    size_t const leaf_num_errors = 0;
+    size_t const leaf_max_num_errors;
 };
 
 class pex_tree {
@@ -50,11 +50,8 @@ private:
 
     // this refers to the original version where leaves have 0 errors 
     size_t const no_error_leaf_query_length;
-    // this is the leaf query length we get with the version where
-    // the leaves might have > 0 errors
-    size_t actual_leaf_query_length;
     
-    size_t const leaf_num_errors;
+    size_t const leaf_max_num_errors;
 
     void add_nodes(
         size_t const query_index_from,
@@ -63,8 +60,8 @@ private:
         size_t const parent_id
     );
 
-    // returns queries in the same order as the leavesare stored in the tree
-    std::vector<std::span<const uint8_t>> generate_leaf_queries(std::span<const uint8_t> const& full_query) const;
+    // returns queries in the same order as the leaves are stored in the tree
+    std::vector<search::query> generate_leaf_queries(std::span<const uint8_t> const& full_query) const;
 
     void hierarchical_verification(
         search::hit const& hit,
@@ -80,5 +77,7 @@ public:
     pex_tree const& get(pex_tree_config const config);
 private:
     // query length determines PEX tree structure uniquely in this application
+    // because either there is a constant number of errors, or the number
+    // of errors per query is a function of only the query length
     std::unordered_map<size_t, pex_tree> trees;
 };

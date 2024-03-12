@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <ranges>
 
 #include <fmindex-collection/search/SearchNg21.h>
 #include <search_schemes/generator/optimum.h>
@@ -11,20 +12,24 @@
 
 namespace search {
 
-search_scheme_cache::search_scheme_cache(size_t const pex_leaf_num_errors_)
-        : pex_leaf_num_errors{pex_leaf_num_errors_} {}
+search_schemes::Scheme const& search_scheme_cache::get(
+    size_t const pex_leaf_query_length,
+    size_t const pex_leaf_num_errors
+) {
+    auto const scheme_data = std::make_tuple(pex_leaf_query_length, pex_leaf_num_errors);
+    auto const iter = schemes.find(scheme_data);
 
-search_schemes::Scheme const& search_scheme_cache::get(size_t const pex_leaf_query_length) {
-    if (!schemes.contains(pex_leaf_query_length)) {
+    if (iter == schemes.end()) {
         auto search_scheme = search_schemes::expand(
             search_schemes::generator::optimum(0, pex_leaf_num_errors), 
             pex_leaf_query_length
         );
 
-        schemes.emplace(pex_leaf_query_length, std::move(search_scheme));
+        auto const [emplaced_iter, _] = schemes.emplace(scheme_data, std::move(search_scheme));
+        return emplaced_iter->second;
     }
 
-    return schemes.at(pex_leaf_query_length);
+    return iter->second;
 }
 
 
@@ -78,29 +83,44 @@ void erase_useless_hits(hit_list & hits) {
 }
 
 hit_list search_leaf_queries(
-    std::vector<std::span<const uint8_t>> const& leaf_queries,
+    std::vector<query> const& leaf_queries,
     fmindex const& index,
-    search_schemes::Scheme const& search_scheme,
+    search_scheme_cache& scheme_cache,
     size_t const num_reference_sequences
-) {    
+) {
     hit_list hits(
         leaf_queries.size(), 
         std::vector<std::vector<hit>>(num_reference_sequences)
     );
 
-    fmindex_collection::search_ng21::search(
-        index,
-        leaf_queries,
-        search_scheme,
-        [&index, &hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
-            auto& query_hits = hits[leaf_query_id];
+    auto const leaf_queries_span = std::span(leaf_queries);
 
-            for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
-                auto const [reference_id, pos] = index.locate(hit);
-                query_hits[reference_id].emplace_back(pos, errors);
+    for (size_t i = 0; i < leaf_queries.size(); ++i) {
+        auto const& leaf_query = leaf_queries[i];
+        auto const& search_scheme = scheme_cache.get(
+            leaf_query.sequence.size(),
+            leaf_query.num_errors
+        );
+
+        // wrapper for the search interface that expects something range-like
+        auto const leaf_query_single_span = leaf_queries_span.subspan(i, 1) 
+            | std::views::transform(&search::query::sequence);
+
+        // if the preorder function inside fmindex search occurs in any flamegraph, we can optimize it
+        fmindex_collection::search_ng21::search(
+            index,
+            leaf_query_single_span,
+            search_scheme,
+            [&index, &hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
+                auto& query_hits = hits[leaf_query_id];
+
+                for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
+                    auto const [reference_id, pos] = index.locate(hit);
+                    query_hits[reference_id].emplace_back(pos, errors);
+                }
             }
-        }
-    );
+        );
+    }
 
     erase_useless_hits(hits);
 

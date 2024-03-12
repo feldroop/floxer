@@ -1,14 +1,11 @@
+#include <miscellaneous.hpp>
 #include <pex.hpp>
 
 #include <fmt/core.h>
 
-size_t ceil_div(size_t const a, size_t const b) {
-    return (a % b) ? a / b + 1 : a / b;
-}
-
 pex_tree::pex_tree(pex_tree_config const config) 
     : no_error_leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
-    leaf_num_errors{config.leaf_num_errors} {
+    leaf_max_num_errors{config.leaf_max_num_errors} {
     // use 1 based indices until final computation to make sure to match pseudocode
     add_nodes(
         1, 
@@ -16,15 +13,6 @@ pex_tree::pex_tree(pex_tree_config const config)
         config.query_num_errors,
         null_id
     );
-
-    size_t const first_leaf_query_length = leaves[0].query_length();
-    for (auto const& leaf : leaves) {
-        if (leaf.query_length() != first_leaf_query_length) {
-            fmt::println(stderr, "[WARNING] PEX tree leaves with different sizes");
-        }
-    }
-
-    actual_leaf_query_length = first_leaf_query_length;
 }
 
 size_t pex_tree::node::query_length() const {
@@ -38,13 +26,11 @@ std::vector<std::map<size_t, verification::query_alignment>> pex_tree::search(
     fmindex const& index
 ) const {
     auto const leaf_queries = generate_leaf_queries(fastq_query);
-    // FIX LATER for now assume every leaf has the same length
-    auto const& search_scheme = scheme_cache.get(actual_leaf_query_length);
     
     auto const hits = search::search_leaf_queries(
         leaf_queries,
         index,
-        search_scheme,
+        scheme_cache,
         references.size()
     );
 
@@ -79,7 +65,7 @@ void pex_tree::add_nodes(
     size_t const num_errors, 
     size_t const parent_id
 ) {
-    // is this the correct meaning of this variable?
+    // not sure that this name is the correct meaning of this value from the book
     size_t const num_leafs_left = ceil_div(num_errors + 1, 2);
 
     node const curr_node = {
@@ -89,11 +75,7 @@ void pex_tree::add_nodes(
         num_errors
     };
 
-    if (num_errors <= leaf_num_errors) {
-        if (num_errors != leaf_num_errors) {
-            fmt::println(stderr, "[WARNING] PEX leaf query with smaller number of errors");
-        }
-
+    if (num_errors <= leaf_max_num_errors) {
         leaves.push_back(curr_node);
     } else {
         size_t const curr_node_id = inner_nodes.size();
@@ -116,15 +98,15 @@ void pex_tree::add_nodes(
     }
 }
 
-std::vector<std::span<const uint8_t>> pex_tree::generate_leaf_queries(
+std::vector<search::query> pex_tree::generate_leaf_queries(
     std::span<const uint8_t> const& full_query
 ) const {
-    std::vector<std::span<const uint8_t>> leaf_queries{};
+    std::vector<search::query> leaf_queries{};
     leaf_queries.reserve(leaves.size());
 
     for (auto const& leaf : leaves) {
         auto const leaf_query_span = full_query.subspan(leaf.query_index_from, leaf.query_length());
-        leaf_queries.emplace_back(std::move(leaf_query_span));
+        leaf_queries.emplace_back(std::move(leaf_query_span), leaf.num_errors);
     }   
 
     return leaf_queries;
