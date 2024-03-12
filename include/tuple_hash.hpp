@@ -30,7 +30,3 @@ struct std::hash<std::tuple<Ts...>> {
         return hash_tuple(tup, std::index_sequence_for<Ts...>());
     }
 };
-
-inline size_t ceil_div(size_t const a, size_t const b) {
-    return (a % b) ? a / b + 1 : a / b;
-}

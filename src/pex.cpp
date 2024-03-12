@@ -1,7 +1,10 @@
-#include <miscellaneous.hpp>
 #include <pex.hpp>
 
 #include <fmt/core.h>
+
+size_t ceil_div(size_t const a, size_t const b) {
+    return (a % b) ? a / b + 1 : a / b;
+}
 
 pex_tree::pex_tree(pex_tree_config const config) 
     : no_error_leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
