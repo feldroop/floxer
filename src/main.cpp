@@ -56,9 +56,15 @@ int main(int argc, char** argv) {
     for (auto const& fastq_query : fastq_queries) {
         fmt::println("query {}:", fastq_query.tag);
 
+        size_t const query_num_errors = std::isnan(opt.query_error_probability) ?
+            opt.query_num_errors : 
+            static_cast<size_t>(
+                std::ceil(fastq_query.sequence.size() * opt.query_error_probability)
+            );
+
         auto const tree_config = pex_tree_config {
             .total_query_length = fastq_query.sequence.size(),
-            .query_num_errors = opt.query_num_errors,
+            .query_num_errors = query_num_errors,
             .leaf_max_num_errors = opt.pex_leaf_num_errors
         };
 

@@ -6,7 +6,7 @@
 namespace cli {
 
 sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
-    sharg::parser parser{"floxer", argc, argv};
+    sharg::parser parser{ "floxer", argc, argv, sharg::update_notifications::off };
 
     parser.info.author = "Felix Leander Droop";
     parser.info.date = "05.02.2024";
@@ -57,14 +57,21 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
     });
     parser.add_option(opt.query_num_errors, sharg::config{
         .short_id = 'e', 
-        .long_id = "errors", 
-        .description = "The number of errors allowed in each query.",
-        .required = true,
+        .long_id = "query-errors", 
+        .description = "The number of errors allowed in each query. This is only used if no error "
+            "probability is given.",
         .validator = sharg::arithmetic_range_validator{0, 4096}
     });
-    parser.add_option(opt.pex_leaf_num_errors, sharg::config{
+    parser.add_option(opt.query_error_probability, sharg::config{
         .short_id = 'p', 
-        .long_id = "pex-leaf-errors", 
+        .long_id = "error-probability", 
+        .description = "The error probability in the queries, per base. If this is given, it is used "
+            "rather than the fixed number of errors.",
+        .validator = sharg::arithmetic_range_validator{0.00001, 0.99999}
+    });
+    parser.add_option(opt.pex_leaf_num_errors, sharg::config{
+        .short_id = 'l', 
+        .long_id = "pex-leaf-num-errors", 
         .description = "The number of errors in the leaves of the PEX tree. "
             "The seed sequences will be searched with this parameter using the FM-index.",
         .validator = sharg::arithmetic_range_validator{0, 3}
