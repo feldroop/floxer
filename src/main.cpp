@@ -15,10 +15,29 @@
 
 int main(int argc, char** argv) {
     fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
+    
+    cli::options opt;
+    try {
+        opt = cli::parse_and_validate_options(argc, argv);
+    } catch (std::exception const & e) {
+        fmt::print(stderr, "[CLI PARSER ERROR]\n{}\n", e.what());
+        return -1;
+    }
+    
+    std::vector<io::record> references;
+    try {
+        references = io::read_references(opt.reference_sequence);
+    } catch (std::exception const& e) {
+        fmt::print(
+            stderr,
+            "[INPUT ERROR]\nAn error occured while trying to read the reference from "
+            "the file {}.\n{}\n",
+            opt.reference_sequence.c_str(),
+            e.what()
+        );
+        return -1;
+    }
 
-    auto const opt = cli::parse_and_validate_options(argc, argv);
-
-    auto const references = io::read_references(opt.reference_sequence);
     fmindex index;
     if (!opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
         try {
@@ -44,11 +63,33 @@ int main(int argc, char** argv) {
         );
 
         if (!opt.index_path.empty()) {
-            io::save_index(index, opt.index_path);
+            try {
+                io::save_index(index, opt.index_path);
+            } catch (std::exception const& e) {
+                fmt::print(
+                    stderr,
+                    "[OUTPUT WARNING]\nAn error occured while trying to write the index to "
+                    "the file {}.\nContinueing without saving the index.\n{}\n",
+                    opt.index_path.c_str(),
+                    e.what()
+                );
+            }
         }
     }
 
-    auto const fastq_queries = io::read_queries(opt.queries);
+    std::vector<io::record> fastq_queries;
+    try {
+        fastq_queries = io::read_queries(opt.queries);
+    } catch (std::exception const& e) {
+        fmt::print(
+            stderr,
+            "[INPUT ERROR]\nAn error occured while trying to read the queries from "
+            "the file {}.\n{}\n",
+            opt.queries.c_str(),
+            e.what()
+        );
+        return -1;
+    }
 
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;

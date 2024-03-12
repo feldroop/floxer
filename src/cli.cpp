@@ -89,14 +89,8 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
 options parse_and_validate_options(int argc, char ** argv) {
     options opt{};
     sharg::parser cli_parser = create_cli_parser(argc, argv, opt);
-
-    try {
-        cli_parser.parse();
-    }
-    catch (sharg::parser_error const & e) {
-        fmt::print(stderr, "[CLI PARSER ERROR]\n{}\n", e.what());
-        exit(-1);
-    }
+    
+    cli_parser.parse();
 
     return opt;
 }
