@@ -106,7 +106,8 @@ hit_list search_leaf_queries(
         auto const leaf_query_single_span = leaf_queries_span.subspan(i, 1) 
             | std::views::transform(&search::query::sequence);
 
-        // if the preorder function inside fmindex search occurs in any flamegraph, we can optimize it
+        // if the preorder function inside fmindex search occurs in any perf profile, we can optimize it
+        // also, search_ng22 is for the aidditional alignment output
         fmindex_collection::search_ng21::search(
             index,
             leaf_query_single_span,

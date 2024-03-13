@@ -9,7 +9,6 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
     sharg::parser parser{ "floxer", argc, argv, sharg::update_notifications::off };
 
     parser.info.author = "Felix Leander Droop";
-    parser.info.date = "05.02.2024";
     parser.info.description = {
         "An exact longread aligner using FM-index search with optimal search schemes, "
         "the PEX hierarchical verification scheme and a highly parallel pairwise alignment implementation."
@@ -22,6 +21,7 @@ sharg::parser create_cli_parser(int argc, char ** argv, options& opt) {
         "./floxer --index hg38.index --query reads.fastq --errors 7 --output mapped_reads.bam",
     };
     parser.info.version = "0.1.0";
+    parser.info.date = "09.03.2024"; // should update with every version update
 
     parser.add_option(opt.reference_sequence, sharg::config{
         .short_id = 'r', 
