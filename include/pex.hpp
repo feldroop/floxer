@@ -36,7 +36,7 @@ public:
 
     // return[reference_id][alignment_end_position] -> alignment data
     std::vector<std::map<size_t, verification::query_alignment>> search(
-        std::vector<io::record> const& references,
+        std::vector<io::reference_record> const& references,
         std::span<const uint8_t> const fastq_query,
         search::search_scheme_cache& scheme_cache,
         fmindex const& index

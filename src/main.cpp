@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
         return -1;
     }
     
-    std::vector<io::record> references;
+    std::vector<io::reference_record> references;
     try {
         references = io::read_references(opt.reference_sequence);
     } catch (std::exception const& e) {
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
         size_t const suffix_array_sampling_rate = 16; 
 
         index = fmindex(
-            references | std::views::transform(&io::record::sequence),
+            references | std::views::transform(&io::reference_record::sequence),
             suffix_array_sampling_rate,
             opt.num_threads
         );
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::vector<io::record> fastq_queries;
+    std::vector<io::query_record> fastq_queries;
     try {
         fastq_queries = io::read_queries(opt.queries);
     } catch (std::exception const& e) {
@@ -90,20 +90,22 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    auto const output_header = io::sam_header(references);
+
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;
 
     for (auto const& fastq_query : fastq_queries) {
-        fmt::println("query {}:", fastq_query.tag);
+        fmt::println("query {}:", fastq_query.raw_tag);
 
         size_t const query_num_errors = std::isnan(opt.query_error_probability) ?
             opt.query_num_errors : 
             static_cast<size_t>(
-                std::ceil(fastq_query.sequence.size() * opt.query_error_probability)
+                std::ceil(fastq_query.sequence_length * opt.query_error_probability)
             );
 
         auto const tree_config = pex_tree_config {
-            .total_query_length = fastq_query.sequence.size(),
+            .total_query_length = fastq_query.sequence_length,
             .query_num_errors = query_num_errors,
             .leaf_max_num_errors = opt.pex_leaf_num_errors
         };
