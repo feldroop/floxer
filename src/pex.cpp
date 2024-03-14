@@ -23,7 +23,7 @@ size_t pex_tree::node::query_length() const {
 }
 
 std::vector<std::map<size_t, verification::query_alignment>> pex_tree::search(
-    std::vector<io::reference_record> const& references,
+    std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const fastq_query,
     search::search_scheme_cache& scheme_cache,
     fmindex const& index

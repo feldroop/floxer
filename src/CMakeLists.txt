@@ -12,8 +12,11 @@ target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall
 add_library (cli_lib STATIC cli.cpp)
 target_link_libraries (cli_lib PUBLIC "${PROJECT_NAME}_interface")
 
-add_library (io_lib STATIC io.cpp)
-target_link_libraries (io_lib PUBLIC "${PROJECT_NAME}_interface")
+add_library (input_lib STATIC input.cpp)
+target_link_libraries (input_lib PUBLIC "${PROJECT_NAME}_interface")
+
+add_library (output_lib STATIC output.cpp)
+target_link_libraries (output_lib PUBLIC "${PROJECT_NAME}_interface")
 
 add_library (pex_lib STATIC pex.cpp)
 target_link_libraries (pex_lib PUBLIC "${PROJECT_NAME}_interface")
@@ -29,7 +32,8 @@ target_link_libraries (
     "${PROJECT_NAME}"
     PRIVATE
     cli_lib
-    io_lib
+    input_lib
+    output_lib
     pex_lib
     search_lib
     verification_lib

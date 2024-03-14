@@ -1,6 +1,7 @@
 #include <cli.hpp>
 #include <fmindex.hpp>
-#include <io.hpp>
+#include <input.hpp>
+#include <output.hpp>
 #include <pex.hpp>
 #include <search.hpp>
 
@@ -24,9 +25,9 @@ int main(int argc, char** argv) {
         return -1;
     }
     
-    std::vector<io::reference_record> references;
+    std::vector<input::reference_record> references;
     try {
-        references = io::read_references(opt.reference_sequence);
+        references = input::read_references(opt.reference_sequence);
     } catch (std::exception const& e) {
         fmt::print(
             stderr,
@@ -41,7 +42,7 @@ int main(int argc, char** argv) {
     fmindex index;
     if (!opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
         try {
-            index = io::load_index(opt.index_path);
+            index = input::load_index(opt.index_path);
         } catch (std::exception const& e) {
             fmt::print(
                 stderr,
@@ -56,14 +57,14 @@ int main(int argc, char** argv) {
         size_t const suffix_array_sampling_rate = 16; 
 
         index = fmindex(
-            references | std::views::transform(&io::reference_record::sequence),
+            references | std::views::transform(&input::reference_record::sequence),
             suffix_array_sampling_rate,
             opt.num_threads
         );
 
         if (!opt.index_path.empty()) {
             try {
-                io::save_index(index, opt.index_path);
+                output::save_index(index, opt.index_path);
             } catch (std::exception const& e) {
                 fmt::print(
                     stderr,
@@ -76,9 +77,9 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::vector<io::query_record> fastq_queries;
+    std::vector<input::query_record> fastq_queries;
     try {
-        fastq_queries = io::read_queries(opt.queries);
+        fastq_queries = input::read_queries(opt.queries);
     } catch (std::exception const& e) {
         fmt::print(
             stderr,
@@ -90,7 +91,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    auto const output_header = io::sam_header(references);
+    auto const output_header = output::sam_header(references);
 
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;
@@ -119,6 +120,7 @@ int main(int argc, char** argv) {
         );
 
         bool found_any_alignments = false;
+        // TODO create and write .sam record here
         for (size_t reference_id = 0; reference_id < alignments.size(); ++reference_id) {
             auto const& reference_alignments = alignments[reference_id];
             
