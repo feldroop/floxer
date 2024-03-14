@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <tuple>
 #include <utility>
@@ -15,7 +16,7 @@
 namespace verification {
 
 enum class trace_t {
-    none, take_both, only_query, only_reference 
+    none, take_both_match, take_both_mismatch, only_query, only_reference 
 };
 
 struct scoring_t {
@@ -27,20 +28,45 @@ struct scoring_t {
 using score_matrix_t = std::vector<std::vector<int>>;
 using traceback_matrix_t = std::vector<std::vector<trace_t>>;
 
-char format_as(alignment_variant v) {
+char format_as(alignment_operation v) {
     switch (v) {
-        case alignment_variant::match:
-            return 'M';
+        case alignment_operation::match:
+            return '=';
         
-        case alignment_variant::deletion:
+        case alignment_operation::mismatch:
+            return 'X';
+
+        case alignment_operation::deletion:
             return 'D';
 
-        case alignment_variant::insertion:
+        case alignment_operation::insertion:
             return 'I';
         
         default:
-            return 'X';
+            throw std::runtime_error("Unexpected alignment operation");
     }
+}
+
+void cigar_sequence::add_operation(alignment_operation const operation) {
+    if (operation_blocks.empty() || operation_blocks.back().operation != operation) {
+        operation_blocks.emplace_back(operation, 1);
+    } else {
+        operation_blocks.back().count += 1;
+    }
+}
+
+void cigar_sequence::reverse() {
+    std::ranges::reverse(operation_blocks);
+}
+
+std::string cigar_sequence::to_string() const {
+    std::stringstream stream{};
+
+    for (auto const& block : operation_blocks) {
+        stream << block.count << format_as(block.operation);
+    }
+
+    return stream.str();
 }
 
 size_t query_alignment::length_in_reference() {
@@ -82,25 +108,30 @@ std::string format_as(query_alignment const& alignment) {
         alignment.start_in_reference,
         alignment.end_in_reference,
         alignment.num_errors,
-        alignment.alignment
+        alignment.cigar.to_string()
     );
 }
 
-std::vector<alignment_variant> alignment_from_string(std::string const& s) {
-    std::vector<alignment_variant> alignment{};
+std::vector<alignment_operation> alignment_from_string(std::string const& s) {
+    std::vector<alignment_operation> alignment{};
 
     for (char const c : s) {
         switch (c) {
             case 'M':
-                alignment.push_back(alignment_variant::match);
+            case '=':
+                alignment.push_back(alignment_operation::match);
                 break;
             
+            case 'X':
+                alignment.push_back(alignment_operation::mismatch);
+                break;
+
             case 'I':
-                alignment.push_back(alignment_variant::insertion);
+                alignment.push_back(alignment_operation::insertion);
                 break;
 
             case 'D':
-                alignment.push_back(alignment_variant::deletion);
+                alignment.push_back(alignment_operation::deletion);
                 break;
 
             default:
@@ -200,7 +231,8 @@ bool alignment_output_gatekeeper::add_alignment_if_its_useful(
             .start_in_reference = reference_span_start_offset + reference_span_alignment.start_in_reference,
             .end_in_reference = reference_span_start_offset + reference_span_alignment.end_in_reference,
             .num_errors = reference_span_alignment.num_errors,
-            .alignment = std::move(reference_span_alignment.alignment)
+            .score = reference_span_alignment.score,
+            .cigar = std::move(reference_span_alignment.cigar)
         }
     );
 
@@ -258,7 +290,7 @@ void fill_matrices(
 
             if (take_both_score > score) {
                 score = take_both_score;
-                trace = trace_t::take_both;
+                trace = query[i] == reference[j] ? trace_t::take_both_match : trace_t::take_both_mismatch;
             }
             
             if (take_only_reference_score > score) {
@@ -290,23 +322,29 @@ query_alignment traceback(
     size_t i = traceback_matrix.size() - 1;
     size_t j = traceback_start_index;
     trace_t trace = traceback_matrix[i][j];
-    std::vector<alignment_variant> alignment{};
+    cigar_sequence cigar;
 
     while (trace != trace_t::none) {
         switch (trace) {
-            case trace_t::take_both:
-                alignment.push_back(alignment_variant::match);
+            case trace_t::take_both_match:
+                cigar.add_operation(alignment_operation::match);
+                --i;
+                --j;
+                break;
+            
+            case trace_t::take_both_mismatch:
+                cigar.add_operation(alignment_operation::mismatch);
                 --i;
                 --j;
                 break;
 
             case trace_t::only_query:
-                alignment.push_back(alignment_variant::insertion);
+                cigar.add_operation(alignment_operation::insertion);
                 --i;
                 break;
 
             case trace_t::only_reference:
-                alignment.push_back(alignment_variant::deletion);
+                cigar.add_operation(alignment_operation::deletion);
                 --j;
                 break;
             
@@ -317,13 +355,14 @@ query_alignment traceback(
         trace = traceback_matrix[i][j];
     }
 
-    std::ranges::reverse(alignment);
+    cigar.reverse();
 
     return query_alignment {
         .start_in_reference = j,
         .end_in_reference = traceback_start_index,
         .num_errors = num_errors,
-        .alignment = alignment
+        .score = -static_cast<int64_t>(num_errors),
+        .cigar = cigar
     };
 }
 

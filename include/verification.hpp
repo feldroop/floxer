@@ -10,14 +10,30 @@
 
 namespace verification {
 
-enum class alignment_variant {
-    match, deletion, insertion
+enum class alignment_operation {
+    match, mismatch, deletion, insertion
 };
 
-char format_as(alignment_variant v);
+char format_as(alignment_operation v);
 
 enum class alignment_quality_comparison {
     unrelated, equal, better, worse
+};
+
+class cigar_sequence {
+    struct operation_block {
+        alignment_operation operation;
+        size_t count;
+    };
+
+    std::vector<operation_block> operation_blocks;
+
+public:
+    void add_operation(alignment_operation const operation);
+
+    void reverse();
+
+    std::string to_string() const;
 };
 
 struct query_alignment {
@@ -25,10 +41,8 @@ struct query_alignment {
     size_t start_in_reference;
     size_t end_in_reference;
     size_t num_errors;
-
-    // the terminolgy ov the alignment variants refers is from the perspective of the query
-    // e.g. deletion -> deletion in the query
-    std::vector<alignment_variant> alignment;
+    int64_t score;
+    cigar_sequence cigar;
 
     size_t length_in_reference();
 
@@ -40,7 +54,7 @@ struct query_alignment {
 
 std::string format_as(query_alignment const& alignment);
 
-std::vector<alignment_variant> alignment_from_string(std::string const& s);
+std::vector<alignment_operation> alignment_from_string(std::string const& s);
 
 // important invariant: there are only useful (locally optimal) alignments stored in this class
 // the other job of this class is to transform the indices of the computed alignment for a span
