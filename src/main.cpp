@@ -53,7 +53,6 @@ int main(int argc, char** argv) {
             return -1;
         }
     } else {
-        // FIGURE OUT LATER what are good values for my use case?
         size_t const suffix_array_sampling_rate = 16; 
 
         index = fmindex(
