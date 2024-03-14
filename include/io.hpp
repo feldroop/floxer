@@ -36,7 +36,7 @@ fmindex load_index(std::filesystem::path const& _index_path);
 // ---------- sam output ----------
 struct file_level_metadata_t {
     std::string const version = "1.6"; // VN
-    // no alignement sorting order for now, because floxwer only does grouping
+    // no alignement sorting order for now, because floxer only does grouping
     std::string const alignment_grouping = "query"; // GO
 
     template<class Stream>
