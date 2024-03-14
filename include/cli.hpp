@@ -17,6 +17,6 @@ struct options {
     size_t num_threads = 1;
 };
 
-options parse_and_validate_options(int argc, char ** argv);
+options parse_and_validate_options(int argc, char** argv);
 
 } // namespace cli
