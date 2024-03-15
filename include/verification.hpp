@@ -11,7 +11,7 @@
 namespace verification {
 
 enum class alignment_operation {
-    match, mismatch, deletion, insertion
+    match, mismatch, deletion_from_reference, insertion_to_reference
 };
 
 char format_as(alignment_operation v);
@@ -84,9 +84,9 @@ public:
 //     - at most one for each position
 //           (anchor is alignment end, TODO maybe make it the start)
 //     - must have at most num_allowed_errors errors
-//     - there is no directly neighboring alignment with strictly better score
+//     - there is no locally better alignment
 //     - in case of multiple alignment per position apply the tiebreaking:
-//           mismatch > insertion into query > deletion from query
+//           mismatch > insertion to reference > deletion from from reference
 bool align_query(
     std::span<const uint8_t> reference,
     std::span<const uint8_t> query,

@@ -36,10 +36,10 @@ char format_as(alignment_operation v) {
         case alignment_operation::mismatch:
             return 'X';
 
-        case alignment_operation::deletion:
+        case alignment_operation::deletion_from_reference:
             return 'D';
 
-        case alignment_operation::insertion:
+        case alignment_operation::insertion_to_reference:
             return 'I';
         
         default:
@@ -127,11 +127,11 @@ std::vector<alignment_operation> alignment_from_string(std::string const& s) {
                 break;
 
             case 'I':
-                alignment.push_back(alignment_operation::insertion);
+                alignment.push_back(alignment_operation::insertion_to_reference);
                 break;
 
             case 'D':
-                alignment.push_back(alignment_operation::deletion);
+                alignment.push_back(alignment_operation::deletion_from_reference);
                 break;
 
             default:
@@ -279,23 +279,28 @@ void fill_matrices(
         for (size_t j = 0; j < reference.size(); ++j) {
             int const take_only_reference_score = score_matrix[i + 1][j] + scoring.gap_score;      
             int const take_only_query_score = score_matrix[i][j + 1] + scoring.gap_score;      
-            int const take_both_score = score_matrix[i][j] +
-                (query[i] == reference[j] ? scoring.match_score : scoring.mismatch_score);
+            
+            int score = score_matrix[i][j];
+            trace_t trace;
+            if (query[i] == reference[j]) {
+                score += scoring.match_score;
+                trace = trace_t::take_both_match;
+            } else {
+                score += scoring.mismatch_score;
+                trace = trace_t::take_both_mismatch;
+            }
 
             // the order of comparison guarantees the shortest alignment
             // regarding span over the reference:
-            // first insertion in query, then match/mismatch, then delete
-            int score = take_only_query_score;
-            trace_t trace = trace_t::only_query;
-
-            if (take_both_score > score) {
-                score = take_both_score;
-                trace = query[i] == reference[j] ? trace_t::take_both_match : trace_t::take_both_mismatch;
-            }
-            
+            // first mismatch, then referernce insertion, then reference deletion
             if (take_only_reference_score > score) {
                 score = take_only_reference_score;
                 trace = trace_t::only_reference;
+            }
+            
+            if (take_only_query_score > score) {
+                score = take_only_reference_score;
+                trace = trace_t::only_query;
             }
 
             score_matrix[i + 1][j + 1] = score;
@@ -339,12 +344,12 @@ query_alignment traceback(
                 break;
 
             case trace_t::only_query:
-                cigar.add_operation(alignment_operation::insertion);
+                cigar.add_operation(alignment_operation::deletion_from_reference);
                 --i;
                 break;
 
             case trace_t::only_reference:
-                cigar.add_operation(alignment_operation::deletion);
+                cigar.add_operation(alignment_operation::insertion_to_reference);
                 --j;
                 break;
             
