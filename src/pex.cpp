@@ -44,7 +44,7 @@ std::vector<std::map<size_t, verification::query_alignment>> pex_tree::search(
 
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            auto const reference = std::span<const uint8_t>(references[reference_id].sequence);
+            auto const reference = std::span<const uint8_t>(references[reference_id].rank_sequence);
             auto & references_alignments = alignments[reference_id];
 
             for (auto const& hit : hits[leaf_query_id][reference_id]) {

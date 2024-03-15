@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         size_t const suffix_array_sampling_rate = 16; 
 
         index = fmindex(
-            references | std::views::transform(&input::reference_record::sequence),
+            references | std::views::transform(&input::reference_record::rank_sequence),
             suffix_array_sampling_rate,
             opt.num_threads
         );
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    auto const output_header = output::sam_header(references);
+    auto sam_output = output::sam_output(opt.output_path, references);
 
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;
@@ -108,28 +108,26 @@ int main(int argc, char** argv) {
         auto const& tree = tree_cache.get(tree_config);
         auto const alignments = tree.search(
             references,
-            fastq_query.sequence,
+            fastq_query.rank_sequence,
             scheme_cache,
             index
         );
 
-        bool found_any_alignments = false;
-        // TODO create and write .sam record here
-        for (size_t reference_id = 0; reference_id < alignments.size(); ++reference_id) {
-            auto const& reference_alignments = alignments[reference_id];
-            
-            if (!reference_alignments.empty()) {
-                fmt::println("\tto reference {}", reference_id);
-                found_any_alignments = true;
-            }
-
-            for (auto const& alignment : std::views::values(reference_alignments)) {
-                fmt::println("\t\t- {}", alignment);
-            }
-        }
-
-        if (!found_any_alignments) {
-            fmt::println("\t found no alignments");
+        try {
+            sam_output.output_for_query(
+                fastq_query,
+                references,
+                alignments
+            );
+        } catch (std::exception const& e) {
+            fmt::print(
+            stderr,
+                "[OUTPUT ERROR]\nAn error occured while trying to write the alignments to "
+                "the file {}.\n{}\n",
+                opt.output_path.c_str(),
+                e.what()
+            );
+            return -1;
         }
     }
 

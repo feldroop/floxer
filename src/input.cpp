@@ -106,9 +106,10 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
         std::string const raw_tag(record_view.id);
         std::string const sam_format_sanitized_name = sanitize_query_name_for_sam(raw_tag);
         std::string const quality(record_view.qual);
-        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
+        std::string const char_sequence(record_view.seq);
+        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
 
-        auto const result = ivs::verify_rank(sequence);
+        auto const result = ivs::verify_rank(rank_sequence);
         if (result.has_value()) {
             size_t const position = result.value();
 
@@ -118,17 +119,18 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
                 "due to the invalid character {} "
                 "at position {}.\n",
                 record_view.id,
-                sequence[position],
+                char_sequence[position],
                 position
             );
 
             continue;
         }
-        size_t const sequence_length = sequence.size();
+        size_t const sequence_length = char_sequence.size();
         records.emplace_back(
             std::move(raw_tag),
             std::move(sam_format_sanitized_name),
-            std::move(sequence),
+            std::move(rank_sequence),
+            std::move(char_sequence),
             std::move(quality),
             sequence_length
         );
