@@ -97,13 +97,7 @@ int main(int argc, char** argv) {
     pex_tree_cache tree_cache;
 
     for (auto const& fastq_query : fastq_queries) {
-        fmt::println("query {}:", fastq_query.raw_tag);
-
-        size_t const query_num_errors = std::isnan(opt.query_error_probability) ?
-            opt.query_num_errors : 
-            static_cast<size_t>(
-                std::ceil(fastq_query.sequence_length * opt.query_error_probability)
-            );
+        size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
 
         auto const tree_config = pex_tree_config {
             .total_query_length = fastq_query.sequence_length,

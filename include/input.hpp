@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cli.hpp>
 #include <fmindex.hpp>
 
 #include <cstdint>
@@ -22,6 +23,8 @@ struct query_record {
     std::vector<uint8_t> const sequence;
     std::string const quality;
     size_t const sequence_length;
+
+    size_t num_errors_from_user_config(cli::options const& opt) const;
 };
 
 std::vector<reference_record> read_references(std::filesystem::path const& reference_sequence_path);
