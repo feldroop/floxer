@@ -70,7 +70,7 @@ options parse_and_validate_options(int argc, char ** argv) {
         .long_id = query_num_erros_long, 
         .description = "The number of errors allowed in each query. This is only used if no error "
             "probability is given. Either this or an error probability must be given.",
-            .default_message = "", // TODO this doesn't work
+            .default_message = "no default",
         .validator = sharg::arithmetic_range_validator{0, 4096}
     });
 
@@ -82,7 +82,7 @@ options parse_and_validate_options(int argc, char ** argv) {
         .description = "The error probability in the queries, per base. If this is given, it is used "
             "rather than the fixed number of errors. Either this or a fixed number of errors must be "
             "given.",
-        .default_message = "", // TODO this doesn't work
+        .default_message = "no default",
         .validator = sharg::arithmetic_range_validator{0.00001, 0.99999}
     });
 
