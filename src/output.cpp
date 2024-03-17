@@ -197,13 +197,12 @@ sam_output::sam_output(
 void sam_output::output_for_query(
     input::query_record const& fastq_query,
     std::vector<input::reference_record> const& references,
-    std::vector<std::map<size_t, verification::query_alignment>> const& alignments
+    verification::fastq_query_alignments const& alignments
 ) {
     bool found_any_alignments = false;
-    bool is_first_alignment = true;
 
-    for (size_t reference_id = 0; reference_id < alignments.size(); ++reference_id) {
-        auto const& reference_alignments = alignments[reference_id];
+    for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+        auto const& reference_alignments = alignments.for_reference(reference_id);
         auto const& reference = references[reference_id];
     
         if (!reference_alignments.empty()) {
@@ -215,7 +214,8 @@ void sam_output::output_for_query(
                 | sam_alignment::first_segment
                 | sam_alignment::last_segment;
             
-            if (!is_first_alignment) {
+            bool const is_primary_alignment = alignments.is_primary_alignment(alignment);
+            if (!is_primary_alignment) {
                 flag |= sam_alignment::secondary_alignment;
             }
 
@@ -229,12 +229,10 @@ void sam_output::output_for_query(
                 .rnext = string_field_not_available_marker, // floxer assumes single segment template
                 .pnext = int_field_not_available_marker, // floxer assumes single segment template
                 .tlen = int_field_not_available_marker, // floxer assumes single segment template
-                .seq = is_first_alignment ? fastq_query.char_sequence : string_field_not_available_marker,
-                .qual = is_first_alignment ? fastq_query.quality : string_field_not_available_marker,
+                .seq = is_primary_alignment ? fastq_query.char_sequence : string_field_not_available_marker,
+                .qual = is_primary_alignment ? fastq_query.quality : string_field_not_available_marker,
                 .custom_field_edit_distance = alignment.num_errors
             };
-
-            is_first_alignment = false;
         }
     }
 
@@ -253,8 +251,8 @@ void sam_output::output_for_query(
             .rnext = string_field_not_available_marker, // floxer assumes single segment template
             .pnext = int_field_not_available_marker, // floxer assumes single segment template
             .tlen = int_field_not_available_marker, // floxer assumes single segment template
-            .seq = is_first_alignment ? fastq_query.char_sequence : string_field_not_available_marker,
-            .qual = is_first_alignment ? fastq_query.quality : string_field_not_available_marker,
+            .seq = fastq_query.char_sequence,
+            .qual = fastq_query.quality,
             .custom_field_edit_distance = edit_distance_not_available_marker
         };
     }

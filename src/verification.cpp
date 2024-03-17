@@ -102,16 +102,6 @@ alignment_quality_comparison query_alignment::local_quality_comparison_versus(
     return potential_comparison;
 }
 
-std::string format_as(query_alignment const& alignment) {
-    return fmt::format(
-        "[{}, {}), {} errors, {}",
-        alignment.start_in_reference,
-        alignment.end_in_reference,
-        alignment.num_errors,
-        alignment.cigar.to_string()
-    );
-}
-
 std::vector<alignment_operation> alignment_from_string(std::string const& s) {
     std::vector<alignment_operation> alignment{};
 
@@ -150,19 +140,80 @@ scoring_t edit_distance() {
     };
 }
 
-bool alignment_output_gatekeeper::add_alignment_if_its_useful(
+fastq_query_alignments::fastq_query_alignments(size_t const num_references)
+    : alignments_per_reference(num_references) {}
+
+alignment_insertion_gatekeeper fastq_query_alignments::get_insertion_gatekeeper(
+    size_t const reference_id,
+    size_t const reference_span_start_offset
+) {
+    return alignment_insertion_gatekeeper(
+        reference_id,
+        reference_span_start_offset,
+        *this
+    );
+}
+
+bool fastq_query_alignments::is_primary_alignment(query_alignment const& alignment) const {
+    if (!primary_alignment_end_position.has_value() || !primary_alignment_reference_id.has_value()) {
+        return false;
+    }
+
+    return alignment.reference_id == primary_alignment_reference_id.value() &&
+        alignment.end_in_reference == primary_alignment_end_position.value();
+}
+
+void fastq_query_alignments::update_primary_alignment(query_alignment const& new_alignment) {
+    if (
+        !primary_alignment_score.has_value() ||
+        !primary_alignment_end_position.has_value() ||
+        !primary_alignment_reference_id.has_value() ||
+        primary_alignment_score.value() < new_alignment.score ||
+        (
+            primary_alignment_score.value() == new_alignment.score &&
+            primary_alignment_end_position.value() > new_alignment.end_in_reference
+        ) ||
+        (
+            primary_alignment_score.value() == new_alignment.score &&
+            primary_alignment_end_position.value() == new_alignment.end_in_reference &&
+            primary_alignment_reference_id.value() > new_alignment.reference_id
+        )
+    ) {
+        primary_alignment_score = new_alignment.score;
+        primary_alignment_end_position = new_alignment.end_in_reference;
+        primary_alignment_reference_id = new_alignment.reference_id;
+    }
+}
+
+fastq_query_alignments::reference_alignments const& fastq_query_alignments::for_reference(
+    size_t const reference_id
+) const {
+    return alignments_per_reference[reference_id];
+}
+
+alignment_insertion_gatekeeper::alignment_insertion_gatekeeper(
+    size_t const reference_id_,
+    size_t const reference_span_start_offset_,
+    fastq_query_alignments& useful_existing_alignments_
+) : reference_id{reference_id_}, reference_span_start_offset{reference_span_start_offset_},
+    useful_existing_alignments{useful_existing_alignments_} {}
+
+bool alignment_insertion_gatekeeper::insert_alignment_if_its_useful(
     size_t const candidate_reference_span_end_position,
     size_t const candidate_num_erros,
     std::function<query_alignment()> const compute_alignment_to_reference_span
 ) {
+    auto& this_reference_existing_alignments = 
+        useful_existing_alignments.alignments_per_reference[this->reference_id];
+
     size_t const candidate_end_in_full_reference =
         reference_span_start_offset + candidate_reference_span_end_position;
     
     std::optional<size_t> worse_to_the_right_key = std::nullopt;
 
     // first check to the right
-    auto iter = useful_existing_alignments.lower_bound(candidate_end_in_full_reference);
-    if (iter != useful_existing_alignments.end()) {
+    auto iter = this_reference_existing_alignments.lower_bound(candidate_end_in_full_reference);
+    if (iter != this_reference_existing_alignments.end()) {
         // this alignment might be at the exact same position or to the right of the candidate
         auto const& existing_alignment = iter->second;
         auto const existing_alignment_quality_ordering = existing_alignment.local_quality_comparison_versus(
@@ -189,7 +240,7 @@ bool alignment_output_gatekeeper::add_alignment_if_its_useful(
 
     bool found_worse_to_the_left = false;
     // now check the left
-    if (iter != useful_existing_alignments.begin()) {
+    if (iter != this_reference_existing_alignments.begin()) {
         --iter;
         // this alignment is to the left of the candidate
         auto const& existing_alignment = iter->second;
@@ -217,24 +268,28 @@ bool alignment_output_gatekeeper::add_alignment_if_its_useful(
     }
 
     if (found_worse_to_the_left) {
-        useful_existing_alignments.erase(iter);
+        this_reference_existing_alignments.erase(iter);
     }
 
     if (worse_to_the_right_key.has_value()) {
-        useful_existing_alignments.erase(worse_to_the_right_key.value());
+        this_reference_existing_alignments.erase(worse_to_the_right_key.value());
     }
 
     auto reference_span_alignment = compute_alignment_to_reference_span();
-    useful_existing_alignments.emplace(
+
+    auto [inserted_iter, _] = this_reference_existing_alignments.emplace(
         candidate_end_in_full_reference,
         query_alignment {
             .start_in_reference = reference_span_start_offset + reference_span_alignment.start_in_reference,
             .end_in_reference = reference_span_start_offset + reference_span_alignment.end_in_reference,
+            .reference_id = this->reference_id,
             .num_errors = reference_span_alignment.num_errors,
             .score = reference_span_alignment.score,
             .cigar = std::move(reference_span_alignment.cigar)
         }
     );
+
+    useful_existing_alignments.update_primary_alignment(inserted_iter->second);
 
     return true;
 }
@@ -363,8 +418,9 @@ query_alignment traceback(
     cigar.reverse();
 
     return query_alignment {
-        .start_in_reference = j,
-        .end_in_reference = traceback_start_index,
+        .start_in_reference = j, // will be transformed by insertion gatekeeper
+        .end_in_reference = traceback_start_index, // will be transformed by insertion gatekeeper
+        .reference_id = 0, // will be overridden by insertion gatekeeper
         .num_errors = num_errors,
         .score = -static_cast<int64_t>(num_errors),
         .cigar = cigar
@@ -375,7 +431,7 @@ void collect_and_write_alignments(
     score_matrix_t const& score_matrix,
     traceback_matrix_t const& traceback_matrix,
     size_t const num_allowed_errors,
-    alignment_output_gatekeeper& alignment_gatekeeper
+    alignment_insertion_gatekeeper& alignment_gatekeeper
 ) {
     auto const& last_row_scores = score_matrix.back();
 
@@ -395,7 +451,7 @@ void collect_and_write_alignments(
             continue;
         }
 
-        alignment_gatekeeper.add_alignment_if_its_useful(i, curr_num_errors, [&] () {
+        alignment_gatekeeper.insert_alignment_if_its_useful(i, curr_num_errors, [&] () {
             return traceback(i, traceback_matrix, curr_num_errors);
         });
     }
@@ -406,7 +462,7 @@ bool align_query(
     std::span<const uint8_t> const query,
     size_t const num_allowed_errors,
     bool const output_alignments,
-    alignment_output_gatekeeper& alignment_gatekeeper
+    alignment_insertion_gatekeeper& alignment_gatekeeper
 ) {
     if (reference.empty() || query.empty()) {
         throw std::runtime_error("Empty sequences for verification alignment not allowed.");

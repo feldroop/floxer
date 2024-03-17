@@ -34,8 +34,7 @@ public:
         size_t query_length() const;
     };
 
-    // return[reference_id][alignment_end_position] -> alignment data
-    std::vector<std::map<size_t, verification::query_alignment>> search(
+    verification::fastq_query_alignments search(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const fastq_query,
         search::search_scheme_cache& scheme_cache,
@@ -67,8 +66,8 @@ private:
         search::hit const& hit,
         size_t const leaf_query_id,
         std::span<const uint8_t> const fastq_query,
-        std::span<const uint8_t> const reference,
-        std::map<size_t, verification::query_alignment>& reference_alignments
+        input::reference_record const& reference,
+        verification::fastq_query_alignments& alignments
     ) const;
 };
 

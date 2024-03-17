@@ -22,7 +22,7 @@ size_t pex_tree::node::query_length() const {
     return query_index_to - query_index_from + 1;
 }
 
-std::vector<std::map<size_t, verification::query_alignment>> pex_tree::search(
+verification::fastq_query_alignments pex_tree::search(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const fastq_query,
     search::search_scheme_cache& scheme_cache,
@@ -37,23 +37,19 @@ std::vector<std::map<size_t, verification::query_alignment>> pex_tree::search(
         references.size()
     );
 
-    // alignments[reference_id][end_position] -> alignment of fastq query to this reference
-    std::vector<std::map<size_t, verification::query_alignment>> alignments(
+    verification::fastq_query_alignments alignments(
         references.size()
     );
 
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            auto const reference = std::span<const uint8_t>(references[reference_id].rank_sequence);
-            auto & references_alignments = alignments[reference_id];
-
             for (auto const& hit : hits[leaf_query_id][reference_id]) {
                 hierarchical_verification(
                     hit,
                     leaf_query_id,
                     fastq_query,
-                    reference,
-                    references_alignments
+                    references[reference_id],
+                    alignments
                 );
             }
         }
@@ -119,9 +115,11 @@ void pex_tree::hierarchical_verification(
     search::hit const& hit,
     size_t const leaf_query_id,
     std::span<const uint8_t> const fastq_query,
-    std::span<const uint8_t> const reference,
-    std::map<size_t, verification::query_alignment>& reference_alignments
+    input::reference_record const& reference,
+    verification::fastq_query_alignments& alignments
 ) const {    
+    auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
+
     // this depends on the implementation of generate_leave_queries returning the
     // leaf queries in the same order as the leaves (which it should always do!)
     auto pex_node = leaves.at(leaf_query_id);
@@ -135,7 +133,7 @@ void pex_tree::hierarchical_verification(
         size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
         size_t const reference_span_length = std::min(
             pex_node.query_length() + 2 * pex_node.num_errors + 1,
-            reference.size() - reference_span_start
+            full_reference_span.size() - reference_span_start
         );
         auto const& this_node_query = fastq_query.subspan(
             pex_node.query_index_from,
@@ -144,16 +142,16 @@ void pex_tree::hierarchical_verification(
 
         bool const curr_node_is_root = pex_node.parent_id == null_id;
 
-        auto alignments_wrapper = verification::alignment_output_gatekeeper(
-            reference_span_start, reference_alignments
+        auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
+            reference.id, reference_span_start
         );
 
         bool const query_found = verification::align_query(
-            reference.subspan(reference_span_start, reference_span_length),
+            full_reference_span.subspan(reference_span_start, reference_span_length),
             this_node_query,
             pex_node.num_errors,
             curr_node_is_root,
-            alignments_wrapper // useful alignments are written into this
+            alignment_insertion_gatekeeper // useful alignments are written into this
         );
 
         if (!query_found || curr_node_is_root) {

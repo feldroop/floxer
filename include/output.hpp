@@ -27,7 +27,7 @@ public:
     void output_for_query(
         input::query_record const& fastq_query,
         std::vector<input::reference_record> const& references,
-        std::vector<std::map<size_t, verification::query_alignment>> const& alignments
+        verification::fastq_query_alignments const& alignments
     );
 };
 

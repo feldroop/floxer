@@ -65,6 +65,7 @@ std::string sanitize_query_name_for_sam(std::string const& query_name) {
 std::vector<reference_record> read_references(std::filesystem::path const& reference_sequence_path) {
     std::vector<reference_record> records{};
     
+    size_t id = 0;
     for (auto const record_view : ivio::fasta::reader{{ .input = reference_sequence_path }}) {
         std::string const raw_tag(record_view.id);
         std::string const sam_format_sanitized_name = sanitize_reference_name_for_sam(raw_tag);
@@ -89,11 +90,14 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
 
         size_t const sequence_length = sequence.size();
         records.emplace_back(
+            id,
             std::move(raw_tag),
             std::move(sam_format_sanitized_name),
             std::move(sequence),
             sequence_length
         );
+
+        ++id;
     }
 
     return records;
@@ -102,6 +106,7 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
 std::vector<query_record> read_queries(std::filesystem::path const& queries_path) {
     std::vector<query_record> records{};
 
+    size_t id = 0;
     for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
         std::string const raw_tag(record_view.id);
         std::string const sam_format_sanitized_name = sanitize_query_name_for_sam(raw_tag);
@@ -127,6 +132,7 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
         }
         size_t const sequence_length = char_sequence.size();
         records.emplace_back(
+            id,
             std::move(raw_tag),
             std::move(sam_format_sanitized_name),
             std::move(rank_sequence),
@@ -134,6 +140,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
             std::move(quality),
             sequence_length
         );
+
+        ++id;
     }
 
     return records;

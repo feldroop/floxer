@@ -11,6 +11,7 @@
 namespace input {
 
 struct reference_record {
+    size_t const id;
     std::string const raw_tag;
     std::string const sam_format_sanitized_name;
     std::vector<uint8_t> const rank_sequence;
@@ -18,6 +19,7 @@ struct reference_record {
 };
 
 struct query_record {
+    size_t const id;
     std::string const raw_tag;
     std::string const sam_format_sanitized_name;
     std::vector<uint8_t> const rank_sequence;
