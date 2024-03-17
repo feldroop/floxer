@@ -5,6 +5,7 @@
 #include <pex.hpp>
 #include <search.hpp>
 
+#include <atomic>
 #include <exception>
 #include <filesystem>
 #include <ranges>
@@ -62,7 +63,11 @@ int main(int argc, char** argv) {
             return -1;
         }
     } else {
-        fmt::println(" --> building index ... ");
+        fmt::println(
+            " --> building index with {} thread{} ... ",
+            opt.num_threads,
+            opt.num_threads == 1 ? "" : "s"
+        );
 
         size_t constexpr suffix_array_sampling_rate = 16; 
         index = fmindex(
@@ -115,41 +120,78 @@ int main(int argc, char** argv) {
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;
 
-    fmt::println("   --> aligning queries and writing output file to {} ... ", opt.output_path.c_str());
+    fmt::println(
+        "   --> aligning queries with {} thread{} and writing output file to {} ... ",
+        opt.num_threads,
+        opt.num_threads == 1 ? "" : "s",
+        opt.output_path.c_str()
+    );
 
-    for (auto const& fastq_query : fastq_queries) {
-        size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
+    // some workarounds for handling errors in threads
+    std::atomic_bool encountered_error = false;
+    std::vector<std::exception_ptr> exceptions{};
 
-        auto const tree_config = pex_tree_config {
-            .total_query_length = fastq_query.sequence_length,
-            .query_num_errors = query_num_errors,
-            .leaf_max_num_errors = opt.pex_leaf_num_errors
-        };
+    #pragma omp parallel for \
+        num_threads(opt.num_threads) \
+        default(none) \
+        private(tree_cache, scheme_cache) \
+        shared(fastq_queries, opt, references, index, sam_output, exceptions, encountered_error) \
+        schedule(static)
+    for (size_t i = 0; i < fastq_queries.size(); ++i) {
+        if (encountered_error) {
+            continue;
+        }
 
-        auto const& tree = tree_cache.get(tree_config);
-        auto const alignments = tree.search(
-            references,
-            fastq_query.rank_sequence,
-            scheme_cache,
-            index
-        );
+        auto const& fastq_query = fastq_queries[i];
 
         try {
+            size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
+
+            auto const tree_config = pex_tree_config {
+                .total_query_length = fastq_query.sequence_length,
+                .query_num_errors = query_num_errors,
+                .leaf_max_num_errors = opt.pex_leaf_num_errors
+            };
+
+            auto const& tree = tree_cache.get(tree_config);
+            auto const alignments = tree.search(
+                references,
+                fastq_query.rank_sequence,
+                scheme_cache,
+                index
+            );
+
+            #pragma omp critical
             sam_output.output_for_query(
                 fastq_query,
                 references,
                 alignments
             );
+
+        } catch (...) {
+            #pragma omp critical
+            exceptions.emplace_back(std::current_exception());
+
+            encountered_error = true;
+        }
+    }
+
+    for (auto const& e : exceptions) {
+        try {
+            std::rethrow_exception(e);
         } catch (std::exception const& e) {
             fmt::print(
-            stderr,
-                "[OUTPUT ERROR]\nAn error occured while trying to write the alignments to "
-                "the file {}.\n{}\n",
+                stderr,
+                "[ERROR]\nAn error occured while a thread was aligning reads or writing output to "
+                "the file {}.\n The output file is likely incomplete and invalid.\n{}\n",
                 opt.output_path.c_str(),
                 e.what()
             );
-            return -1;
         }
+    } 
+
+    if (!exceptions.empty()) {
+        return -1;
     }
 
     fmt::println("        ... done.");

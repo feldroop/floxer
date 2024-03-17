@@ -7,7 +7,7 @@ target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE fmindex-collection:
 target_link_libraries("${PROJECT_NAME}_interface" INTERFACE fmt::fmt)
 target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../include")
 target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../lib/fmt/include")
-target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra")
+target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra" "-fopenmp")
 
 add_library (cli_lib STATIC cli.cpp)
 target_link_libraries (cli_lib PUBLIC "${PROJECT_NAME}_interface")
@@ -37,4 +37,5 @@ target_link_libraries (
     pex_lib
     search_lib
     verification_lib
+    -fopenmp
 )
