@@ -43,6 +43,7 @@ struct query_alignment {
     size_t reference_id;
     size_t num_errors;
     int64_t score;
+    bool is_reverse_complement;
     cigar_sequence cigar;
 
     size_t length_in_reference();
@@ -77,7 +78,8 @@ public:
 
     alignment_insertion_gatekeeper get_insertion_gatekeeper(
         size_t const reference_id,
-        size_t const reference_span_start_offset
+        size_t const reference_span_start_offset,
+        bool const is_reverse_complement
     );
 
     reference_alignments const& for_reference(size_t const reference_id) const;
@@ -97,11 +99,13 @@ private:
 class alignment_insertion_gatekeeper {
     size_t const reference_id;
     size_t const reference_span_start_offset;
+    bool const is_reverse_complement;
     fastq_query_alignments& useful_existing_alignments;
 public:
     alignment_insertion_gatekeeper(
         size_t const reference_id_,
         size_t const reference_span_start_offset_,
+        bool const is_reverse_complement,
         fastq_query_alignments& useful_existing_alignments_
     );
 

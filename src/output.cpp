@@ -130,7 +130,7 @@ struct sam_alignment {
     static constexpr info_flag each_segment_properly_aligned = info_flag { .raw_value = 2u };
     static constexpr info_flag unmapped = info_flag { .raw_value = 4u };
     // static constexpr info_flag next_unmapped = info_flag { .raw_value = 8u };
-    // static constexpr info_flag seq_reverse_complemented = info_flag { .raw_value = 16u };
+    static constexpr info_flag seq_reverse_complemented = info_flag { .raw_value = 16u };
     // static constexpr info_flag next_seq_reverse_complemented = info_flag { .raw_value = 32u };
     static constexpr info_flag first_segment = info_flag { .raw_value = 64u };
     static constexpr info_flag last_segment = info_flag { .raw_value = 128u };
@@ -213,10 +213,14 @@ void sam_output::output_for_query(
             sam_alignment::info_flag flag = sam_alignment::each_segment_properly_aligned
                 | sam_alignment::first_segment
                 | sam_alignment::last_segment;
-            
+
             bool const is_primary_alignment = alignments.is_primary_alignment(alignment);
             if (!is_primary_alignment) {
                 flag |= sam_alignment::secondary_alignment;
+            }
+
+            if (alignment.is_reverse_complement) {
+                flag |= sam_alignment::seq_reverse_complemented;
             }
 
             output_stream << sam_alignment {
@@ -245,7 +249,7 @@ void sam_output::output_for_query(
             .qname = fastq_query.sam_format_sanitized_name, // floxer assumes single segment template
             .flag = flag.raw_value,
             .rname = string_field_not_available_marker,
-            .pos = int_field_not_available_marker, // .sam format is 1-based here
+            .pos = int_field_not_available_marker,
             .mapq = mapq_not_available_marker,
             .cigar = string_field_not_available_marker,
             .rnext = string_field_not_available_marker, // floxer assumes single segment template

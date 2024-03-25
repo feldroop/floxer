@@ -145,11 +145,13 @@ fastq_query_alignments::fastq_query_alignments(size_t const num_references)
 
 alignment_insertion_gatekeeper fastq_query_alignments::get_insertion_gatekeeper(
     size_t const reference_id,
-    size_t const reference_span_start_offset
+    size_t const reference_span_start_offset,
+    bool const is_reverse_complement
 ) {
     return alignment_insertion_gatekeeper(
         reference_id,
         reference_span_start_offset,
+        is_reverse_complement,
         *this
     );
 }
@@ -194,8 +196,11 @@ fastq_query_alignments::reference_alignments const& fastq_query_alignments::for_
 alignment_insertion_gatekeeper::alignment_insertion_gatekeeper(
     size_t const reference_id_,
     size_t const reference_span_start_offset_,
+    bool const is_reverse_complement_,
     fastq_query_alignments& useful_existing_alignments_
-) : reference_id{reference_id_}, reference_span_start_offset{reference_span_start_offset_},
+) : reference_id{reference_id_},
+    reference_span_start_offset{reference_span_start_offset_},
+    is_reverse_complement{is_reverse_complement_},
     useful_existing_alignments{useful_existing_alignments_} {}
 
 bool alignment_insertion_gatekeeper::insert_alignment_if_its_useful(
@@ -285,6 +290,7 @@ bool alignment_insertion_gatekeeper::insert_alignment_if_its_useful(
             .reference_id = this->reference_id,
             .num_errors = reference_span_alignment.num_errors,
             .score = reference_span_alignment.score,
+            .is_reverse_complement = this->is_reverse_complement,
             .cigar = std::move(reference_span_alignment.cigar)
         }
     );
@@ -423,6 +429,7 @@ query_alignment traceback(
         .reference_id = 0, // will be overridden by insertion gatekeeper
         .num_errors = num_errors,
         .score = -static_cast<int64_t>(num_errors),
+        .is_reverse_complement = false, // will be transformed by insertion gatekeeper
         .cigar = cigar
     };
 }

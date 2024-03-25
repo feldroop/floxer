@@ -4,6 +4,7 @@
 #include <output.hpp>
 #include <pex.hpp>
 #include <search.hpp>
+#include <verification.hpp>
 
 #include <atomic>
 #include <exception>
@@ -14,6 +15,8 @@
 
 #include <fmt/core.h>
 #include <fmt/ranges.h>
+
+#include <ivsigma/ivsigma.h>
 
 int main(int argc, char** argv) {
     fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
@@ -142,9 +145,8 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        auto const& fastq_query = fastq_queries[i];
-
         try {
+            auto const& fastq_query = fastq_queries[i];
             size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
 
             auto const tree_config = pex_tree_config {
@@ -152,11 +154,29 @@ int main(int argc, char** argv) {
                 .query_num_errors = query_num_errors,
                 .leaf_max_num_errors = opt.pex_leaf_num_errors
             };
-
             auto const& tree = tree_cache.get(tree_config);
-            auto const alignments = tree.search(
+
+            auto alignments = verification::fastq_query_alignments(references.size());
+
+            bool is_reverse_complement = false;
+            tree.search(
                 references,
                 fastq_query.rank_sequence,
+                alignments,
+                is_reverse_complement,
+                scheme_cache,
+                index
+            );
+
+            auto const reverse_complement_fastq_query_rank_sequence = 
+                ivs::reverse_complement_rank<ivs::d_dna4>(fastq_query.rank_sequence);
+            is_reverse_complement = true;
+
+            tree.search(
+                references,
+                reverse_complement_fastq_query_rank_sequence,
+                alignments,
+                is_reverse_complement,
                 scheme_cache,
                 index
             );
@@ -167,7 +187,6 @@ int main(int argc, char** argv) {
                 references,
                 alignments
             );
-
         } catch (...) {
             #pragma omp critical
             exceptions.emplace_back(std::current_exception());

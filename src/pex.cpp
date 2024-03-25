@@ -22,9 +22,11 @@ size_t pex_tree::node::query_length() const {
     return query_index_to - query_index_from + 1;
 }
 
-verification::fastq_query_alignments pex_tree::search(
+void pex_tree::search(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const fastq_query,
+    verification::fastq_query_alignments& output_alignments,
+    bool const is_reverse_complement,
     search::search_scheme_cache& scheme_cache,
     fmindex const& index
 ) const {
@@ -37,10 +39,6 @@ verification::fastq_query_alignments pex_tree::search(
         references.size()
     );
 
-    verification::fastq_query_alignments alignments(
-        references.size()
-    );
-
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
             for (auto const& hit : hits[leaf_query_id][reference_id]) {
@@ -49,13 +47,12 @@ verification::fastq_query_alignments pex_tree::search(
                     leaf_query_id,
                     fastq_query,
                     references[reference_id],
-                    alignments
+                    output_alignments,
+                    is_reverse_complement
                 );
             }
         }
     }
-
-    return alignments;
 }
 
 void pex_tree::add_nodes(
@@ -116,7 +113,8 @@ void pex_tree::hierarchical_verification(
     size_t const leaf_query_id,
     std::span<const uint8_t> const fastq_query,
     input::reference_record const& reference,
-    verification::fastq_query_alignments& alignments
+    verification::fastq_query_alignments& alignments,
+    bool const is_reverse_complement
 ) const {    
     auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
 
@@ -143,7 +141,7 @@ void pex_tree::hierarchical_verification(
         bool const curr_node_is_root = pex_node.parent_id == null_id;
 
         auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
-            reference.id, reference_span_start
+            reference.id, reference_span_start, is_reverse_complement
         );
 
         bool const query_found = verification::align_query(

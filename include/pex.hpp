@@ -34,9 +34,11 @@ public:
         size_t query_length() const;
     };
 
-    verification::fastq_query_alignments search(
+    void search(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const fastq_query,
+        verification::fastq_query_alignments& output_alignments,
+        bool const is_reverse_complement,
         search::search_scheme_cache& scheme_cache,
         fmindex const& index
     ) const;
@@ -67,7 +69,8 @@ private:
         size_t const leaf_query_id,
         std::span<const uint8_t> const fastq_query,
         input::reference_record const& reference,
-        verification::fastq_query_alignments& alignments
+        verification::fastq_query_alignments& alignments,
+        bool const is_reverse_complement
     ) const;
 };
 
