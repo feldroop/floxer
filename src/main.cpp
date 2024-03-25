@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
             fmt::print(
                 stderr,
                 "[ERROR]\nAn error occured while a thread was aligning reads or writing output to "
-                "the file {}.\n The output file is likely incomplete and invalid.\n{}\n",
+                "the file {}.\nThe output file is likely incomplete and invalid.\n{}\n",
                 opt.output_path.c_str(),
                 e.what()
             );
