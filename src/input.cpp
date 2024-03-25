@@ -182,7 +182,17 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
             query_names.emplace(sam_format_sanitized_name, 1);
         }
 
-        std::string const quality(record_view.qual);
+        std::string quality(record_view.qual);
+        if (quality.size() != record_view.seq.size()) {
+            fmt::print(
+                stderr,
+                "[INPUT WARNING]\nThe quality of record {} does not have "
+                "the correct length and will be ignored.\n",
+                raw_tag
+            );
+            quality.clear();
+        }
+
         std::string const char_sequence(record_view.seq);
         std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
 

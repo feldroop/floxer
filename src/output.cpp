@@ -240,7 +240,8 @@ void sam_output::output_for_query(
                 .pnext = int_field_not_available_marker, // floxer assumes single segment template
                 .tlen = int_field_not_available_marker, // floxer assumes single segment template
                 .seq = is_primary_alignment ? fastq_query.char_sequence : string_field_not_available_marker,
-                .qual = is_primary_alignment ? fastq_query.quality : string_field_not_available_marker,
+                .qual = (is_primary_alignment && !fastq_query.quality.empty()) ? 
+                    fastq_query.quality : string_field_not_available_marker,
                 .custom_field_edit_distance = alignment.num_errors
             };
         }
@@ -262,7 +263,7 @@ void sam_output::output_for_query(
             .pnext = int_field_not_available_marker, // floxer assumes single segment template
             .tlen = int_field_not_available_marker, // floxer assumes single segment template
             .seq = fastq_query.char_sequence,
-            .qual = fastq_query.quality,
+            .qual = fastq_query.quality.empty() ? string_field_not_available_marker: fastq_query.quality,
             .custom_field_edit_distance = edit_distance_not_available_marker
         };
     }
