@@ -66,9 +66,37 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
     std::vector<reference_record> records{};
     
     size_t id = 0;
+    size_t num_unnamed = 0;
+
+    std::unordered_map<std::string, size_t> reference_names{};
+    bool duplicate_name_warning_given = false;
+
     for (auto const record_view : ivio::fasta::reader{{ .input = reference_sequence_path }}) {
-        std::string const raw_tag(record_view.id);
-        std::string const sam_format_sanitized_name = sanitize_reference_name_for_sam(raw_tag);
+        std::string raw_tag(record_view.id);
+        if (raw_tag.empty()) {
+            raw_tag = fmt::format("reference_without_name_{}", num_unnamed);
+            ++num_unnamed;
+        }
+
+        std::string sam_format_sanitized_name = sanitize_reference_name_for_sam(raw_tag);
+
+        if (reference_names.contains(sam_format_sanitized_name)) {
+            if (!duplicate_name_warning_given) {
+                fmt::print(
+                    stderr,
+                    "[INPUT WARNING]\nFound duplicate names in the reference file {}. "
+                    "These records will be treated separately and given unique names in the output.\n",
+                    reference_sequence_path.c_str()
+                );
+                duplicate_name_warning_given = true;
+            }
+            size_t& num_encountered = reference_names[sam_format_sanitized_name];
+            ++num_encountered;
+            sam_format_sanitized_name += fmt::format("_{}", num_encountered);
+        } else {
+            reference_names.emplace(sam_format_sanitized_name, 1);
+        }
+
         std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
 
         auto const result = ivs::verify_rank(sequence);
@@ -107,9 +135,37 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
     std::vector<query_record> records{};
 
     size_t id = 0;
+    size_t num_unnamed = 0;
+
+    std::unordered_map<std::string, size_t> query_names{};
+    bool duplicate_name_warning_given = false;
+
     for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
-        std::string const raw_tag(record_view.id);
-        std::string const sam_format_sanitized_name = sanitize_query_name_for_sam(raw_tag);
+        std::string raw_tag(record_view.id);
+        if (raw_tag.empty()) {
+            raw_tag = fmt::format("query_without_name_{}", num_unnamed);
+            ++num_unnamed;
+        }
+
+        std::string sam_format_sanitized_name = sanitize_query_name_for_sam(raw_tag);
+
+        if (query_names.contains(sam_format_sanitized_name)) {
+            if (!duplicate_name_warning_given) {
+                fmt::print(
+                    stderr,
+                    "[INPUT WARNING]\nFound duplicate names in the query file {}. "
+                    "These records will be treated separately and given unique names in the output.\n",
+                    queries_path.c_str()
+                );
+                duplicate_name_warning_given = true;
+            }
+            size_t& num_encountered = query_names[sam_format_sanitized_name];
+            ++num_encountered;
+            sam_format_sanitized_name += fmt::format("_{}", num_encountered);
+        } else {
+            query_names.emplace(sam_format_sanitized_name, 1);
+        }
+
         std::string const quality(record_view.qual);
         std::string const char_sequence(record_view.seq);
         std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
