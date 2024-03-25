@@ -134,7 +134,11 @@ int main(int argc, char** argv) {
         );
     }
 
-    auto sam_output = output::sam_output(opt.output_path, references);
+    auto sam_output = output::sam_output(
+        opt.output_path,
+        references,
+        opt.summary_line()
+    );
 
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;

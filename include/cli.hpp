@@ -15,6 +15,10 @@ struct options {
     double query_error_probability = NAN;
     size_t pex_leaf_num_errors = 2;
     size_t num_threads = 1;
+
+    bool query_error_probability_was_set() const;
+
+    std::string summary_line() const;
 };
 
 options parse_and_validate_options(int argc, char** argv);

@@ -1,7 +1,6 @@
 #include <input.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
@@ -19,11 +18,11 @@
 namespace input {
 
 size_t query_record::num_errors_from_user_config(cli::options const& opt) const {
-    return std::isnan(opt.query_error_probability) ?
-        opt.query_num_errors : 
+    return opt.query_error_probability_was_set() ?
         static_cast<size_t>(
             std::ceil(sequence_length * opt.query_error_probability)
-        );
+        ) :
+        opt.query_num_errors;
 }
 
 std::string sanitize_reference_name_for_sam(std::string const& reference_name) {

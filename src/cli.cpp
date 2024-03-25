@@ -1,6 +1,7 @@
 #include <cli.hpp>
 #include <about_floxer.hpp>
 
+#include <cmath>
 #include <stdexcept>
 #include <string>
 
@@ -9,8 +10,30 @@
 
 namespace cli {
 
-void validate_parsed_options(options const& opt, bool const query_num_errors_set) {
-    if (query_num_errors_set && opt.query_num_errors < opt.pex_leaf_num_errors) {
+bool options::query_error_probability_was_set() const {
+    return !std::isnan(query_error_probability);
+}
+
+std::string options::summary_line() const {
+    return fmt::format(
+        "floxer ran with "
+        "reference file: {}, "
+        "query file: {}, "
+        "index file: {}, "
+        "query num errors: {}, "
+        "query error probability: {} and "
+        "pex leaf num errors: {}.\n",
+        reference_sequence.filename().c_str(),
+        queries.filename().c_str(),
+        index_path.empty() ? "<not given>" : index_path.filename().c_str(),
+        query_error_probability_was_set() ? "<not given>" : fmt::format("{}", query_num_errors),
+        query_error_probability_was_set() ? fmt::format("{}", query_error_probability) : "<not given>",
+        pex_leaf_num_errors
+    );
+}
+
+void validate_parsed_options(options const& opt) {
+    if (!opt.query_error_probability_was_set() && opt.query_num_errors < opt.pex_leaf_num_errors) {
         throw std::runtime_error(
             fmt::format(
                 "The number of errors per query ({}) must be greater or equal than the number of errors "
@@ -127,7 +150,7 @@ options parse_and_validate_options(int argc, char ** argv) {
         );
     }
 
-    validate_parsed_options(opt, query_num_errors_set);
+    validate_parsed_options(opt);
 
     return opt;
 }
