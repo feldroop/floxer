@@ -45,8 +45,6 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    fmt::println("     ... done.");
-
     if (references.empty()) {
         fmt::print(
             stderr,
@@ -88,8 +86,6 @@ int main(int argc, char** argv) {
             opt.num_threads
         );
 
-        fmt::println("      ... done.");
-
         if (!opt.index_path.empty()) {
             try {
                 fmt::println(" --> saving index to {} ... ", opt.index_path.c_str());
@@ -124,8 +120,6 @@ int main(int argc, char** argv) {
         );
         return -1;
     }
-
-    fmt::println("       ... done.");
 
     if (fastq_queries.empty()) {
         fmt::print(
@@ -265,8 +259,6 @@ int main(int argc, char** argv) {
     if (!exceptions.empty()) {
         return -1;
     }
-
-    fmt::println("        ... done.");
 
     return 0;
 }
