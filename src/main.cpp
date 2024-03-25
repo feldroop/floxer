@@ -60,8 +60,6 @@ int main(int argc, char** argv) {
             fmt::println(" --> loading index from {} ... ", opt.index_path.c_str());
             
             index = input::load_index(opt.index_path);
-
-            fmt::println("      ... done.");
         } catch (std::exception const& e) {
             fmt::print(
                 stderr,
@@ -91,8 +89,6 @@ int main(int argc, char** argv) {
                 fmt::println(" --> saving index to {} ... ", opt.index_path.c_str());
 
                 output::save_index(index, opt.index_path);
-
-                fmt::println("     ... done.");
             } catch (std::exception const& e) {
                 fmt::print(
                     stderr,

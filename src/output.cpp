@@ -41,7 +41,7 @@ struct sam_header {
 
     struct program {
         size_t const id = 0; // ID
-        std::string const name = "floxer"; // PN
+        std::string const name = about_floxer::program_name; // PN
         // no command line call, because it might leak unexpected things
         std::string const description = about_floxer::long_description + " " + about_floxer::url; // DS
         std::string const version = about_floxer::version; // VN

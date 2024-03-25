@@ -46,13 +46,13 @@ void validate_parsed_options(options const& opt) {
 }
 
 options parse_and_validate_options(int argc, char ** argv) {
-    sharg::parser parser{ "floxer", argc, argv, sharg::update_notifications::off };
+    sharg::parser parser{ about_floxer::program_name, argc, argv, sharg::update_notifications::off };
 
-    parser.info.author = "Felix Leander Droop";
+    parser.info.author = about_floxer::author;
     parser.info.description = { about_floxer::long_description };
-    parser.info.email = "felix.droop@fu-berlin.de";
+    parser.info.email = about_floxer::email;
     parser.info.url = about_floxer::url;
-    parser.info.short_description = "FM-index longread PEX-based aligner";
+    parser.info.short_description = about_floxer::short_description;
     parser.info.synopsis = {
         "./floxer --reference hg38.fasta --query reads.fastq --index hg38.index "
         "--errors 7 --output mapped_reads.bam",
