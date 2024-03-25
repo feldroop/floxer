@@ -74,8 +74,18 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
     for (auto const record_view : ivio::fasta::reader{{ .input = reference_sequence_path }}) {
         std::string raw_tag(record_view.id);
         if (raw_tag.empty()) {
-            raw_tag = fmt::format("reference_without_name_{}", num_unnamed);
+            raw_tag = fmt::format("_reference_without_name_{}_", num_unnamed);
             ++num_unnamed;
+        }
+
+        if (record_view.seq.empty()) {
+            fmt::print(
+                stderr,
+                "[INPUT WARNING]\nThe record {} in the reference file has an empty sequence and will be skipped.\n",
+                raw_tag
+            );
+
+            continue;
         }
 
         std::string sam_format_sanitized_name = sanitize_reference_name_for_sam(raw_tag);
@@ -84,9 +94,8 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
             if (!duplicate_name_warning_given) {
                 fmt::print(
                     stderr,
-                    "[INPUT WARNING]\nFound duplicate names in the reference file {}. "
-                    "These records will be treated separately and given unique names in the output.\n",
-                    reference_sequence_path.c_str()
+                    "[INPUT WARNING]\nFound duplicate names in the reference file. "
+                    "These records will be treated separately and given unique names in the output.\n"
                 );
                 duplicate_name_warning_given = true;
             }
@@ -103,17 +112,16 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
         if (result.has_value()) {
             size_t const position = result.value();
 
-            fmt::print(
-                stderr, 
-                "[INPUT ERROR]\nThe reference sequence {} "
-                "contians the invalid character {} "
-                "at position {}.\n",
-                record_view.id,
-                sequence[position],
-                position
+            throw std::runtime_error(
+                fmt::format(
+                    "[INPUT ERROR]\nThe reference sequence {} "
+                    "contians the invalid character {} "
+                    "at position {}.\n",
+                    record_view.id,
+                    sequence[position],
+                    position
+                )
             );
-
-            exit(-1);
         }
 
         size_t const sequence_length = sequence.size();
@@ -143,8 +151,18 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
     for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
         std::string raw_tag(record_view.id);
         if (raw_tag.empty()) {
-            raw_tag = fmt::format("query_without_name_{}", num_unnamed);
+            raw_tag = fmt::format("_query_without_name_{}_", num_unnamed);
             ++num_unnamed;
+        }
+
+        if (record_view.seq.empty()) {
+            fmt::print(
+                stderr,
+                "[INPUT WARNING]\nThe record {} in the reference file has an empty sequence and will be skipped.\n",
+                raw_tag
+            );
+
+            continue;
         }
 
         std::string sam_format_sanitized_name = sanitize_query_name_for_sam(raw_tag);
@@ -153,9 +171,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
             if (!duplicate_name_warning_given) {
                 fmt::print(
                     stderr,
-                    "[INPUT WARNING]\nFound duplicate names in the query file {}. "
-                    "These records will be treated separately and given unique names in the output.\n",
-                    queries_path.c_str()
+                    "[INPUT WARNING]\nFound duplicate names in the query file. "
+                    "These records will be treated separately and given unique names in the output.\n"
                 );
                 duplicate_name_warning_given = true;
             }
@@ -179,7 +196,7 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
                 "[INPUT WARNING]\nSkipped the query {} "
                 "due to the invalid character {} "
                 "at position {}.\n",
-                record_view.id,
+                raw_tag,
                 char_sequence[position],
                 position
             );

@@ -140,7 +140,10 @@ int main(int argc, char** argv) {
     pex_tree_cache tree_cache;
 
     fmt::println(
-        "   --> aligning queries with {} thread{} and writing output file to {} ... ",
+        "   --> aligning {} queries against {} references with {} thread{} "
+        "and writing output file to {} ... ",
+        fastq_queries.size(),
+        references.size(),
         opt.num_threads,
         opt.num_threads == 1 ? "" : "s",
         opt.output_path.c_str()
