@@ -47,6 +47,15 @@ int main(int argc, char** argv) {
 
     fmt::println("     ... done.");
 
+    if (references.empty()) {
+        fmt::print(
+            stderr,
+            "[INPUT ERROR]\nThe reference file {} is empty, which is not allowed.\n",
+            opt.reference_sequence.c_str()
+        );
+        return -1;
+    }
+
     fmindex index;
     if (!opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
         try {
@@ -117,6 +126,13 @@ int main(int argc, char** argv) {
     }
 
     fmt::println("       ... done.");
+
+    if (fastq_queries.empty()) {
+        fmt::print(
+            stderr,
+            "[INPUT WARNING]\nThe query file {} is empty.\n", opt.queries.c_str()
+        );
+    }
 
     auto sam_output = output::sam_output(opt.output_path, references);
 
