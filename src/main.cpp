@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
         opt.output_path.c_str()
     );
 
-    // some workarounds for handling errors in threads
+    // workaround for handling errors in threads
     std::atomic_bool encountered_error = false;
     std::vector<std::exception_ptr> exceptions{};
 
@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
         num_threads(opt.num_threads) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(fastq_queries, opt, references, index, sam_output, exceptions, encountered_error) \
+        shared(fastq_queries, opt, references, index, sam_output, exceptions, encountered_error, stderr) \
         schedule(static)
     for (size_t i = 0; i < fastq_queries.size(); ++i) {
         if (encountered_error) {
@@ -148,6 +148,36 @@ int main(int argc, char** argv) {
         try {
             auto const& fastq_query = fastq_queries[i];
             size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
+
+            if (fastq_query.sequence_length <= query_num_errors) {
+                #pragma omp critical
+                fmt::print(
+                    stderr,
+                    "[WARNING]\nSkipping query {}, because its length of {} is smaller or equal to "
+                    "the configured number of errors {}.\n",
+                    fastq_query.raw_tag,
+                    fastq_query.sequence_length,
+                    query_num_errors
+                );
+
+                continue;
+            }            
+            
+            if (query_num_errors < opt.pex_leaf_num_errors) {
+                #pragma omp critical
+                fmt::print(
+                    stderr,
+                    "[WARNING]\nSkipping query {}, because using the given error rate {}, it has an allowed "
+                    "number of errors of {}, which is smaller than the given number of errors "
+                    "in PEX tree leaves of {}.\n",
+                    fastq_query.raw_tag,
+                    opt.query_error_probability,
+                    query_num_errors,
+                    opt.pex_leaf_num_errors
+                );
+
+                continue;
+            }
 
             auto const tree_config = pex_tree_config {
                 .total_query_length = fastq_query.sequence_length,

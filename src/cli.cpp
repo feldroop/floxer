@@ -9,6 +9,19 @@
 
 namespace cli {
 
+void validate_parsed_options(options const& opt, bool const query_num_errors_set) {
+    if (query_num_errors_set && opt.query_num_errors < opt.pex_leaf_num_errors) {
+        throw std::runtime_error(
+            fmt::format(
+                "The number of errors per query ({}) must be greater or equal than the number of errors "
+                "in the PEX tree leaves ({}).",
+                opt.query_num_errors,
+                opt.pex_leaf_num_errors
+            )
+        );
+    }
+}
+
 options parse_and_validate_options(int argc, char ** argv) {
     sharg::parser parser{ "floxer", argc, argv, sharg::update_notifications::off };
 
@@ -103,18 +116,18 @@ options parse_and_validate_options(int argc, char ** argv) {
 
     parser.parse();
 
-    if (!(
-            parser.is_option_set(query_num_erros_short) || 
-            parser.is_option_set(query_num_erros_long)
-        ) &&
-        !(
-            parser.is_option_set(query_error_probability_short) || 
-            parser.is_option_set(query_error_probability_long)
-        )) {
+    bool const query_num_errors_set = parser.is_option_set(query_num_erros_short) || 
+        parser.is_option_set(query_num_erros_long);
+    bool const query_error_probability_set = parser.is_option_set(query_error_probability_short) || 
+        parser.is_option_set(query_error_probability_long);
+
+    if (!query_num_errors_set && !query_error_probability_set) {
         throw std::runtime_error(
             "Either a fixed number of errors in the query or an error probability must be given."
         );
     }
+
+    validate_parsed_options(opt, query_num_errors_set);
 
     return opt;
 }
