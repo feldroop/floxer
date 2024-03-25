@@ -55,8 +55,8 @@ options parse_and_validate_options(int argc, char ** argv) {
     parser.info.short_description = about_floxer::short_description;
     parser.info.synopsis = {
         "./floxer --reference hg38.fasta --query reads.fastq --index hg38.index "
-        "--errors 7 --output mapped_reads.bam",
-        "./floxer --index hg38.index --query reads.fastq --errors 7 --output mapped_reads.bam",
+        "--error-probability 0.25 --pex-leaf-errors 2 --output mapped_reads.bam --threads 4",
+        "./floxer --reference hg38.fasta --query reads.fastq --query-errors 7 --output mapped_reads.bam",
     };
     parser.info.version = about_floxer::version;
     parser.info.date = about_floxer::version_date;
