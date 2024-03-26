@@ -3,7 +3,7 @@
 #include <fmindex.hpp>
 #include <input.hpp>
 #include <search.hpp>
-#include <verification.hpp>
+#include <alignment.hpp>
 
 #include <limits>
 #include <map>
@@ -37,7 +37,7 @@ public:
     void search(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const fastq_query,
-        verification::fastq_query_alignments& output_alignments,
+        alignment::fastq_query_alignments& output_alignments,
         bool const is_reverse_complement,
         search::search_scheme_cache& scheme_cache,
         fmindex const& index
@@ -69,7 +69,7 @@ private:
         size_t const leaf_query_id,
         std::span<const uint8_t> const fastq_query,
         input::reference_record const& reference,
-        verification::fastq_query_alignments& alignments,
+        alignment::fastq_query_alignments& alignments,
         bool const is_reverse_complement
     ) const;
 };

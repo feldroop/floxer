@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace verification {
+namespace alignment {
 
 enum class alignment_operation {
     match, mismatch, deletion_from_reference, insertion_to_reference
@@ -46,7 +46,7 @@ struct query_alignment {
     bool is_reverse_complement;
     cigar_sequence cigar;
 
-    size_t length_in_reference();
+    size_t length_in_reference() const;
 
     // this assumes that the alignments reference id is equivalent
     alignment_quality_comparison local_quality_comparison_versus(
@@ -116,22 +116,5 @@ public:
         std::function<query_alignment()> const compute_alignment_to_reference_span
     );
 };
-
-// return whether an alignment between query and reference with at most the given number
-// of errors exists. if output_alignments is true, add all "useful" alignments to found_alignments.
-// useful means:
-//     - at most one for each position
-//           (anchor is alignment end, TODO maybe make it the start)
-//     - must have at most num_allowed_errors errors
-//     - there is no locally better alignment
-//     - in case of multiple alignment per position apply the tiebreaking:
-//           mismatch > insertion to reference > deletion from from reference
-bool align_query(
-    std::span<const uint8_t> reference,
-    std::span<const uint8_t> query,
-    size_t const num_allowed_errors,
-    bool const output_alignments,
-    alignment_insertion_gatekeeper& alignment_gatekeeper
-);
 
 } // namespace verification

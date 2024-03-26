@@ -1,9 +1,9 @@
 #pragma once
 
 #include <about_floxer.hpp>
+#include <alignment.hpp>
 #include <fmindex.hpp>
 #include <input.hpp>
-#include <verification.hpp>
 
 #include <cstdint>
 #include <filesystem>
@@ -28,7 +28,7 @@ public:
     void output_for_query(
         input::query_record const& fastq_query,
         std::vector<input::reference_record> const& references,
-        verification::fastq_query_alignments const& alignments
+        alignment::fastq_query_alignments const& alignments
     );
 };
 

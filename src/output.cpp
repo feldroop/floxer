@@ -205,7 +205,7 @@ sam_output::sam_output(
 void sam_output::output_for_query(
     input::query_record const& fastq_query,
     std::vector<input::reference_record> const& references,
-    verification::fastq_query_alignments const& alignments
+    alignment::fastq_query_alignments const& alignments
 ) {
     bool found_any_alignments = false;
 

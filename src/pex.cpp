@@ -1,3 +1,4 @@
+#include <alignment_algorithm.hpp>
 #include <pex.hpp>
 
 #include <fmt/core.h>
@@ -25,7 +26,7 @@ size_t pex_tree::node::query_length() const {
 void pex_tree::search(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const fastq_query,
-    verification::fastq_query_alignments& output_alignments,
+    alignment::fastq_query_alignments& output_alignments,
     bool const is_reverse_complement,
     search::search_scheme_cache& scheme_cache,
     fmindex const& index
@@ -113,7 +114,7 @@ void pex_tree::hierarchical_verification(
     size_t const leaf_query_id,
     std::span<const uint8_t> const fastq_query,
     input::reference_record const& reference,
-    verification::fastq_query_alignments& alignments,
+    alignment::fastq_query_alignments& alignments,
     bool const is_reverse_complement
 ) const {    
     auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
@@ -144,12 +145,12 @@ void pex_tree::hierarchical_verification(
             reference.id, reference_span_start, is_reverse_complement
         );
 
-        bool const query_found = verification::align_query(
+        bool const query_found = alignment::VerifyingAligner::align_query(
             full_reference_span.subspan(reference_span_start, reference_span_length),
             this_node_query,
             pex_node.num_errors,
             curr_node_is_root,
-            alignment_insertion_gatekeeper // useful alignments are written into this
+            alignment_insertion_gatekeeper
         );
 
         if (!query_found || curr_node_is_root) {

@@ -1,10 +1,10 @@
+#include <alignment.hpp>
 #include <cli.hpp>
 #include <fmindex.hpp>
 #include <input.hpp>
 #include <output.hpp>
 #include <pex.hpp>
 #include <search.hpp>
-#include <verification.hpp>
 
 #include <atomic>
 #include <exception>
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
             };
             auto const& tree = tree_cache.get(tree_config);
 
-            auto alignments = verification::fastq_query_alignments(references.size());
+            auto alignments = alignment::fastq_query_alignments(references.size());
 
             bool is_reverse_complement = false;
             tree.search(
