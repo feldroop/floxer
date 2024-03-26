@@ -128,14 +128,20 @@ void pex_tree::hierarchical_verification(
     pex_node = inner_nodes[pex_node.parent_id];
 
     while (true) {
+        // this extra wiggle room is added around the reference span because it was observed
+        // that it leads no nicer alignments in certain edge cases 
+        // and it likely has no impact on performance
+        size_t constexpr extra_wiggle_room = 1;
+
         int64_t const start_signed = static_cast<int64_t>(hit.position) - 
             (leaf_query_index_from - pex_node.query_index_from)
-            - pex_node.num_errors;
+            - pex_node.num_errors - extra_wiggle_room;
         size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
         size_t const reference_span_length = std::min(
-            pex_node.query_length() + 2 * pex_node.num_errors + 1,
+            pex_node.query_length() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
             full_reference_span.size() - reference_span_start
         );
+
         auto const this_node_query_span = fastq_query.subspan(
             pex_node.query_index_from,
             pex_node.query_length()
