@@ -19,8 +19,6 @@
 #include <ivsigma/ivsigma.h>
 
 int main(int argc, char** argv) {
-    fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
-    
     cli::options opt;
     try {
         opt = cli::parse_and_validate_options(argc, argv);
@@ -28,6 +26,8 @@ int main(int argc, char** argv) {
         fmt::print(stderr, "[CLI PARSER ERROR]\n{}\n", e.what());
         return -1;
     }
+
+    fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
     
     fmt::println("--> reading reference sequences from {} ... ", opt.reference_sequence_path.c_str());
 
