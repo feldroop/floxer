@@ -1,6 +1,8 @@
 #include <alignment_algorithm.hpp>
 #include <pex.hpp>
 
+#include <ranges>
+
 #include <fmt/core.h>
 
 size_t ceil_div(size_t const a, size_t const b) {
@@ -134,20 +136,29 @@ void pex_tree::hierarchical_verification(
             pex_node.query_length() + 2 * pex_node.num_errors + 1,
             full_reference_span.size() - reference_span_start
         );
-        auto const& this_node_query = fastq_query.subspan(
+        auto const this_node_query_span = fastq_query.subspan(
             pex_node.query_index_from,
             pex_node.query_length()
         );
 
+        auto const reference_subspan =
+            full_reference_span.subspan(reference_span_start, reference_span_length);
+
         bool const curr_node_is_root = pex_node.parent_id == null_id;
 
         auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
-            reference.id, reference_span_start, is_reverse_complement
+            reference.id,
+            reference_span_start,
+            reference_span_length,
+            is_reverse_complement
         );
 
         bool const query_found = alignment::VerifyingAligner::align_query(
-            full_reference_span.subspan(reference_span_start, reference_span_length),
-            this_node_query,
+            // the reversing here is done to allow the DP traceback to start from the start position
+            // of the alignment in the reference. This in turn allows to skip tracebacks for many
+            // alignment candidates that are not useful
+            std::views::reverse(reference_subspan),
+            std::views::reverse(this_node_query_span),
             pex_node.num_errors,
             curr_node_is_root,
             alignment_insertion_gatekeeper

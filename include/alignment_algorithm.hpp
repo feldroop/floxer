@@ -18,7 +18,6 @@ public:
     // of errors exists. if output_alignments is true, add all "useful" alignments to found_alignments.
     // useful means:
     //     - at most one for each position
-    //           (anchor is alignment end, TODO maybe make it the start)
     //     - must have at most num_allowed_errors errors
     //     - there is no locally better alignment
     //     - in case of multiple alignment per position apply the tiebreaking:
@@ -205,7 +204,7 @@ private:
             trace = traceback_matrix[i][j];
         }
 
-        cigar.reverse();
+        // no reversal of the cigar string here because the sequences are reversed
 
         return query_alignment {
             .start_in_reference = j, // will be transformed by insertion gatekeeper
@@ -213,7 +212,7 @@ private:
             .reference_id = 0, // will be overridden by insertion gatekeeper
             .num_errors = num_errors,
             .score = -static_cast<int64_t>(num_errors),
-            .is_reverse_complement = false, // will be transformed by insertion gatekeeper
+            .is_reverse_complement = false, // will be overridden by insertion gatekeeper
             .cigar = cigar
         };
     }

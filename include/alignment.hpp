@@ -14,7 +14,7 @@ enum class alignment_operation {
     match, mismatch, deletion_from_reference, insertion_to_reference
 };
 
-char format_as(alignment_operation v);
+char to_char(alignment_operation v);
 
 enum class alignment_quality_comparison {
     unrelated, equal, better, worse
@@ -50,7 +50,7 @@ struct query_alignment {
 
     // this assumes that the alignments reference id is equivalent
     alignment_quality_comparison local_quality_comparison_versus(
-        size_t const other_end_in_reference,
+        size_t const other_start_in_reference,
         size_t const other_num_errors
     ) const;
 };
@@ -79,6 +79,7 @@ public:
     alignment_insertion_gatekeeper get_insertion_gatekeeper(
         size_t const reference_id,
         size_t const reference_span_start_offset,
+        size_t const reference_span_length,
         bool const is_reverse_complement
     );
 
@@ -99,19 +100,23 @@ private:
 class alignment_insertion_gatekeeper {
     size_t const reference_id;
     size_t const reference_span_start_offset;
+    size_t const reference_span_length;
     bool const is_reverse_complement;
     fastq_query_alignments& useful_existing_alignments;
 public:
     alignment_insertion_gatekeeper(
         size_t const reference_id_,
         size_t const reference_span_start_offset_,
+        size_t const reference_span_length_,
         bool const is_reverse_complement,
         fastq_query_alignments& useful_existing_alignments_
     );
 
     // returns whether the alignment was added
     bool insert_alignment_if_its_useful(
-        size_t const candidate_reference_span_end_position,
+        // this value should be the end position as seen by the alignment algorithm,
+        // but it's actually the start position, because the sequence was reversed
+        size_t const candidate_reference_span_reverse_end_position,
         size_t const candidate_num_erros,
         std::function<query_alignment()> const compute_alignment_to_reference_span
     );

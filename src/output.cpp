@@ -125,7 +125,7 @@ std::basic_ostream<char, Traits>& operator<<(
 static constexpr uint8_t mapq_not_available_marker = 255u;
 static constexpr std::string string_field_not_available_marker = "*";
 static constexpr int32_t int_field_not_available_marker = 0;
-static constexpr uint64_t edit_distance_not_available_marker = 999999ul;
+static constexpr int64_t edit_distance_not_available_marker = -1;
 
 struct sam_alignment {
     struct info_flag {
@@ -157,7 +157,7 @@ struct sam_alignment {
     int32_t const tlen;
     std::string const& seq;
     std::string const& qual;
-    uint64_t const custom_field_edit_distance;
+    int64_t const custom_field_edit_distance;
 };
 
 sam_alignment::info_flag operator|(
@@ -244,7 +244,7 @@ void sam_output::output_for_query(
                 .seq = is_primary_alignment ? fastq_query.char_sequence : string_field_not_available_marker,
                 .qual = (is_primary_alignment && !fastq_query.quality.empty()) ? 
                     fastq_query.quality : string_field_not_available_marker,
-                .custom_field_edit_distance = alignment.num_errors
+                .custom_field_edit_distance = static_cast<int64_t>(alignment.num_errors)
             };
         }
     }
