@@ -22,7 +22,7 @@ public:
     sam_output(
         std::filesystem::path const& output_path,
         std::vector<input::reference_record> const& reference_records,
-        std::string const comment_line
+        std::string const command_line_call
     );
 
     void output_for_query(

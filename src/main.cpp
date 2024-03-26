@@ -29,17 +29,17 @@ int main(int argc, char** argv) {
         return -1;
     }
     
-    fmt::println("--> reading reference sequences from {} ... ", opt.reference_sequence.c_str());
+    fmt::println("--> reading reference sequences from {} ... ", opt.reference_sequence_path.c_str());
 
     std::vector<input::reference_record> references;
     try {
-        references = input::read_references(opt.reference_sequence);
+        references = input::read_references(opt.reference_sequence_path);
     } catch (std::exception const& e) {
         fmt::print(
             stderr,
             "[INPUT ERROR]\nAn error occured while trying to read the reference from "
             "the file {}.\n{}\n",
-            opt.reference_sequence.c_str(),
+            opt.reference_sequence_path.c_str(),
             e.what()
         );
         return -1;
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
         fmt::print(
             stderr,
             "[INPUT ERROR]\nThe reference file {} is empty, which is not allowed.\n",
-            opt.reference_sequence.c_str()
+            opt.reference_sequence_path.c_str()
         );
         return -1;
     }
@@ -101,17 +101,17 @@ int main(int argc, char** argv) {
         }
     }
 
-    fmt::println("  --> reading queries from {} ... ", opt.queries.c_str());
+    fmt::println("  --> reading queries from {} ... ", opt.queries_path.c_str());
 
     std::vector<input::query_record> fastq_queries;
     try {
-        fastq_queries = input::read_queries(opt.queries);
+        fastq_queries = input::read_queries(opt.queries_path);
     } catch (std::exception const& e) {
         fmt::print(
             stderr,
             "[INPUT ERROR]\nAn error occured while trying to read the queries from "
             "the file {}.\n{}\n",
-            opt.queries.c_str(),
+            opt.queries_path.c_str(),
             e.what()
         );
         return -1;
@@ -120,14 +120,14 @@ int main(int argc, char** argv) {
     if (fastq_queries.empty()) {
         fmt::print(
             stderr,
-            "[INPUT WARNING]\nThe query file {} is empty.\n", opt.queries.c_str()
+            "[INPUT WARNING]\nThe query file {} is empty.\n", opt.queries_path.c_str()
         );
     }
 
     auto sam_output = output::sam_output(
         opt.output_path,
         references,
-        opt.summary_line()
+        opt.command_line_call()
     );
 
     search::search_scheme_cache scheme_cache;

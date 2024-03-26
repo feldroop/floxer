@@ -42,21 +42,23 @@ struct sam_header {
     struct program {
         size_t const id = 0; // ID
         std::string const name = about_floxer::program_name; // PN
-        // no command line call, because it might leak unexpected things
-        std::string const description = about_floxer::long_description + " " + about_floxer::url; // DS
+        std::string const command_line_call; // CL
+        std::string const description = about_floxer::short_description + " " + about_floxer::url; // DS
         std::string const version = about_floxer::version; // VN
+
+        program(std::string const command_line_call_)
+            : command_line_call{std::move(command_line_call_)} {}
     };
 
     file_level_metadata const general_info{}; // @HD
     std::vector<reference_sequence_metadata> reference_sequences{}; // @SQ
     // no @RG read groups for now
-    program const floxer_info{}; // @PG
-    std::string const comment_line; // @CO
+    program const floxer_info; // @PG
 
     sam_header(
         std::vector<input::reference_record> const& reference_records,
-        std::string const comment_line_
-    ) : comment_line{std::move(comment_line_)} {
+        std::string const command_line_call_
+    ) : floxer_info(std::move(command_line_call_)) {
         for (auto const& record : reference_records) {
             uint32_t reference_length = saturate_value_to_int32_max(record.sequence_length);
             if (record.sequence_length > std::numeric_limits<int32_t>::max()) {
@@ -103,6 +105,7 @@ std::basic_ostream<char, Traits>& operator<<(
 ) {
     return os << "@PG\tID:" << prog.id
         << "\tPN:" << prog.name
+        << "\tCL:" << prog.command_line_call
         << "\tDS:" << prog.description
         << "\tVN:" << prog.version << '\n';
 }
@@ -116,8 +119,7 @@ std::basic_ostream<char, Traits>& operator<<(
     for (auto const& reference_sequence : header.reference_sequences) {
         os << reference_sequence;
     }
-    os << header.floxer_info;
-    return os << "@CO\t" << header.comment_line;
+    return os << header.floxer_info;
 }
 
 static constexpr uint8_t mapq_not_available_marker = 255u;
@@ -195,9 +197,9 @@ std::basic_ostream<char, Traits>& operator<<(
 sam_output::sam_output(
     std::filesystem::path const& output_path,
     std::vector<input::reference_record> const& reference_records,
-    std::string const comment_line
+    std::string const command_line_call
 ) : output_stream(output_path) {
-    output_stream << sam_header(reference_records, std::move(comment_line));
+    output_stream << sam_header(reference_records, std::move(command_line_call));
 }
 
 void sam_output::output_for_query(
