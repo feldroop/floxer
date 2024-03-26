@@ -7,7 +7,7 @@ namespace about_floxer {
 static const std::string program_name = "floxer";
 
 static const std::string version = "0.2.0";
-static const std::string version_date = "09.03.2024";
+static const std::string version_date = "26.03.2024";
 
 static const std::string author = "Felix Leander Droop";
 static const std::string email = "felix.droop@fu-berlin.de";
