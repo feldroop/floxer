@@ -123,7 +123,7 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
                     "contians the invalid character {} "
                     "at position {}.\n",
                     record_view.id,
-                    sequence[position],
+                    record_view.seq[position],
                     position
                 )
             );
