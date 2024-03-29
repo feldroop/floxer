@@ -162,14 +162,14 @@ int main(int argc, char** argv) {
             auto const& fastq_query = fastq_queries[i];
             size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
 
-            if (fastq_query.sequence_length <= query_num_errors) {
+            if (fastq_query.rank_sequence.size() <= query_num_errors) {
                 #pragma omp critical
                 fmt::print(
                     stderr,
                     "[WARNING]\nSkipping query {}, because its length of {} is smaller or equal to "
                     "the configured number of errors {}.\n",
                     fastq_query.raw_tag,
-                    fastq_query.sequence_length,
+                    fastq_query.rank_sequence.size(),
                     query_num_errors
                 );
 
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
             }
 
             auto const tree_config = pex_tree_config {
-                .total_query_length = fastq_query.sequence_length,
+                .total_query_length = fastq_query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
                 .leaf_max_num_errors = opt.pex_leaf_num_errors
             };

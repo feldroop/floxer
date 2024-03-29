@@ -15,7 +15,6 @@ struct reference_record {
     std::string const raw_tag;
     std::string const sam_format_sanitized_name;
     std::vector<uint8_t> const rank_sequence;
-    size_t const sequence_length;
 };
 
 struct query_record {
@@ -23,9 +22,7 @@ struct query_record {
     std::string const raw_tag;
     std::string const sam_format_sanitized_name;
     std::vector<uint8_t> const rank_sequence;
-    std::string const char_sequence;
     std::string const quality;
-    size_t const sequence_length;
 
     size_t num_errors_from_user_config(cli::options const& opt) const;
 };

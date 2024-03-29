@@ -10,6 +10,7 @@
 #include <cereal/types/vector.hpp>
 
 #include <fmt/core.h>
+#include <ivsigma/ivsigma.h>
 
 namespace output {
 
@@ -60,13 +61,13 @@ struct sam_header {
         std::string const command_line_call_
     ) : floxer_info(std::move(command_line_call_)) {
         for (auto const& record : reference_records) {
-            uint32_t reference_length = saturate_value_to_int32_max(record.sequence_length);
-            if (record.sequence_length > std::numeric_limits<int32_t>::max()) {
+            uint32_t reference_length = saturate_value_to_int32_max(record.rank_sequence.size());
+            if (record.rank_sequence.size() > std::numeric_limits<int32_t>::max()) {
                 fmt::println(
                     "[OUTPUT WARNING]: the sequence {} is too long for the SAM file format (length {})\n"
                     "Values in the output file will be set to INT32_MAX.",
                     record.raw_tag,
-                    record.sequence_length
+                    record.rank_sequence.size()
                 );
             }
             
@@ -241,7 +242,8 @@ void sam_output::output_for_query(
                 .rnext = string_field_not_available_marker, // floxer assumes single segment template
                 .pnext = int_field_not_available_marker, // floxer assumes single segment template
                 .tlen = int_field_not_available_marker, // floxer assumes single segment template
-                .seq = is_primary_alignment ? fastq_query.char_sequence : string_field_not_available_marker,
+                .seq = is_primary_alignment ? ivs::convert_rank_to_char<ivs::d_dna5>(fastq_query.rank_sequence)
+                    : string_field_not_available_marker,
                 .qual = (is_primary_alignment && !fastq_query.quality.empty()) ? 
                     fastq_query.quality : string_field_not_available_marker,
                 .custom_field_edit_distance = static_cast<int64_t>(alignment.num_errors)
@@ -264,7 +266,7 @@ void sam_output::output_for_query(
             .rnext = string_field_not_available_marker, // floxer assumes single segment template
             .pnext = int_field_not_available_marker, // floxer assumes single segment template
             .tlen = int_field_not_available_marker, // floxer assumes single segment template
-            .seq = fastq_query.char_sequence,
+            .seq = ivs::convert_rank_to_char<ivs::d_dna5>(fastq_query.rank_sequence),
             .qual = fastq_query.quality.empty() ? string_field_not_available_marker: fastq_query.quality,
             .custom_field_edit_distance = edit_distance_not_available_marker
         };

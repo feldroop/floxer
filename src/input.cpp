@@ -20,7 +20,7 @@ namespace input {
 size_t query_record::num_errors_from_user_config(cli::options const& opt) const {
     return opt.query_error_probability_was_set() ?
         static_cast<size_t>(
-            std::ceil(sequence_length * opt.query_error_probability)
+            std::ceil(rank_sequence.size() * opt.query_error_probability)
         ) :
         opt.query_num_errors;
 }
@@ -129,13 +129,11 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
             );
         }
 
-        size_t const sequence_length = sequence.size();
         records.emplace_back(
             id,
             std::move(raw_tag),
             std::move(sam_format_sanitized_name),
-            std::move(sequence),
-            sequence_length
+            std::move(sequence)
         );
 
         ++id;
@@ -205,7 +203,6 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
             quality.clear();
         }
 
-        std::string const char_sequence(record_view.seq);
         std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(record_view.seq);
 
         auto const result = ivs::verify_rank(rank_sequence);
@@ -218,21 +215,19 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
                 "due to the invalid character {} "
                 "at position {}.\n",
                 raw_tag,
-                char_sequence[position],
+                record_view.seq[position],
                 position
             );
 
             continue;
         }
-        size_t const sequence_length = char_sequence.size();
+
         records.emplace_back(
             id,
             std::move(raw_tag),
             std::move(sam_format_sanitized_name),
             std::move(rank_sequence),
-            std::move(char_sequence),
-            std::move(quality),
-            sequence_length
+            std::move(quality)
         );
 
         ++id;
