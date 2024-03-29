@@ -104,7 +104,10 @@ options parse_and_validate_options(int argc, char ** argv) {
             "Only valid DNA sequences using [AaCcGgTt] characters are allowed.",
         .required = true,
         .validator = sharg::input_file_validator{
-            {"fa", "fasta", "fna", "ffn", "fas", "faa", "mpfa", "frn"}
+            {
+                "fa", "fasta", "fna", "ffn", "fas", "faa", "mpfa", "frn",
+                "fa.gz", "fasta.gz", "fna.gz", "ffn.gz", "fas.gz", "faa.gz", "mpfa.gz", "frn.gz"
+            }
         }
     });
 
@@ -114,7 +117,7 @@ options parse_and_validate_options(int argc, char ** argv) {
         .description = "The queries which floxer will search in the reference, i.e. the needles."
             "Queries that contain character other than [AaCcGgTt] are skipped.",
         .required = true,
-        .validator = sharg::input_file_validator{{"fq", "fastq"}}
+        .validator = sharg::input_file_validator{{"fq", "fastq", "fq.gz", "fastq.gz"}}
     });
 
     parser.add_option(opt.index_path, sharg::config{

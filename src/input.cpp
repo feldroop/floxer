@@ -70,7 +70,13 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
     std::unordered_map<std::string, size_t> reference_names{};
     bool duplicate_name_warning_given = false;
 
-    for (auto const record_view : ivio::fasta::reader{{ .input = reference_sequence_path }}) {
+    bool const is_compressed = reference_sequence_path.string().ends_with(".gz");
+    auto const reader_config = ivio::fasta::reader::config{
+        .input = reference_sequence_path,
+        .compressed = is_compressed
+    };
+
+    for (auto const record_view : ivio::fasta::reader{reader_config}) {
         std::string raw_tag(record_view.id);
         if (raw_tag.empty()) {
             raw_tag = fmt::format("_reference_without_name_{}_", num_unnamed);
@@ -147,7 +153,13 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
     std::unordered_map<std::string, size_t> query_names{};
     bool duplicate_name_warning_given = false;
 
-    for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
+    bool const is_compressed = queries_path.string().ends_with(".gz");
+    auto const reader_config = ivio::fastq::reader::config{
+        .input = queries_path,
+        .compressed = is_compressed
+    };
+
+    for (auto const record_view : ivio::fastq::reader{reader_config}) {
         std::string raw_tag(record_view.id);
         if (raw_tag.empty()) {
             raw_tag = fmt::format("_query_without_name_{}_", num_unnamed);
