@@ -44,4 +44,4 @@ add_subdirectory(src)
 # testing
 list (APPEND CMAKE_CTEST_ARGUMENTS "--output-on-failure")
 enable_testing ()
-add_subdirectory (test)
+add_subdirectory (test EXCLUDE_FROM_ALL)
