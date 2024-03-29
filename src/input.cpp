@@ -105,7 +105,7 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
             reference_names.emplace(sam_format_sanitized_name, 1);
         }
 
-        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
+        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna5>(record_view.seq);
 
         auto const result = ivs::verify_rank(sequence);
         if (result.has_value()) {
@@ -194,7 +194,7 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
         }
 
         std::string const char_sequence(record_view.seq);
-        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna4>(record_view.seq);
+        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(record_view.seq);
 
         auto const result = ivs::verify_rank(rank_sequence);
         if (result.has_value()) {
