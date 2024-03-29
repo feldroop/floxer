@@ -6,6 +6,18 @@ An exact longread aligner applying the following techniques to be not orders of 
 * PEX hierarchical verification
 * parallel and vectorized pairwise alignment implementation
 
+## Installation on Linux
+
+Requires a recent C++20-capable C++-Compiler and CMake.
+
+```
+git clone --recurse-submodules https://github.com/feldroop/floxer
+mkdir floxer/build && cd floxer/build
+cmake ..
+make
+./bin/floxer --help
+```
+
 ## Usage
 
 Basic usage:
