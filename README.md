@@ -13,7 +13,7 @@ Requires a recent C++20-capable C++-Compiler and CMake.
 ```
 git clone --recurse-submodules https://github.com/feldroop/floxer
 mkdir floxer/build && cd floxer/build
-cmake ..
+cmake .. -DCMAKE_BUILD_TYPE:STRING=Debug
 make
 ./bin/floxer --help
 ```
