@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <fstream>
+#include <numeric>
+#include <ranges>
 #include <sstream>
 #include <unordered_set>
 
@@ -61,6 +63,38 @@ std::string sanitize_query_name_for_sam(std::string const& query_name) {
     return sanitized_name;
 }
 
+constexpr std::array<char, 256> degenerate_to_simple_char_conversion_table() {
+    std::array<char, 256> conversion;
+    std::iota(conversion.begin(), conversion.end(), 0);
+
+    // arbitrary definition to get rid of degenerate chars for now:
+    // convert all degenerate chars except for N to the smallest
+    // character (in the order A,C,G,T) that they could be
+    // example: d/D could be A,G or T and becomes A
+    conversion['r'] = 'a', conversion['R'] = 'A';
+    conversion['y'] = 'c', conversion['Y'] = 'C';
+    conversion['k'] = 'g', conversion['K'] = 'G';
+    conversion['m'] = 'a', conversion['M'] = 'A';
+    conversion['s'] = 'c', conversion['S'] = 'C';
+    conversion['w'] = 'a', conversion['W'] = 'A';
+    conversion['b'] = 'c', conversion['B'] = 'C';
+    conversion['d'] = 'a', conversion['D'] = 'A';
+    conversion['h'] = 'a', conversion['H'] = 'A';
+    conversion['v'] = 'a', conversion['V'] = 'A';
+
+    return conversion;
+}
+
+std::string replace_degenerate_chars(std::string_view const& sequence) {
+    static constexpr std::array<char, 256> conversion = degenerate_to_simple_char_conversion_table();
+
+    auto const replaced_view = sequence | std::views::transform([&] (char const& c) {
+        return conversion[c];
+    });
+
+    return std::string(replaced_view.begin(), replaced_view.end());
+}
+
 std::vector<reference_record> read_references(std::filesystem::path const& reference_sequence_path) {
     std::vector<reference_record> records{};
     
@@ -111,7 +145,8 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
             reference_names.emplace(sam_format_sanitized_name, 1);
         }
 
-        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_iupac>(record_view.seq);
+        std::string const no_degenerate_char_sequence = replace_degenerate_chars(record_view.seq);
+        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna5>(no_degenerate_char_sequence);
 
         auto const result = ivs::verify_rank(sequence);
         if (result.has_value()) {
@@ -203,7 +238,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
             quality.clear();
         }
 
-        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_iupac>(record_view.seq);
+        std::string const no_degenerate_char_sequence = replace_degenerate_chars(record_view.seq);
+        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(no_degenerate_char_sequence);
 
         auto const result = ivs::verify_rank(rank_sequence);
         if (result.has_value()) {
