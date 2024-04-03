@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.16)
 
-project (floxer VERSION 0.1.0)
+project (floxer VERSION 0.2.0)
 
 # Force language standard
 set(CMAKE_CXX_STANDARD 20)
@@ -36,7 +36,6 @@ find_package(sharg REQUIRED PATHS lib/sharg/build_system)
 find_package(ivio REQUIRED PATHS lib/ivio)
 find_package(ivsigma REQUIRED PATHS lib/ivsigma)
 find_package(fmindex_collection REQUIRED PATHS lib/fmindex)
-add_subdirectory(lib/fmt)
 
 # floxer source code
 add_subdirectory(src)
