@@ -15,7 +15,8 @@
 #include <ivio/ivio.h>
 #include <ivsigma/ivsigma.h>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/fmt.h>
+#include <spdlog/spdlog.h>
 
 namespace input {
 
@@ -118,9 +119,8 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
         }
 
         if (record_view.seq.empty()) {
-            fmt::print(
-                stderr,
-                "[INPUT WARNING]\nThe record {} in the reference file has an empty sequence and will be skipped.\n",
+            spdlog::warn(
+                "The record {} in the reference file has an empty sequence and will be skipped.\n",
                 raw_tag
             );
 
@@ -131,9 +131,8 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
 
         if (reference_names.contains(sam_format_sanitized_name)) {
             if (!duplicate_name_warning_given) {
-                fmt::print(
-                    stderr,
-                    "[INPUT WARNING]\nFound duplicate names in the reference file. "
+                spdlog::warn(
+                    "Found duplicate names in the reference file. "
                     "These records will be treated separately and given unique names in the output.\n"
                 );
                 duplicate_name_warning_given = true;
@@ -154,7 +153,7 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
 
             throw std::runtime_error(
                 fmt::format(
-                    "[INPUT ERROR]\nThe reference sequence {} "
+                    "The reference sequence {} "
                     "contians the invalid character {} "
                     "at position {}.\n",
                     record_view.id,
@@ -200,9 +199,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
         }
 
         if (record_view.seq.empty()) {
-            fmt::print(
-                stderr,
-                "[INPUT WARNING]\nThe record {} in the reference file has an empty sequence and will be skipped.\n",
+            spdlog::warn(
+                "The record {} in the reference file has an empty sequence and will be skipped.\n",
                 raw_tag
             );
 
@@ -213,9 +211,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
 
         if (query_names.contains(sam_format_sanitized_name)) {
             if (!duplicate_name_warning_given) {
-                fmt::print(
-                    stderr,
-                    "[INPUT WARNING]\nFound duplicate names in the query file. "
+                spdlog::warn(
+                    "Found duplicate names in the query file. "
                     "These records will be treated separately and given unique names in the output.\n"
                 );
                 duplicate_name_warning_given = true;
@@ -229,9 +226,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
 
         std::string quality(record_view.qual);
         if (quality.size() != record_view.seq.size()) {
-            fmt::print(
-                stderr,
-                "[INPUT WARNING]\nThe quality of record {} does not have "
+            spdlog::warn(
+                "The quality of record {} does not have "
                 "the correct length and will be ignored.\n",
                 raw_tag
             );
@@ -245,9 +241,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
         if (result.has_value()) {
             size_t const position = result.value();
 
-            fmt::print(
-                stderr,
-                "[INPUT WARNING]\nSkipped the query {} "
+            spdlog::warn(
+                "Skipped the query {} "
                 "due to the invalid character {} "
                 "at position {}.\n",
                 raw_tag,

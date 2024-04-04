@@ -10,9 +10,6 @@
 #include <tuple>
 #include <utility>
 
-#include <fmt/core.h>
-#include <fmt/ranges.h>
-
 namespace alignment {
 
 char to_char(alignment_operation v) {

@@ -1,11 +1,20 @@
 # An interface to reuse common properties.
 add_library ("${PROJECT_NAME}_interface" INTERFACE)
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE sharg::sharg)
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE ivio::ivio)
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE ivsigma::ivsigma)
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE fmindex-collection::fmindex-collection)
+target_link_libraries (
+    "${PROJECT_NAME}_interface" INTERFACE
+    sharg::sharg
+    ivio::ivio
+    ivsigma::ivsigma
+    fmindex-collection::fmindex-collection
+    cereal::cereal
+    spdlog::spdlog
+)
+target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
+target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
+target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
+target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
+target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
 target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../include")
-target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../lib/fmt/include")
 target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra" "-fopenmp")
 
 add_library (cli_lib STATIC cli.cpp)

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <fmt/core.h>
+#include <spdlog/fmt/fmt.h>
 #include <sharg/all.hpp>
 
 namespace cli {

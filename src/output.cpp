@@ -9,7 +9,7 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 
-#include <fmt/core.h>
+#include <spdlog/spdlog.h>
 #include <ivsigma/ivsigma.h>
 
 namespace output {
@@ -22,9 +22,9 @@ void save_index(fmindex const& _index, std::filesystem::path const& _index_path)
 
 int32_t saturate_value_to_int32_max(size_t const value) {
     if (value > std::numeric_limits<int32_t>::max()) {
-        return std::numeric_limits<uint32_t>::max();
+        return std::numeric_limits<int32_t>::max();
     } else {
-        return static_cast<uint32_t>(value);
+        return static_cast<int32_t>(value);
     }
 }
 
@@ -63,8 +63,8 @@ struct sam_header {
         for (auto const& record : reference_records) {
             uint32_t reference_length = saturate_value_to_int32_max(record.rank_sequence.size());
             if (record.rank_sequence.size() > std::numeric_limits<int32_t>::max()) {
-                fmt::println(
-                    "[OUTPUT WARNING]: the sequence {} is too long for the SAM file format (length {})\n"
+                spdlog::warn(
+                    "The sequence {} is too long for the SAM file format (length {})\n"
                     "Values in the output file will be set to INT32_MAX.",
                     record.raw_tag,
                     record.rank_sequence.size()

@@ -13,8 +13,7 @@
 #include <span>
 #include <vector>
 
-#include <fmt/core.h>
-#include <fmt/ranges.h>
+#include <spdlog/spdlog.h>
 
 #include <ivsigma/ivsigma.h>
 
@@ -27,17 +26,16 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    fmt::println("/\\ \\/ /\\ \\/ /\\ welcome to floxer /\\ \\/ /\\ \\/ /\\");
+    spdlog::info("starting floxer");
     
-    fmt::println("--> reading reference sequences from {} ... ", opt.reference_sequence_path.c_str());
+    spdlog::info("reading reference sequences from {} ... ", opt.reference_sequence_path.c_str());
 
     std::vector<input::reference_record> references;
     try {
         references = input::read_references(opt.reference_sequence_path);
     } catch (std::exception const& e) {
-        fmt::print(
-            stderr,
-            "[INPUT ERROR]\nAn error occured while trying to read the reference from "
+        spdlog::error(
+            "An error occured while trying to read the reference from "
             "the file {}.\n{}\n",
             opt.reference_sequence_path.c_str(),
             e.what()
@@ -46,9 +44,8 @@ int main(int argc, char** argv) {
     }
 
     if (references.empty()) {
-        fmt::print(
-            stderr,
-            "[INPUT ERROR]\nThe reference file {} is empty, which is not allowed.\n",
+        spdlog::error(
+            "The reference file {} is empty, which is not allowed.\n",
             opt.reference_sequence_path.c_str()
         );
         return -1;
@@ -57,13 +54,12 @@ int main(int argc, char** argv) {
     fmindex index;
     if (!opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
         try {
-            fmt::println(" --> loading index from {} ... ", opt.index_path.c_str());
+            spdlog::info("loading index from {} ... ", opt.index_path.c_str());
             
             index = input::load_index(opt.index_path);
         } catch (std::exception const& e) {
-            fmt::print(
-                stderr,
-                "[INPUT ERROR]\nAn error occured while trying to load the index from "
+            spdlog::error(
+                "An error occured while trying to load the index from "
                 "the file {}.\n{}\n",
                 opt.index_path.c_str(),
                 e.what()
@@ -71,8 +67,8 @@ int main(int argc, char** argv) {
             return -1;
         }
     } else {
-        fmt::println(
-            " --> building index with {} thread{} ... ",
+        spdlog::info(
+            "building index with {} thread{} ... ",
             opt.num_threads,
             opt.num_threads == 1 ? "" : "s"
         );
@@ -86,13 +82,12 @@ int main(int argc, char** argv) {
 
         if (!opt.index_path.empty()) {
             try {
-                fmt::println(" --> saving index to {} ... ", opt.index_path.c_str());
+                spdlog::info("saving index to {} ... ", opt.index_path.c_str());
 
                 output::save_index(index, opt.index_path);
             } catch (std::exception const& e) {
-                fmt::print(
-                    stderr,
-                    "[OUTPUT WARNING]\nAn error occured while trying to write the index to "
+                spdlog::warn(
+                    "An error occured while trying to write the index to "
                     "the file {}.\nContinueing without saving the index.\n{}\n",
                     opt.index_path.c_str(),
                     e.what()
@@ -101,15 +96,14 @@ int main(int argc, char** argv) {
         }
     }
 
-    fmt::println("  --> reading queries from {} ... ", opt.queries_path.c_str());
+    spdlog::info("reading queries from {} ... ", opt.queries_path.c_str());
 
     std::vector<input::query_record> fastq_queries;
     try {
         fastq_queries = input::read_queries(opt.queries_path);
     } catch (std::exception const& e) {
-        fmt::print(
-            stderr,
-            "[INPUT ERROR]\nAn error occured while trying to read the queries from "
+        spdlog::error(
+            "An error occured while trying to read the queries from "
             "the file {}.\n{}\n",
             opt.queries_path.c_str(),
             e.what()
@@ -118,9 +112,8 @@ int main(int argc, char** argv) {
     }
 
     if (fastq_queries.empty()) {
-        fmt::print(
-            stderr,
-            "[INPUT WARNING]\nThe query file {} is empty.\n", opt.queries_path.c_str()
+        spdlog::warn(
+            "The query file {} is empty.\n", opt.queries_path.c_str()
         );
     }
 
@@ -133,8 +126,8 @@ int main(int argc, char** argv) {
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;
 
-    fmt::println(
-        "   --> aligning {} queries against {} references with {} thread{} "
+    spdlog::info(
+        "aligning {} queries against {} references with {} thread{} "
         "and writing output file to {} ... ",
         fastq_queries.size(),
         references.size(),
@@ -151,7 +144,7 @@ int main(int argc, char** argv) {
         num_threads(opt.num_threads) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(fastq_queries, opt, references, index, sam_output, exceptions, encountered_error, stderr) \
+        shared(fastq_queries, opt, references, index, sam_output, exceptions, encountered_error) \
         schedule(static)
     for (size_t i = 0; i < fastq_queries.size(); ++i) {
         if (encountered_error) {
@@ -163,10 +156,8 @@ int main(int argc, char** argv) {
             size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
 
             if (fastq_query.rank_sequence.size() <= query_num_errors) {
-                #pragma omp critical
-                fmt::print(
-                    stderr,
-                    "[WARNING]\nSkipping query {}, because its length of {} is smaller or equal to "
+                spdlog::warn(
+                    "Skipping query {}, because its length of {} is smaller or equal to "
                     "the configured number of errors {}.\n",
                     fastq_query.raw_tag,
                     fastq_query.rank_sequence.size(),
@@ -177,10 +168,8 @@ int main(int argc, char** argv) {
             }            
             
             if (query_num_errors < opt.pex_leaf_num_errors) {
-                #pragma omp critical
-                fmt::print(
-                    stderr,
-                    "[WARNING]\nSkipping query {}, because using the given error rate {}, it has an allowed "
+                spdlog::warn(
+                    "Skipping query {}, because using the given error rate {}, it has an allowed "
                     "number of errors of {}, which is smaller than the given number of errors "
                     "in PEX tree leaves of {}.\n",
                     fastq_query.raw_tag,
@@ -242,13 +231,14 @@ int main(int argc, char** argv) {
         try {
             std::rethrow_exception(e);
         } catch (std::exception const& e) {
-            fmt::print(
-                stderr,
-                "[ERROR]\nAn error occured while a thread was aligning reads or writing output to "
+            spdlog::error(
+                "An error occured while a thread was aligning reads or writing output to "
                 "the file {}.\nThe output file is likely incomplete and invalid.\n{}\n",
                 opt.output_path.c_str(),
                 e.what()
             );
+        } catch (...) {
+            spdlog::error("Unknown exception occurred\n");
         }
     } 
 

@@ -32,6 +32,14 @@ CPMaddPackage(
     EXCLUDE_FROM_ALL TRUE
     SYSTEM YES
 )
+CPMaddPackage(
+    NAME spdlog
+    GITHUB_REPOSITORY gabime/spdlog
+    GIT_TAG v1.13.0
+    EXCLUDE_FROM_ALL TRUE
+    SYSTEM YES
+)
+set (SHARG_NO_TDL ON)
 find_package(sharg REQUIRED PATHS lib/sharg/build_system)
 find_package(ivio REQUIRED PATHS lib/ivio)
 find_package(ivsigma REQUIRED PATHS lib/ivsigma)

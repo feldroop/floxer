@@ -3,8 +3,6 @@
 
 #include <ranges>
 
-#include <fmt/core.h>
-
 size_t ceil_div(size_t const a, size_t const b) {
     return (a % b) ? a / b + 1 : a / b;
 }
