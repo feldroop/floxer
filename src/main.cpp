@@ -14,30 +14,47 @@
 #include <vector>
 
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/fmt/std.h>
 
 #include <ivsigma/ivsigma.h>
 
+// void initialize_logger() {
+//     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+//     console_sink->set_level(spdlog::level::info);
+//     // TODO set pattern
+//     // console_sink->set_pattern();
+
+//     auto
+// }
+
 int main(int argc, char** argv) {
-    cli::options opt;
+    cli::command_line_input cli_input;
     try {
-        opt = cli::parse_and_validate_options(argc, argv);
+        cli_input.parse_and_validate(argc, argv);
     } catch (std::exception const & e) {
         fmt::print(stderr, "[CLI PARSER ERROR]\n{}\n", e.what());
         return -1;
     }
 
+    // TODO test what spdlog does with long lines
+    // initialize_logger();
+
     spdlog::info("starting floxer");
-    
-    spdlog::info("reading reference sequences from {} ... ", opt.reference_sequence_path.c_str());
+
+    auto const command_line_call = cli_input.command_line_call();
+    spdlog::debug("command line call: {}", command_line_call);
+
+    spdlog::info("reading reference sequences from {}", cli_input.reference_path());
 
     std::vector<input::reference_record> references;
     try {
-        references = input::read_references(opt.reference_sequence_path);
+        references = input::read_references(cli_input.reference_path());
     } catch (std::exception const& e) {
         spdlog::error(
             "An error occured while trying to read the reference from "
-            "the file {}.\n{}\n",
-            opt.reference_sequence_path.c_str(),
+            "the file {}.\n{}",
+            cli_input.reference_path(),
             e.what()
         );
         return -1;
@@ -46,66 +63,70 @@ int main(int argc, char** argv) {
     if (references.empty()) {
         spdlog::error(
             "The reference file {} is empty, which is not allowed.\n",
-            opt.reference_sequence_path.c_str()
+            cli_input.reference_path()
         );
         return -1;
     }
 
     fmindex index;
-    if (!opt.index_path.empty() && std::filesystem::exists(opt.index_path)) {
+    if (cli_input.index_path().has_value() && std::filesystem::exists(cli_input.index_path().value())) {
+        auto const index_path = cli_input.index_path().value();
+
         try {
-            spdlog::info("loading index from {} ... ", opt.index_path.c_str());
+            spdlog::info("loading index from {}", index_path);
             
-            index = input::load_index(opt.index_path);
+            index = input::load_index(index_path);
         } catch (std::exception const& e) {
             spdlog::error(
                 "An error occured while trying to load the index from "
                 "the file {}.\n{}\n",
-                opt.index_path.c_str(),
+                index_path,
                 e.what()
             );
             return -1;
         }
     } else {
         spdlog::info(
-            "building index with {} thread{} ... ",
-            opt.num_threads,
-            opt.num_threads == 1 ? "" : "s"
+            "building index with {} thread{}",
+            cli_input.num_threads(),
+            cli_input.num_threads() == 1 ? "" : "s"
         );
 
         size_t constexpr suffix_array_sampling_rate = 16; 
         index = fmindex(
             references | std::views::transform(&input::reference_record::rank_sequence),
             suffix_array_sampling_rate,
-            opt.num_threads
+            cli_input.num_threads()
         );
 
-        if (!opt.index_path.empty()) {
-            try {
-                spdlog::info("saving index to {} ... ", opt.index_path.c_str());
+        if (cli_input.index_path().has_value()) {
+            auto const index_path = cli_input.index_path().value();
 
-                output::save_index(index, opt.index_path);
+            try {
+                spdlog::info("saving index to {}", index_path);
+
+                output::save_index(index, index_path);
             } catch (std::exception const& e) {
                 spdlog::warn(
                     "An error occured while trying to write the index to "
                     "the file {}.\nContinueing without saving the index.\n{}\n",
-                    opt.index_path.c_str(),
+                    index_path,
                     e.what()
                 );
             }
         }
     }
 
-    spdlog::info("reading queries from {} ... ", opt.queries_path.c_str());
+    spdlog::info("reading queries from {}", cli_input.queries_path());
 
     std::vector<input::query_record> fastq_queries;
     try {
-        fastq_queries = input::read_queries(opt.queries_path);
+        fastq_queries = input::read_queries(cli_input.queries_path());
     } catch (std::exception const& e) {
         spdlog::error(
             "An error occured while trying to read the queries from "
             "the file {}.\n{}\n",
-            opt.queries_path.c_str(),
+            cli_input.queries_path(),
             e.what()
         );
         return -1;
@@ -113,14 +134,14 @@ int main(int argc, char** argv) {
 
     if (fastq_queries.empty()) {
         spdlog::warn(
-            "The query file {} is empty.\n", opt.queries_path.c_str()
+            "The query file {} is empty.\n", cli_input.queries_path()
         );
     }
 
     auto sam_output = output::sam_output(
-        opt.output_path,
+        cli_input.output_path(),
         references,
-        opt.command_line_call()
+        command_line_call
     );
 
     search::search_scheme_cache scheme_cache;
@@ -128,12 +149,12 @@ int main(int argc, char** argv) {
 
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
-        "and writing output file to {} ... ",
+        "and writing output file to {}",
         fastq_queries.size(),
         references.size(),
-        opt.num_threads,
-        opt.num_threads == 1 ? "" : "s",
-        opt.output_path.c_str()
+        cli_input.num_threads(),
+        cli_input.num_threads() == 1 ? "" : "s",
+        cli_input.output_path()
     );
 
     // workaround for handling errors in threads
@@ -141,10 +162,10 @@ int main(int argc, char** argv) {
     std::vector<std::exception_ptr> exceptions{};
 
     #pragma omp parallel for \
-        num_threads(opt.num_threads) \
+        num_threads(cli_input.num_threads()) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(fastq_queries, opt, references, index, sam_output, exceptions, encountered_error) \
+        shared(fastq_queries, cli_input, references, index, sam_output, exceptions, encountered_error) \
         schedule(static)
     for (size_t i = 0; i < fastq_queries.size(); ++i) {
         if (encountered_error) {
@@ -153,7 +174,7 @@ int main(int argc, char** argv) {
 
         try {
             auto const& fastq_query = fastq_queries[i];
-            size_t const query_num_errors = fastq_query.num_errors_from_user_config(opt);
+            size_t const query_num_errors = fastq_query.num_errors_from_user_config(cli_input);
 
             if (fastq_query.rank_sequence.size() <= query_num_errors) {
                 spdlog::warn(
@@ -167,15 +188,16 @@ int main(int argc, char** argv) {
                 continue;
             }            
             
-            if (query_num_errors < opt.pex_leaf_num_errors) {
+            if (query_num_errors < cli_input.pex_seed_num_errors()) {
                 spdlog::warn(
                     "Skipping query {}, because using the given error rate {}, it has an allowed "
                     "number of errors of {}, which is smaller than the given number of errors "
                     "in PEX tree leaves of {}.\n",
                     fastq_query.raw_tag,
-                    opt.query_error_probability,
+                    // in this case the error probability must have been given
+                    cli_input.query_error_probability().value(),
                     query_num_errors,
-                    opt.pex_leaf_num_errors
+                    cli_input.pex_seed_num_errors()
                 );
 
                 continue;
@@ -184,7 +206,7 @@ int main(int argc, char** argv) {
             auto const tree_config = pex_tree_config {
                 .total_query_length = fastq_query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
-                .leaf_max_num_errors = opt.pex_leaf_num_errors
+                .leaf_max_num_errors = cli_input.pex_seed_num_errors()
             };
             auto const& tree = tree_cache.get(tree_config);
 
@@ -234,11 +256,11 @@ int main(int argc, char** argv) {
             spdlog::error(
                 "An error occured while a thread was aligning reads or writing output to "
                 "the file {}.\nThe output file is likely incomplete and invalid.\n{}\n",
-                opt.output_path.c_str(),
+                cli_input.output_path(),
                 e.what()
             );
         } catch (...) {
-            spdlog::error("Unknown exception occurred\n");
+            spdlog::error("Unknown error occurred\n");
         }
     } 
 

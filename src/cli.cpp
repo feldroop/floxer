@@ -3,85 +3,104 @@
 
 #include <cmath>
 #include <stdexcept>
-#include <string>
 
 #include <spdlog/fmt/fmt.h>
 #include <sharg/all.hpp>
 
 namespace cli {
 
-static const char reference_path_option_short_id = 'r';
-static const std::string reference_path_option_long_id = "reference";
-
-static const char query_path_option_short_id = 'q';
-static const std::string query_path_option_long_id = "queries";
-
-static const char index_path_option_short_id = 'i';
-static const std::string index_path_option_long_id = "index";
-
-static const char output_path_option_short_id = 'o';
-static const std::string output_path_option_long_id = "output";
-
-static const char query_num_errors_option_short_id = 'e';
-static const std::string query_num_errors_option_long_id = "query-errors";
-
-static const char query_error_probability_option_short_id = 'p';
-static const std::string query_error_probability_option_long_id = "error-probability";
-
-static const char pex_leaf_num_errors_option_short_id = 'l';
-static const std::string pex_leaf_num_errors_option_long_id = "pex-leaf-errors";
-
-static const char num_threads_option_short_id = 't';
-static const std::string num_threads_option_long_id = "threads";
-
-bool options::query_num_errors_was_set() const {
-    return query_num_errors != std::numeric_limits<size_t>::max();
+std::filesystem::path const& command_line_input::reference_path() const {
+    return reference_path_.value;
 }
 
-bool options::query_error_probability_was_set() const {
-    return !std::isnan(query_error_probability);
+std::filesystem::path const& command_line_input::queries_path() const {
+    return queries_path_.value;
 }
 
-std::string options::command_line_call() const {
-    std::string const index_call = fmt::format(" --{} {}", index_path_option_long_id, index_path.filename().c_str());
-    std::string const query_num_errors_call =
-        fmt::format(" --{} {}", query_num_errors_option_long_id, query_num_errors);
-    std::string const query_error_probability_call =
-        fmt::format(" --{} {}", query_error_probability_option_long_id, query_error_probability);
-    
-    return fmt::format(
-        "floxer --{} {} --{} {}{} --{} {}{}{} --{} {} --{} {}",
-        reference_path_option_long_id, reference_sequence_path.filename().c_str(),
-        query_path_option_long_id, queries_path.filename().c_str(),
-        index_path.empty() ? "" : index_call,
-        output_path_option_long_id, output_path.filename().c_str(),
-        query_num_errors_was_set() ? query_num_errors_call : "",
-        query_error_probability_was_set() ? query_error_probability_call : "",
-        pex_leaf_num_errors_option_long_id, pex_leaf_num_errors,
-        num_threads_option_long_id, num_threads
-    );
+std::filesystem::path const& command_line_input::output_path() const {
+    return output_path_.value;
 }
 
-void validate_parsed_options(options const& opt) {
-    if (!opt.query_num_errors_was_set() && !opt.query_error_probability_was_set()) {
+std::optional<std::filesystem::path> command_line_input::index_path() const {
+    if (index_path_.value.empty()) {
+        return std::nullopt;
+    } else {
+        return index_path_.value;
+    }
+}
+
+std::optional<std::filesystem::path> command_line_input::logfile_path() const {
+        if (logfile_path_.value.empty()) {
+        return std::nullopt;
+    } else {
+        return logfile_path_.value;
+    }
+}
+
+std::optional<size_t> command_line_input::query_num_errors() const {
+    if (query_num_errors_.value != std::numeric_limits<size_t>::max()) {
+        return query_num_errors_.value;
+    } else {
+        return std::nullopt;
+    }
+}
+
+std::optional<double> command_line_input::query_error_probability() const {
+    if (std::isnan(query_error_probability_.value)) {
+        return std::nullopt;
+    } else {
+        return query_error_probability_.value;
+    }
+}
+
+size_t command_line_input::pex_seed_num_errors() const {
+    return pex_seed_num_errors_.value;
+}
+
+size_t command_line_input::num_threads() const {
+    return num_threads_.value;
+}
+
+std::string command_line_input::command_line_call() const {
+    std::vector<std::string> individual_calls{
+        "floxer",
+        reference_path_.command_line_call(),
+        queries_path_.command_line_call(),
+        index_path().has_value() ? index_path_.command_line_call() : "",
+        output_path_.command_line_call(),
+        logfile_path().has_value() ? logfile_path_.command_line_call() : "",
+        query_num_errors().has_value() ? query_num_errors_.command_line_call() : "",
+        query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
+        pex_seed_num_errors_.command_line_call(),
+        num_threads_.command_line_call()
+    };
+
+    return fmt::format("{}", fmt::join(individual_calls, ""));
+}
+
+void command_line_input::validate() const {
+    if (!query_num_errors().has_value() && !query_error_probability().has_value()) {
         throw std::runtime_error(
             "Either a fixed number of errors in the query or an error probability must be given."
         );
     }
 
-    if (!opt.query_error_probability_was_set() && opt.query_num_errors < opt.pex_leaf_num_errors) {
+    if (
+        query_num_errors().has_value() && 
+        query_num_errors().value() < pex_seed_num_errors()
+    ) {
         throw std::runtime_error(
             fmt::format(
                 "The number of errors per query ({}) must be greater or equal than the number of errors "
                 "in the PEX tree leaves ({}).",
-                opt.query_num_errors,
-                opt.pex_leaf_num_errors
+                query_num_errors().value(),
+                pex_seed_num_errors()
             )
         );
     }
 }
 
-options parse_and_validate_options(int argc, char ** argv) {
+void command_line_input::parse_and_validate(int argc, char ** argv) {
     sharg::parser parser{ about_floxer::program_name, argc, argv, sharg::update_notifications::off };
 
     parser.info.author = about_floxer::author;
@@ -95,11 +114,9 @@ options parse_and_validate_options(int argc, char ** argv) {
     parser.info.version = about_floxer::version;
     parser.info.date = about_floxer::version_date;
 
-    options opt{};
-
-    parser.add_option(opt.reference_sequence_path, sharg::config{
-        .short_id = reference_path_option_short_id, 
-        .long_id = reference_path_option_long_id,
+    parser.add_option(reference_path_.value, sharg::config{
+        .short_id = reference_path_.short_id, 
+        .long_id = reference_path_.long_id,
         .description = "The reference sequences in which floxer will search the queries, i.e. the haystack."
             "Only valid DNA sequences using [AaCcGgTt] characters are allowed.",
         .required = true,
@@ -111,43 +128,52 @@ options parse_and_validate_options(int argc, char ** argv) {
         }
     });
 
-    parser.add_option(opt.queries_path, sharg::config{
-        .short_id = query_path_option_short_id, 
-        .long_id = query_path_option_long_id, 
+    parser.add_option(queries_path_.value, sharg::config{
+        .short_id = queries_path_.short_id, 
+        .long_id = queries_path_.long_id, 
         .description = "The queries which floxer will search in the reference, i.e. the needles."
             "Queries that contain character other than [AaCcGgTt] are skipped.",
         .required = true,
         .validator = sharg::input_file_validator{{"fq", "fastq", "fq.gz", "fastq.gz"}}
     });
 
-    parser.add_option(opt.index_path, sharg::config{
-        .short_id = index_path_option_short_id, 
-        .long_id = index_path_option_long_id, 
+    parser.add_option(index_path_.value, sharg::config{
+        .short_id = index_path_.short_id, 
+        .long_id = index_path_.long_id, 
         .description = "The file where the constructed FM-index will be stored for later use. "
             "If the file already exists, the index will be read "
-            "from it instead of newly constructed."
+            "from it instead of newly constructed.",
+        .validator = sharg::output_file_validator{ sharg::output_file_open_options::open_or_create }
     });
 
-    parser.add_option(opt.output_path, sharg::config{
-        .short_id = output_path_option_short_id, 
-        .long_id = output_path_option_long_id, 
-        .description = "The file where the results will be stored.",
+    parser.add_option(output_path_.value, sharg::config{
+        .short_id = output_path_.short_id, 
+        .long_id = output_path_.long_id, 
+        .description = "The file where the alignment results will be stored.",
         .required = true,
-        .validator = sharg::output_file_validator{{"bam", "sam"}}
+        .validator = sharg::output_file_validator{ sharg::output_file_open_options::open_or_create, {"bam", "sam"}}
     });
 
-    parser.add_option(opt.query_num_errors, sharg::config{
-        .short_id = query_num_errors_option_short_id, 
-        .long_id = query_num_errors_option_long_id, 
+    parser.add_option(logfile_path_.value, sharg::config{
+        .short_id = logfile_path_.short_id, 
+        .long_id = logfile_path_.long_id, 
+        .description = "If a logfile path is given, a rotating logfile will be created "
+            "and debug information will be written to it.",
+        .validator = sharg::output_file_validator{ sharg::output_file_open_options::open_or_create }
+    });
+
+    parser.add_option(query_num_errors_.value, sharg::config{
+        .short_id = query_num_errors_.short_id, 
+        .long_id = query_num_errors_.long_id, 
         .description = "The number of errors allowed in each query. This is only used if no error "
             "probability is given. Either this or an error probability must be given.",
             .default_message = "no default",
         .validator = sharg::arithmetic_range_validator{0, 4096}
     });
 
-    parser.add_option(opt.query_error_probability, sharg::config{
-        .short_id = query_error_probability_option_short_id, 
-        .long_id = query_error_probability_option_long_id,
+    parser.add_option(query_error_probability_.value, sharg::config{
+        .short_id = query_error_probability_.short_id, 
+        .long_id = query_error_probability_.long_id,
         .description = "The error probability in the queries, per base. If this is given, it is used "
             "rather than the fixed number of errors. Either this or a fixed number of errors must be "
             "given.",
@@ -155,26 +181,24 @@ options parse_and_validate_options(int argc, char ** argv) {
         .validator = sharg::arithmetic_range_validator{0.00001, 0.99999}
     });
 
-    parser.add_option(opt.pex_leaf_num_errors, sharg::config{
-        .short_id = pex_leaf_num_errors_option_short_id, 
-        .long_id = pex_leaf_num_errors_option_long_id, 
-        .description = "The number of errors in the leaves of the PEX tree. "
-            "The seed sequences will be searched with this parameter using the FM-index.",
+    parser.add_option(pex_seed_num_errors_.value, sharg::config{
+        .short_id = pex_seed_num_errors_.short_id, 
+        .long_id = pex_seed_num_errors_.long_id, 
+        .description = "The number of errors in the leaves of the PEX tree that are used as seeds. "
+            "The sequences will be searched with this parameter using the FM-index.",
         .validator = sharg::arithmetic_range_validator{0, 3}
     });
 
-    parser.add_option(opt.num_threads, sharg::config{
-        .short_id = num_threads_option_short_id, 
-        .long_id = num_threads_option_long_id, 
+    parser.add_option(num_threads_.value, sharg::config{
+        .short_id = num_threads_.short_id, 
+        .long_id = num_threads_.long_id, 
         .description = "The number of threads to use in the different steps of the program.",
-        .validator = sharg::arithmetic_range_validator{1, 64}
+        .validator = sharg::arithmetic_range_validator{1, 4096}
     });
 
     parser.parse();
 
-    validate_parsed_options(opt);
-
-    return opt;
+    validate();
 }
 
 } // namespace cli

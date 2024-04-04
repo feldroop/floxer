@@ -24,7 +24,7 @@ struct query_record {
     std::vector<uint8_t> const rank_sequence;
     std::string const quality;
 
-    size_t num_errors_from_user_config(cli::options const& opt) const;
+    size_t num_errors_from_user_config(cli::command_line_input const& cli_input) const;
 };
 
 std::vector<reference_record> read_references(std::filesystem::path const& reference_sequence_path);

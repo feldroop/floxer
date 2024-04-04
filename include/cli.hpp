@@ -3,27 +3,65 @@
 #include <cmath>
 #include <filesystem>
 #include <limits>
+#include <optional>
+#include <string>
+#include <type_traits>
+
+#include <spdlog/fmt/fmt.h>
 
 namespace cli {
 
-struct options {
-    std::filesystem::path reference_sequence_path;
-    std::filesystem::path queries_path;
-    std::filesystem::path output_path;
-    std::filesystem::path index_path;
-    size_t query_num_errors = std::numeric_limits<size_t>::max();
-    double query_error_probability = NAN;
-    size_t pex_leaf_num_errors = 2;
-    size_t num_threads = 1;
+class command_line_input {
+    template<typename T>
+    struct cli_option {
+        const char short_id;
+        const std::string long_id;
+        T value;
 
-    bool query_num_errors_was_set() const;
+        std::string command_line_call() const {
+            if constexpr (std::is_same<T, std::filesystem::path>::value) {
+                return fmt::format(
+                    " --{} {}{}",
+                    long_id,
+                    value.has_parent_path() ? ".../" : "",
+                    value.filename().c_str()
+                );
+            } else {
+                return fmt::format(" --{} {}", long_id, value);
+            }
+        }
+    };
 
-    bool query_error_probability_was_set() const;
+    cli_option<std::filesystem::path> reference_path_{ 'r', "reference", "" };
+    cli_option<std::filesystem::path> queries_path_{ 'q', "queries", "" };
+    cli_option<std::filesystem::path> output_path_{ 'o', "output", "" };
+    cli_option<std::filesystem::path> index_path_{ 'i', "index", "" };
+    cli_option<std::filesystem::path> logfile_path_{ 'l', "logfile", "" };
+
+    cli_option<size_t> query_num_errors_{ 'e', "query-errors", std::numeric_limits<size_t>::max() };
+    cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
+    cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
+    cli_option<size_t> num_threads_{ 't', "threads", 1 };
+
+public:
+    void parse_and_validate(int argc, char ** argv); 
+    
+    std::filesystem::path const& reference_path() const;
+    std::filesystem::path const& queries_path() const;
+    std::filesystem::path const& output_path() const;
+    std::optional<std::filesystem::path> index_path() const;
+    std::optional<std::filesystem::path> logfile_path() const;
+
+    std::optional<size_t> query_num_errors() const;
+    std::optional<double> query_error_probability() const;
+    size_t pex_seed_num_errors() const;
+    size_t num_threads() const;
 
     // not the exact one, but a sanitized and canonical version
     std::string command_line_call() const;
-};
 
-options parse_and_validate_options(int argc, char** argv);
+private:
+    void validate() const;
+};
 
 } // namespace cli
