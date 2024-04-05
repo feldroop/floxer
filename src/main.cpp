@@ -60,7 +60,7 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
 std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
     auto const elapsed_seconds = stopwatch.elapsed();
     if (elapsed_seconds <= std::chrono::seconds(60)) {
-        return fmt::format("{:.3} seconds", elapsed_seconds);
+        return fmt::format("{:.7} seconds", elapsed_seconds);
     }
 
     size_t const all_in_seconds = elapsed_seconds.count();
@@ -75,11 +75,14 @@ std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
     size_t const days = all_in_hours / 24;
 
     if (days > 0) {
-        return fmt::format("{}:{}:{}:{} (day:hr:min:sec)", elapsed_seconds);
+        return fmt::format(
+            "{}:{}:{}:{} (days:hrs:mins:secs)",
+            days, hours, minutes, seconds
+        );
     } else if (hours > 0) {
-        return fmt::format("{}:{}:{} (hr:min:sec)", elapsed_seconds);
+        return fmt::format("{}:{}:{} (hrs:mins:secs)", hours, minutes, seconds);
     } else {
-        return fmt::format("{}:{} (min:sec)");
+        return fmt::format("{}:{} minutes", minutes, seconds);
     }
 }
 
