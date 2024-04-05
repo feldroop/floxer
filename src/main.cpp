@@ -7,6 +7,7 @@
 #include <search.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <exception>
 #include <filesystem>
 #include <locale>
@@ -20,6 +21,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/stopwatch.h>
 
 #include <ivsigma/ivsigma.h>
 
@@ -35,7 +37,7 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
 
     if (logfile_path.has_value()) {
         auto const max_logfile_size = 1024 * 1024 * 5; // 5 MB
-        auto const max_num_logfiles = 1;
+        auto const max_num_logfiles = 3;
 
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
             logfile_path.value(),
@@ -53,6 +55,32 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
     logger->flush_on(spdlog::level::debug);
     
     spdlog::set_default_logger(logger);
+}
+
+std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
+    auto const elapsed_seconds = stopwatch.elapsed();
+    if (elapsed_seconds <= std::chrono::seconds(60)) {
+        return fmt::format("{:.3} seconds", elapsed_seconds);
+    }
+
+    size_t const all_in_seconds = elapsed_seconds.count();
+    size_t const seconds = all_in_seconds % 60;
+
+    size_t const all_in_minutes = all_in_seconds / 60;
+    size_t const minutes = all_in_minutes % 60;
+
+    size_t const all_in_hours = all_in_minutes / 60;
+    size_t const hours = all_in_minutes % 24;
+
+    size_t const days = all_in_hours / 24;
+
+    if (days > 0) {
+        return fmt::format("{}:{}:{}:{} (day:hr:min:sec)", elapsed_seconds);
+    } else if (hours > 0) {
+        return fmt::format("{}:{}:{} (hr:min:sec)", elapsed_seconds);
+    } else {
+        return fmt::format("{}:{} (min:sec)");
+    }
 }
 
 int main(int argc, char** argv) {
@@ -76,8 +104,6 @@ int main(int argc, char** argv) {
         );
     }
 
-    // TODO stopwatch
-    // TODO add debug and trace
     spdlog::info("successfully parsed CLI input");
 
     auto const command_line_call = cli_input.command_line_call();
@@ -130,12 +156,16 @@ int main(int argc, char** argv) {
             cli_input.num_threads() == 1 ? "" : "s"
         );
 
+        spdlog::stopwatch build_index_stopwatch;    
+
         size_t constexpr suffix_array_sampling_rate = 16; 
         index = fmindex(
             references | std::views::transform(&input::reference_record::rank_sequence),
             suffix_array_sampling_rate,
             cli_input.num_threads()
         );
+
+        spdlog::info("building index took {}", format_elapsed_time(build_index_stopwatch));
 
         if (cli_input.index_path().has_value()) {
             auto const index_path = cli_input.index_path().value();
@@ -155,10 +185,11 @@ int main(int argc, char** argv) {
         }
     }
 
-    spdlog::info(
-        "index memory usage: {:L} bytes",
-        100000000000000// index.memoryUsage()
-    );
+    // not available
+    // spdlog::info(
+    //     "index memory usage: {:L} bytes",
+    //     index.memoryUsage()
+    // );
 
     spdlog::info("reading queries from {}", cli_input.queries_path());
 
@@ -203,6 +234,8 @@ int main(int argc, char** argv) {
     // workaround for handling errors in threads
     std::atomic_bool encountered_error = false;
     std::vector<std::exception_ptr> exceptions{};
+
+    spdlog::stopwatch aligning_stopwatch;  
 
     #pragma omp parallel for \
         num_threads(cli_input.num_threads()) \
@@ -317,7 +350,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    spdlog::info("finished successfully");
+    spdlog::info("finished aligning successfully in {}", format_elapsed_time(aligning_stopwatch));
 
     return 0;
 }
