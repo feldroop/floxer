@@ -9,26 +9,55 @@
 #include <atomic>
 #include <exception>
 #include <filesystem>
+#include <locale>
+#include <memory>
 #include <ranges>
 #include <span>
 #include <vector>
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/fmt/std.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/spdlog.h>
 
 #include <ivsigma/ivsigma.h>
 
-// void initialize_logger() {
-//     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-//     console_sink->set_level(spdlog::level::info);
-//     // TODO set pattern
-//     // console_sink->set_pattern();
+void initialize_logger(std::optional<std::filesystem::path> const logfile_path) {
+    std::vector<spdlog::sink_ptr> sinks;
+    
+    auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
+    console_sink->set_level(spdlog::level::info);
+    std::string const log_pattern = "[thread %t] %+";
+    console_sink->set_pattern(log_pattern);
 
-//     auto
-// }
+    sinks.push_back(console_sink);
+
+    if (logfile_path.has_value()) {
+        auto const max_logfile_size = 1024 * 1024 * 5; // 5 MB
+        auto const max_num_logfiles = 1;
+
+        auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+            logfile_path.value(),
+            max_logfile_size,
+            max_num_logfiles
+        );
+        file_sink->set_level(spdlog::level::trace);
+        file_sink->set_pattern(log_pattern);
+
+        sinks.push_back(file_sink);
+    }
+
+    auto logger = std::make_shared<spdlog::logger>("floxer", begin(sinks), end(sinks));
+    logger->set_level(spdlog::level::trace);
+    logger->flush_on(spdlog::level::debug);
+    
+    spdlog::set_default_logger(logger);
+}
 
 int main(int argc, char** argv) {
+    std::locale::global(std::locale("en_US.UTF-8"));
+
     cli::command_line_input cli_input;
     try {
         cli_input.parse_and_validate(argc, argv);
@@ -37,10 +66,19 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // TODO test what spdlog does with long lines
-    // initialize_logger();
+    try {
+        initialize_logger(cli_input.logfile_path());
+    } catch (std::exception const& e) {
+        fmt::print(
+            "[ERROR] An error occured while trying to set up logging. "
+            "Trying to continue without logging output.\n {}\n",
+            e.what()
+        );
+    }
 
-    spdlog::info("starting floxer");
+    // TODO stopwatch
+    // TODO add debug and trace
+    spdlog::info("successfully parsed CLI input");
 
     auto const command_line_call = cli_input.command_line_call();
     spdlog::debug("command line call: {}", command_line_call);
@@ -116,6 +154,11 @@ int main(int argc, char** argv) {
             }
         }
     }
+
+    spdlog::info(
+        "index memory usage: {:L} bytes",
+        100000000000000// index.memoryUsage()
+    );
 
     spdlog::info("reading queries from {}", cli_input.queries_path());
 
@@ -202,6 +245,8 @@ int main(int argc, char** argv) {
 
                 continue;
             }
+            
+            spdlog::debug("aligning query: {}", fastq_query.raw_tag);
 
             auto const tree_config = pex_tree_config {
                 .total_query_length = fastq_query.rank_sequence.size(),
@@ -222,6 +267,8 @@ int main(int argc, char** argv) {
                 index
             );
 
+            spdlog::trace("after forward: {} alignments", alignments.size());
+
             auto const reverse_complement_fastq_query_rank_sequence = 
                 ivs::reverse_complement_rank<ivs::d_dna4>(fastq_query.rank_sequence);
             is_reverse_complement = true;
@@ -234,6 +281,8 @@ int main(int argc, char** argv) {
                 scheme_cache,
                 index
             );
+
+            spdlog::trace("after reverse complement: {} alignments", alignments.size());
 
             #pragma omp critical
             sam_output.output_for_query(
@@ -267,6 +316,8 @@ int main(int argc, char** argv) {
     if (!exceptions.empty()) {
         return -1;
     }
+
+    spdlog::info("finished successfully");
 
     return 0;
 }

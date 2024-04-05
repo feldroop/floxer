@@ -101,6 +101,7 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
     
     size_t id = 0;
     size_t num_unnamed = 0;
+    size_t total_length = 0;
 
     std::unordered_map<std::string, size_t> reference_names{};
     bool duplicate_name_warning_given = false;
@@ -163,6 +164,9 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
             );
         }
 
+        spdlog::debug("read reference: \"{}\", length {:L}", raw_tag, sequence.size());
+
+        total_length += sequence.size();
         records.emplace_back(
             id,
             std::move(raw_tag),
@@ -173,6 +177,8 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
         ++id;
     }
 
+    spdlog::info("total reference size: {:L}", total_length);
+
     return records;
 }
 
@@ -181,6 +187,7 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
 
     size_t id = 0;
     size_t num_unnamed = 0;
+    size_t total_length = 0;
 
     std::unordered_map<std::string, size_t> query_names{};
     bool duplicate_name_warning_given = false;
@@ -253,6 +260,7 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
             continue;
         }
 
+        total_length += rank_sequence.size();
         records.emplace_back(
             id,
             std::move(raw_tag),
@@ -263,6 +271,8 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
 
         ++id;
     }
+
+    spdlog::info("total query size: {:L}", total_length);
 
     return records;
 }

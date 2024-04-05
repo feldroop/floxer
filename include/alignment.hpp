@@ -90,6 +90,7 @@ public:
     // and then the one with the lowest reference id
     bool is_primary_alignment(query_alignment const& alignment) const;
 
+    size_t size() const;
 private:
     void update_primary_alignment(query_alignment const& alignment);
 };

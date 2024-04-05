@@ -165,6 +165,16 @@ void fastq_query_alignments::update_primary_alignment(query_alignment const& new
     }
 }
 
+size_t fastq_query_alignments::size() const {
+    size_t size = 0;
+
+    for (auto const& alignments_of_reference : alignments_per_reference) {
+        size += alignments_of_reference.size();
+    }
+
+    return size;
+}
+
 fastq_query_alignments::reference_alignments const& fastq_query_alignments::for_reference(
     size_t const reference_id
 ) const {

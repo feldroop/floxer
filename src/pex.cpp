@@ -3,6 +3,8 @@
 
 #include <ranges>
 
+#include <spdlog/spdlog.h>
+
 size_t ceil_div(size_t const a, size_t const b) {
     return (a % b) ? a / b + 1 : a / b;
 }
@@ -33,12 +35,24 @@ void pex_tree::search(
 ) const {
     auto const leaf_queries = generate_leaf_queries(fastq_query);
     
+    spdlog::trace("searching seeds in FM-index");
+
     auto const hits = search::search_leaf_queries(
         leaf_queries,
         index,
         scheme_cache,
         references.size()
     );
+
+    size_t num_hits = 0;
+
+    for (auto const& leaf_query_hits : hits) {
+        for (auto const& leaf_to_reference_hits : leaf_query_hits) {
+            num_hits += leaf_to_reference_hits.size();
+        }
+    }
+
+    spdlog::trace("found {} hits, now verifying/aligning", num_hits);
 
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
