@@ -142,8 +142,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = index_path_.long_id, 
         .description = "The file where the constructed FM-index will be stored for later use. "
             "If the file already exists, the index will be read "
-            "from it instead of newly constructed.",
-        .validator = sharg::output_file_validator{ sharg::output_file_open_options::open_or_create }
+            "from it instead of newly constructed."
     });
 
     parser.add_option(output_path_.value, sharg::config{
@@ -158,8 +157,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = logfile_path_.short_id, 
         .long_id = logfile_path_.long_id, 
         .description = "If a logfile path is given, a rotating logfile will be created "
-            "and debug information will be written to it.",
-        .validator = sharg::output_file_validator{ sharg::output_file_open_options::open_or_create }
+            "and debug information will be written to it."
     });
 
     parser.add_option(query_num_errors_.value, sharg::config{
