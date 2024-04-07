@@ -70,19 +70,12 @@ std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
     size_t const minutes = all_in_minutes % 60;
 
     size_t const all_in_hours = all_in_minutes / 60;
-    size_t const hours = all_in_minutes % 24;
+    size_t const hours = all_in_hours % 24;
 
-    size_t const days = all_in_hours / 24;
-
-    if (days > 0) {
-        return fmt::format(
-            "{}:{}:{}:{} (days:hrs:mins:secs)",
-            days, hours, minutes, seconds
-        );
-    } else if (hours > 0) {
-        return fmt::format("{}:{}:{} (hrs:mins:secs)", hours, minutes, seconds);
+    if (hours > 0) {
+        return fmt::format("{}:{:02}:{:02} hours", hours, minutes, seconds);
     } else {
-        return fmt::format("{}:{} minutes", minutes, seconds);
+        return fmt::format("{:02}:{:02} minutes", minutes, seconds);
     }
 }
 
