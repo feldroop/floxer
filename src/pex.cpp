@@ -41,8 +41,6 @@ void pex_tree::search(
 ) const {
     auto const leaf_queries = generate_leaf_queries(fastq_query);
 
-    spdlog::trace("searching seeds in FM-index");
-
     auto const hits = search::search_leaf_queries(
         leaf_queries,
         index,
@@ -57,8 +55,6 @@ void pex_tree::search(
             num_hits += leaf_to_reference_hits.size();
         }
     }
-
-    spdlog::trace("found {} hits, now verifying/aligning", num_hits);
 
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {

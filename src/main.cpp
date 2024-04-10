@@ -297,8 +297,6 @@ int main(int argc, char** argv) {
                 index
             );
 
-            spdlog::trace("after forward: {} alignments", alignments.size());
-
             auto const reverse_complement_fastq_query_rank_sequence = 
                 ivs::reverse_complement_rank<ivs::d_dna4>(fastq_query.rank_sequence);
             is_reverse_complement = true;
@@ -311,8 +309,6 @@ int main(int argc, char** argv) {
                 scheme_cache,
                 index
             );
-
-            spdlog::trace("after reverse complement: {} alignments", alignments.size());
 
             #pragma omp critical
             sam_output.output_for_query(
