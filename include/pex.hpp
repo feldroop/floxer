@@ -32,6 +32,7 @@ public:
         size_t num_errors;
 
         size_t query_length() const;
+        bool is_root() const;
     };
 
     void search(

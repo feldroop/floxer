@@ -1,7 +1,9 @@
 #include <alignment_algorithm.hpp>
 #include <pex.hpp>
 
+#include <cassert>
 #include <ranges>
+#include <tuple>
 
 #include <spdlog/spdlog.h>
 
@@ -25,6 +27,10 @@ size_t pex_tree::node::query_length() const {
     return query_index_to - query_index_from + 1;
 }
 
+bool pex_tree::node::is_root() const {
+    return parent_id == null_id;
+}
+
 void pex_tree::search(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const fastq_query,
@@ -34,7 +40,7 @@ void pex_tree::search(
     fmindex const& index
 ) const {
     auto const leaf_queries = generate_leaf_queries(fastq_query);
-    
+
     spdlog::trace("searching seeds in FM-index");
 
     auto const hits = search::search_leaf_queries(
@@ -123,6 +129,77 @@ std::vector<search::query> pex_tree::generate_leaf_queries(
     return leaf_queries;
 }
 
+std::tuple<size_t, size_t> compute_reference_span_start_and_length(
+    search::hit const& hit,
+    pex_tree::node const& pex_node,
+    size_t const leaf_query_index_from,
+    size_t const full_reference_length
+) {
+    // this extra wiggle room is added around the reference span because it was observed
+    // that it leads no nicer alignments in certain edge cases 
+    // and it likely has no impact on performance
+    size_t constexpr extra_wiggle_room = 1;
+
+    int64_t const start_signed = static_cast<int64_t>(hit.position) - 
+        (leaf_query_index_from - pex_node.query_index_from)
+        - pex_node.num_errors - extra_wiggle_room;
+    size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
+    size_t const reference_span_length = std::min(
+        pex_node.query_length() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
+        full_reference_length - reference_span_start
+    );
+
+    return std::make_tuple(reference_span_start, reference_span_length);
+}
+
+// returns whether an alignment was found
+bool try_to_align_corresponding_query_span_at_anchor(
+    search::hit const& hit,
+    pex_tree::node const& pex_node,
+    size_t const leaf_query_index_from,
+    input::reference_record const& reference,
+    std::span<const uint8_t> const fastq_query,
+    alignment::fastq_query_alignments& alignments,
+    bool const is_reverse_complement
+) {
+    auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
+
+    auto const [reference_span_start, reference_span_length] = compute_reference_span_start_and_length(
+        hit,
+        pex_node,
+        leaf_query_index_from,
+        full_reference_span.size()
+    );
+
+    auto const this_node_query_span = fastq_query.subspan(
+        pex_node.query_index_from,
+        pex_node.query_length()
+    );
+
+    auto const reference_subspan =
+        full_reference_span.subspan(reference_span_start, reference_span_length);
+
+    auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
+        reference.id,
+        reference_span_start,
+        reference_span_length,
+        is_reverse_complement
+    );
+
+    bool const query_found = alignment::VerifyingAligner::align_query(
+        // the reversing here is done to allow the DP traceback to start from the start position
+        // of the alignment in the reference. This in turn allows to skip tracebacks for many
+        // alignment candidates that are not useful
+        std::views::reverse(reference_subspan),
+        std::views::reverse(this_node_query_span),
+        pex_node.num_errors,
+        pex_node.is_root(),
+        alignment_insertion_gatekeeper
+    );
+
+    return query_found;
+}
+
 void pex_tree::hierarchical_verification(
     search::hit const& hit,
     size_t const leaf_query_id,
@@ -130,59 +207,45 @@ void pex_tree::hierarchical_verification(
     input::reference_record const& reference,
     alignment::fastq_query_alignments& alignments,
     bool const is_reverse_complement
-) const {    
-    auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
-
+) const {
     // this depends on the implementation of generate_leave_queries returning the
     // leaf queries in the same order as the leaves (which it should always do!)
     auto pex_node = leaves.at(leaf_query_id);
     size_t const leaf_query_index_from = pex_node.query_index_from;
-    pex_node = inner_nodes[pex_node.parent_id];
 
-    while (true) {
-        // this extra wiggle room is added around the reference span because it was observed
-        // that it leads no nicer alignments in certain edge cases 
-        // and it likely has no impact on performance
-        size_t constexpr extra_wiggle_room = 1;
-
-        int64_t const start_signed = static_cast<int64_t>(hit.position) - 
-            (leaf_query_index_from - pex_node.query_index_from)
-            - pex_node.num_errors - extra_wiggle_room;
-        size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
-        size_t const reference_span_length = std::min(
-            pex_node.query_length() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
-            full_reference_span.size() - reference_span_start
-        );
-
-        auto const this_node_query_span = fastq_query.subspan(
-            pex_node.query_index_from,
-            pex_node.query_length()
-        );
-
-        auto const reference_subspan =
-            full_reference_span.subspan(reference_span_start, reference_span_length);
-
-        bool const curr_node_is_root = pex_node.parent_id == null_id;
-
-        auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
-            reference.id,
-            reference_span_start,
-            reference_span_length,
+    // case for when the whole PEX tree is just a single root
+    // this could be optimized by not aligning again, but instead using the FM-index alignment
+    if (pex_node.is_root()) {
+        bool const query_found = try_to_align_corresponding_query_span_at_anchor(
+            hit,
+            pex_node,
+            leaf_query_index_from,
+            reference,
+            fastq_query,
+            alignments,
             is_reverse_complement
         );
 
-        bool const query_found = alignment::VerifyingAligner::align_query(
-            // the reversing here is done to allow the DP traceback to start from the start position
-            // of the alignment in the reference. This in turn allows to skip tracebacks for many
-            // alignment candidates that are not useful
-            std::views::reverse(reference_subspan),
-            std::views::reverse(this_node_query_span),
-            pex_node.num_errors,
-            curr_node_is_root,
-            alignment_insertion_gatekeeper
+        (void)query_found;
+        assert(query_found);
+
+        return;
+    }
+
+    pex_node = inner_nodes.at(pex_node.parent_id);
+
+    while (true) {
+        bool const query_found = try_to_align_corresponding_query_span_at_anchor(
+            hit,
+            pex_node,
+            leaf_query_index_from,
+            reference,
+            fastq_query,
+            alignments,
+            is_reverse_complement
         );
 
-        if (!query_found || curr_node_is_root) {
+        if (!query_found || pex_node.is_root()) {
             break;
         }
 
