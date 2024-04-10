@@ -1,9 +1,10 @@
 #pragma once
 
+#include <alignment.hpp>
 #include <fmindex.hpp>
 #include <input.hpp>
 #include <search.hpp>
-#include <alignment.hpp>
+#include <statistics.hpp>
 
 #include <limits>
 #include <map>
@@ -41,7 +42,8 @@ public:
         alignment::fastq_query_alignments& output_alignments,
         bool const is_reverse_complement,
         search::search_scheme_cache& scheme_cache,
-        fmindex const& index
+        fmindex const& index,
+        statistics::search_and_alignment_statistics& stats
     ) const;
 
 private:

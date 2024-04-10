@@ -5,6 +5,7 @@
 #include <output.hpp>
 #include <pex.hpp>
 #include <search.hpp>
+#include <statistics.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -215,6 +216,7 @@ int main(int argc, char** argv) {
         command_line_call
     );
 
+    statistics::search_and_alignment_statistics stats{};
     search::search_scheme_cache scheme_cache;
     pex_tree_cache tree_cache;
 
@@ -234,12 +236,20 @@ int main(int argc, char** argv) {
 
     spdlog::stopwatch aligning_stopwatch;  
 
+    #pragma omp declare reduction( \
+            statsReduction : \
+            statistics::search_and_alignment_statistics : \
+            statistics::combine_stats(omp_out, omp_in) \
+        ) \
+        initializer (omp_priv=omp_orig)
+
     #pragma omp parallel for \
         num_threads(cli_input.num_threads()) \
         default(none) \
         private(tree_cache, scheme_cache) \
         shared(fastq_queries, cli_input, references, index, sam_output, exceptions, encountered_error) \
-        schedule(static)
+        schedule(static) \
+        reduction(statsReduction:stats)
     for (size_t i = 0; i < fastq_queries.size(); ++i) {
         if (encountered_error) {
             continue;
@@ -294,8 +304,12 @@ int main(int argc, char** argv) {
                 alignments,
                 is_reverse_complement,
                 scheme_cache,
-                index
+                index,
+                stats
             );
+
+            auto const num_forward_hits = alignments.size();
+            stats.add_num_alignments_forward(num_forward_hits);
 
             auto const reverse_complement_fastq_query_rank_sequence = 
                 ivs::reverse_complement_rank<ivs::d_dna4>(fastq_query.rank_sequence);
@@ -307,8 +321,11 @@ int main(int argc, char** argv) {
                 alignments,
                 is_reverse_complement,
                 scheme_cache,
-                index
+                index,
+                stats
             );
+
+            stats.add_num_alignments_revcomp(alignments.size() - num_forward_hits);
 
             #pragma omp critical
             sam_output.output_for_query(
@@ -341,6 +358,11 @@ int main(int argc, char** argv) {
 
     if (!exceptions.empty()) {
         return -1;
+    }
+    
+    bool print_stats = true; // TODO add flag to CLI
+    if (print_stats) {
+        stats.print_all_histograms();
     }
 
     spdlog::info("finished aligning successfully in {}", format_elapsed_time(aligning_stopwatch));

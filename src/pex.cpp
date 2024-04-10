@@ -37,7 +37,8 @@ void pex_tree::search(
     alignment::fastq_query_alignments& output_alignments,
     bool const is_reverse_complement,
     search::search_scheme_cache& scheme_cache,
-    fmindex const& index
+    fmindex const& index,
+    statistics::search_and_alignment_statistics& stats
 ) const {
     auto const leaf_queries = generate_leaf_queries(fastq_query);
 
@@ -48,13 +49,17 @@ void pex_tree::search(
         references.size()
     );
 
-    size_t num_hits = 0;
+    size_t query_num_hits = 0;
 
     for (auto const& leaf_query_hits : hits) {
         for (auto const& leaf_to_reference_hits : leaf_query_hits) {
-            num_hits += leaf_to_reference_hits.size();
+            auto const this_seed_num_hits = leaf_to_reference_hits.size();
+            stats.add_num_seed_search_hits(this_seed_num_hits);
+            query_num_hits += this_seed_num_hits;
         }
     }
+
+    stats.add_num_seed_search_hits_per_query(query_num_hits);
 
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
