@@ -42,6 +42,10 @@ void pex_tree::search(
 ) const {
     auto const leaf_queries = generate_leaf_queries(fastq_query);
 
+    for (auto const& leaf_query : leaf_queries) {
+        stats.add_seed_length(leaf_query.sequence.size());
+    }
+
     auto const hits = search::search_leaf_queries(
         leaf_queries,
         index,
@@ -52,14 +56,17 @@ void pex_tree::search(
     size_t query_num_hits = 0;
 
     for (auto const& leaf_query_hits : hits) {
+        size_t seed_num_hits = 0;
+
         for (auto const& leaf_to_reference_hits : leaf_query_hits) {
-            auto const this_seed_num_hits = leaf_to_reference_hits.size();
-            stats.add_num_seed_search_hits(this_seed_num_hits);
-            query_num_hits += this_seed_num_hits;
+            seed_num_hits += leaf_to_reference_hits.size();
         }
+
+        stats.add_num_anchors_per_seed(seed_num_hits);
+        query_num_hits += seed_num_hits;
     }
 
-    stats.add_num_seed_search_hits_per_query(query_num_hits);
+    stats.add_num_anchors_per_query(query_num_hits);
 
     for (size_t leaf_query_id = 0; leaf_query_id < leaf_queries.size(); ++leaf_query_id) {
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {

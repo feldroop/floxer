@@ -61,6 +61,10 @@ size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
 
+bool command_line_input::print_stats() const {
+    return print_stats_.value;
+}
+
 std::string command_line_input::command_line_call() const {
     std::vector<std::string> individual_calls{
         "floxer",
@@ -72,7 +76,8 @@ std::string command_line_input::command_line_call() const {
         query_num_errors().has_value() ? query_num_errors_.command_line_call() : "",
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
-        num_threads_.command_line_call()
+        num_threads_.command_line_call(),
+        print_stats() ? print_stats_.command_line_call() : ""
     };
 
     return fmt::format("{}", fmt::join(individual_calls, ""));
@@ -165,7 +170,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = query_num_errors_.long_id, 
         .description = "The number of errors allowed in each query. This is only used if no error "
             "probability is given. Either this or an error probability must be given.",
-            .default_message = "no default",
+        .default_message = "no default",
         .validator = sharg::arithmetic_range_validator{0, 4096}
     });
 
@@ -192,6 +197,12 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = num_threads_.long_id, 
         .description = "The number of threads to use in the different steps of the program.",
         .validator = sharg::arithmetic_range_validator{1, 4096}
+    });
+
+    parser.add_flag(print_stats_.value, sharg::config{
+        .short_id = print_stats_.short_id,
+        .long_id = print_stats_.long_id,
+        .description = "Print a number of stats about input, seeding and alignments.",
     });
 
     parser.parse();

@@ -26,6 +26,8 @@ class command_line_input {
                     value.has_parent_path() ? ".../" : "",
                     value.filename().c_str()
                 );
+            } else if constexpr (std::is_same<T, bool>::value) {
+                return fmt::format(" --{}", long_id);
             } else {
                 return fmt::format(" --{} {}", long_id, value);
             }
@@ -42,6 +44,8 @@ class command_line_input {
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
+    
+    cli_option<bool> print_stats_{ 'a', "print-stats", false };
 
 public:
     void parse_and_validate(int argc, char ** argv); 
@@ -56,6 +60,7 @@ public:
     std::optional<double> query_error_probability() const;
     size_t pex_seed_num_errors() const;
     size_t num_threads() const;
+    bool print_stats() const;
 
     // not the exact one, but a sanitized and canonical version
     std::string command_line_call() const;

@@ -286,6 +286,8 @@ int main(int argc, char** argv) {
             
             spdlog::debug("aligning query: {}", fastq_query.raw_tag);
 
+            stats.add_query_length(fastq_query.rank_sequence.size());
+
             auto const tree_config = pex_tree_config {
                 .total_query_length = fastq_query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
@@ -306,9 +308,6 @@ int main(int argc, char** argv) {
                 stats
             );
 
-            auto const num_forward_hits = alignments.size();
-            stats.add_num_alignments_forward(num_forward_hits);
-
             auto const reverse_complement_fastq_query_rank_sequence = 
                 ivs::reverse_complement_rank<ivs::d_dna4>(fastq_query.rank_sequence);
             is_reverse_complement = true;
@@ -323,7 +322,13 @@ int main(int argc, char** argv) {
                 stats
             );
 
-            stats.add_num_alignments_revcomp(alignments.size() - num_forward_hits);
+            stats.add_num_alignments(alignments.size());
+
+            for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+                for (auto const& [_, alignment] : alignments.for_reference(reference_id)) {
+                    stats.add_alignment_edit_distance(alignment.num_errors);
+                }
+            }
 
             #pragma omp critical
             sam_output.output_for_query(
@@ -357,13 +362,12 @@ int main(int argc, char** argv) {
     if (!exceptions.empty()) {
         return -1;
     }
-    
-    bool print_stats = true; // TODO add flag to CLI
-    if (print_stats) {
-        stats.print_all_histograms();
-    }
 
     spdlog::info("finished aligning successfully in {}", format_elapsed_time(aligning_stopwatch));
+    
+    if (cli_input.print_stats()) {
+        stats.print_all_histograms();
+    }
 
     return 0;
 }
