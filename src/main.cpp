@@ -233,6 +233,7 @@ int main(int argc, char** argv) {
 
     spdlog::stopwatch aligning_stopwatch;  
 
+    // reduction(name, type, combining_function)
     #pragma omp declare reduction( \
             statsReduction : \
             statistics::search_and_alignment_statistics : \
@@ -245,7 +246,7 @@ int main(int argc, char** argv) {
         default(none) \
         private(tree_cache, scheme_cache) \
         shared(fastq_queries, cli_input, references, index, sam_output, exceptions, encountered_error) \
-        schedule(static) \
+        schedule(dynamic) \
         reduction(statsReduction:stats)
     for (size_t i = 0; i < fastq_queries.size(); ++i) {
         if (encountered_error) {
