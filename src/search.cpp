@@ -106,16 +106,17 @@ hit_list search_leaf_queries(
         auto const leaf_query_single_span = leaf_queries_span.subspan(i, 1) 
             | std::views::transform(&search::query::sequence);
 
+        auto& query_hits = hits[i];
+
         // if the preorder function inside fmindex search occurs in any perf profile, we can optimize it
-        // also, search_ng22 is for the aidditional alignment output
+        // also, search_ng22 is for the additional alignment output
         fmindex_collection::search_ng21::search(
             index,
             leaf_query_single_span,
             search_scheme,
-            [&index, &hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
-                auto& query_hits = hits[leaf_query_id];
-
+            [&index, &query_hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
                 for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
+                    (void)leaf_query_id; // <- always 0 with this approach
                     auto const [reference_id, pos] = index.locate(hit);
                     query_hits[reference_id].emplace_back(pos, errors);
                 }
