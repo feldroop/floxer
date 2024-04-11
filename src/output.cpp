@@ -84,7 +84,7 @@ std::basic_ostream<char, Traits>& operator<<(
     std::basic_ostream<char, Traits>& os,
     sam_header::file_level_metadata const& metadata
 ) {
-    os << "@HG\tVN:" << metadata.version
+    os << "@HD\tVN:" << metadata.version
         << "\tGO:" << metadata.alignment_grouping << '\n';
 
     return os;
