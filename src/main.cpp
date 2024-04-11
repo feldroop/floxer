@@ -81,9 +81,6 @@ std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
 }
 
 int main(int argc, char** argv) {
-    // for large number output formatting
-    std::locale::global(std::locale("en_US.UTF-8"));
-
     cli::command_line_input cli_input;
     try {
         cli_input.parse_and_validate(argc, argv);
