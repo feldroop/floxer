@@ -8,12 +8,12 @@ An exact longread aligner applying the following techniques to be not orders of 
 
 ## Installation on Linux
 
-Requires a recent C++20-capable C++-Compiler and CMake.
+Requires a recent C++20-capable compiler and CMake.
 
 ```
 git clone --recurse-submodules https://github.com/feldroop/floxer
 mkdir floxer/build && cd floxer/build
-cmake .. -DCMAKE_BUILD_TYPE:STRING=Debug
+cmake .. -DCMAKE_BUILD_TYPE:STRING=Release
 make
 ./bin/floxer --help
 ```
