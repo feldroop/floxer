@@ -12,14 +12,16 @@ set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# Use ccache.
+# Use ccache for faster cached compiles
 include (cmake/ccache.cmake)
 require_ccache ()
 
 # for the CPM package manager
 include(cmake/CPM.cmake)
 
-# dependencies
+# ----- dependencies -----
+
+# for FM-index serialization
 CPMaddPackage(
     NAME cereal
     GITHUB_REPOSITORY USCiLab/cereal
@@ -33,25 +35,32 @@ CPMaddPackage(
     SYSTEM YES
 )
 
+# for logging and output (includes libfmt)
+CPMaddPackage("gh:gabime/spdlog#v1.13.0")
+
+# for CLI parsing
 CPMaddPackage(
-    NAME spdlog
-    GITHUB_REPOSITORY gabime/spdlog
-    GIT_TAG v1.13.0
+    NAME sharg
+    GITHUB_REPOSITORY seqan/sharg-parser
+    GIT_TAG 39f65a4890f8c5108af2b5c7974893ff6ed87e50
+    OPTIONS
+        "NO_TDL ON"
     EXCLUDE_FROM_ALL TRUE
     SYSTEM YES
 )
 
-set (SHARG_NO_TDL ON)
-find_package(sharg REQUIRED PATHS lib/sharg/build_system)
+# for sequence input
+CPMaddPackage("gh:iv-project/IVio#8fcb901bc08dd48d050bcfbcf73d5fe40db6c90a")
 
-find_package(ivio REQUIRED PATHS lib/ivio)
+# for sequence alphabet and transformation utilities
+CPMaddPackage("gh:iv-project/IVSigma#4b76036ed331b91b7a08fc7249ac51b4def71c74")
 
-find_package(ivsigma REQUIRED PATHS lib/ivsigma)
+# for the FM-index
+# set(LIBSAIS_USE_OPENMP ON)
+CPMaddPackage("gh:SGSSGene/fmindex-collection#b0e311f122f6ae9d15d470ca88ac21f028dc010a")
 
-set(LIBSAIS_USE_OPENMP ON)
-find_package(fmindex_collection REQUIRED PATHS lib/fmindex)
+# ----- floxer source code -----
 
-# floxer source code
 add_subdirectory(src)
 
 # testing

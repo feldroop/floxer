@@ -115,8 +115,9 @@ hit_list search_leaf_queries(
             leaf_query_single_span,
             search_scheme,
             [&index, &query_hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
-                for (auto hit{begin(cursor)}; hit < end(cursor); ++hit) {
-                    (void)leaf_query_id; // <- always 0 with this approach
+                (void)leaf_query_id; // <- always 0 with this approach
+                
+                for (auto hit : cursor) {
                     auto const [reference_id, pos] = index.locate(hit);
                     query_hits[reference_id].emplace_back(pos, errors);
                 }
