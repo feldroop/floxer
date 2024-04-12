@@ -44,7 +44,7 @@ CPMaddPackage(
     GITHUB_REPOSITORY seqan/sharg-parser
     GIT_TAG 39f65a4890f8c5108af2b5c7974893ff6ed87e50
     OPTIONS
-        "NO_TDL ON"
+        "SHARG_NO_TDL ON"
     EXCLUDE_FROM_ALL TRUE
     SYSTEM YES
 )
