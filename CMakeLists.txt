@@ -32,6 +32,7 @@ CPMaddPackage(
     EXCLUDE_FROM_ALL TRUE
     SYSTEM YES
 )
+
 CPMaddPackage(
     NAME spdlog
     GITHUB_REPOSITORY gabime/spdlog
@@ -39,10 +40,15 @@ CPMaddPackage(
     EXCLUDE_FROM_ALL TRUE
     SYSTEM YES
 )
+
 set (SHARG_NO_TDL ON)
 find_package(sharg REQUIRED PATHS lib/sharg/build_system)
+
 find_package(ivio REQUIRED PATHS lib/ivio)
+
 find_package(ivsigma REQUIRED PATHS lib/ivsigma)
+
+set(LIBSAIS_USE_OPENMP ON)
 find_package(fmindex_collection REQUIRED PATHS lib/fmindex)
 
 # floxer source code
