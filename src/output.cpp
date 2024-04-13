@@ -1,8 +1,12 @@
 #include <output.hpp>
 
+#include <chrono>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <ostream>
+#include <ranges>
+#include <stdexcept>
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/array.hpp>
@@ -283,14 +287,12 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
     
     auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
     console_sink->set_level(spdlog::level::info);
-    std::string const log_pattern = "[thread %t] %+";
-    console_sink->set_pattern(log_pattern);
 
     sinks.push_back(console_sink);
 
     if (logfile_path.has_value()) {
         auto const max_logfile_size = 1024 * 1024 * 5; // 5 MB
-        auto const max_num_logfiles = 3;
+        auto const max_num_logfiles = 2;
 
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
             logfile_path.value(),
@@ -298,12 +300,13 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
             max_num_logfiles
         );
         file_sink->set_level(spdlog::level::trace);
-        file_sink->set_pattern(log_pattern);
+        std::string const debug_log_pattern = "[thread %t] %+";
+        file_sink->set_pattern(debug_log_pattern);
 
         sinks.push_back(file_sink);
     }
 
-    auto logger = std::make_shared<spdlog::logger>("floxer", begin(sinks), end(sinks));
+    auto logger = std::make_shared<spdlog::logger>(about_floxer::program_name, begin(sinks), end(sinks));
     logger->set_level(spdlog::level::trace);
     logger->flush_on(spdlog::level::debug);
     
@@ -330,6 +333,44 @@ std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
     } else {
         return fmt::format("{:02}:{:02} minutes", minutes, seconds);
     }
+}
+
+void progress_bar::progress(size_t const event_index) {
+    if (event_index >= next_print_event_index) {
+        double const fraction_done = event_index / static_cast<double>(total_num_events);
+        size_t const done_bar_width = max_bar_width * fraction_done;
+        size_t const remaining_bar_width = max_bar_width - done_bar_width;
+        size_t const percent_done = fraction_done * 100;
+
+        print_bar(done_bar_width, remaining_bar_width, percent_done);
+
+        next_print_event_index += total_num_events / num_updates;
+    }
+}
+
+void progress_bar::start() {
+    print_bar(0, max_bar_width, 0);
+}
+
+void progress_bar::finish() {
+    print_bar(max_bar_width, 0, 100);
+    std::cerr << '\n';
+}
+
+void progress_bar::print_bar(
+    size_t const done_bar_width,
+    size_t const remaining_bar_width,
+    size_t const percent_done
+) {
+    std::string bar{};
+    bar += range_open;
+    bar += std::string(done_bar_width, bar_char);
+    bar += bar_tip;
+    bar += std::string(remaining_bar_width, empty_char);
+    bar += range_close;
+
+    fmt::print(stderr, "\rProgress: {} {: >3}%", bar, percent_done);
+    std::cerr.flush();
 }
 
 } // namespace output

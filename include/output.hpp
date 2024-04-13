@@ -38,4 +38,32 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
 
 std::string format_elapsed_time(spdlog::stopwatch const& stopwatch);
 
+// not thread safe, should only be used once and without other output in between
+struct progress_bar{
+    size_t const num_updates = 100;
+    size_t const max_bar_width = 120;
+
+    char const range_open = '[';
+    char const range_close = ']';
+    char const bar_char = '=';
+    char const bar_tip = '>';
+    char const empty_char = ' ';
+
+    size_t const total_num_events;
+    size_t next_print_event_index = 0;
+
+    void start();
+
+    void progress(size_t const event_index);
+
+    void finish();
+
+private:
+    void print_bar(
+        size_t const done_bar_width,
+        size_t const remaining_bar_width,
+        size_t const percent_done
+    );
+};
+
 } // namespace output

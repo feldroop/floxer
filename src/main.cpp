@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <spdlog/fmt/fmt.h>
+#include <spdlog/fmt/std.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/stopwatch.h>
 
@@ -175,6 +176,8 @@ int main(int argc, char** argv) {
     std::vector<std::exception_ptr> exceptions{};
 
     spdlog::stopwatch aligning_stopwatch;  
+    auto progress_bar = output::progress_bar{ .total_num_events = 8263 };
+    progress_bar.start();
 
     // omp declare reduction(name : type : combining_function) initializer(expression)
     #pragma omp declare reduction( \
@@ -188,16 +191,17 @@ int main(int argc, char** argv) {
         num_threads(cli_input.num_threads()) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(fastq_queries, cli_input, references, index, sam_output, exceptions, encountered_error) \
+        shared(fastq_queries, cli_input, references, index, \
+            sam_output, exceptions, encountered_error, progress_bar) \
         schedule(dynamic) \
         reduction(statsReduction:stats)
-    for (size_t i = 0; i < fastq_queries.size(); ++i) {
+    for (size_t query_index = 0; query_index < fastq_queries.size(); ++query_index) {
         if (encountered_error) {
             continue;
         }
 
         try {
-            auto const& fastq_query = fastq_queries[i];
+            auto const& fastq_query = fastq_queries[query_index];
             size_t const query_num_errors = fastq_query.num_errors_from_user_config(cli_input);
 
             if (fastq_query.rank_sequence.size() <= query_num_errors) {
@@ -279,6 +283,9 @@ int main(int argc, char** argv) {
                 references,
                 alignments
             );
+
+            #pragma omp critical
+            progress_bar.progress(query_index);
         } catch (...) {
             #pragma omp critical
             exceptions.emplace_back(std::current_exception());
@@ -292,7 +299,7 @@ int main(int argc, char** argv) {
             std::rethrow_exception(e);
         } catch (std::exception const& e) {
             spdlog::error(
-                "An error occured while a thread was aligning reads or writing output to "
+                "\nAn error occured while a thread was aligning reads or writing output to "
                 "the file {}.\nThe output file is likely incomplete and invalid.\n{}\n",
                 cli_input.output_path(),
                 e.what()
@@ -306,6 +313,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    progress_bar.finish();
     spdlog::info("finished aligning successfully in {}", output::format_elapsed_time(aligning_stopwatch));
     
     if (cli_input.print_stats()) {
