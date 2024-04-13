@@ -301,19 +301,6 @@ bool alignment_insertion_gatekeeper::insert_alignment_if_its_useful(
 
     useful_existing_alignments.update_primary_alignment(inserted_iter->second);
 
-    // temporary test for space usage
-    size_t const estimated_alignment_space_usage =  (8 + 8 + 8 + 8 + 1 +
-        inserted_iter->second.cigar.num_operation_blocks() * 9);
-    size_t const estimated_all_alignments_space_usage = useful_existing_alignments.size() * estimated_alignment_space_usage;
-       
-    if (estimated_all_alignments_space_usage >= 5'000'000'000) {
-        spdlog::trace(
-            "WARNING: {} alignments in store and estimated total space usage of {}",
-            useful_existing_alignments.size(),
-            estimated_all_alignments_space_usage
-        );
-    }
-
     return true;
 }
 
