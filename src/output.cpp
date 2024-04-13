@@ -9,7 +9,12 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 
+#include <spdlog/fmt/fmt.h>
+#include <spdlog/fmt/std.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
+
 #include <ivsigma/ivsigma.h>
 
 namespace output {
@@ -270,6 +275,60 @@ void sam_output::output_for_query(
             .qual = fastq_query.quality.empty() ? string_field_not_available_marker: fastq_query.quality,
             .custom_field_edit_distance = edit_distance_not_available_marker
         };
+    }
+}
+
+void initialize_logger(std::optional<std::filesystem::path> const logfile_path) {
+    std::vector<spdlog::sink_ptr> sinks;
+    
+    auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
+    console_sink->set_level(spdlog::level::info);
+    std::string const log_pattern = "[thread %t] %+";
+    console_sink->set_pattern(log_pattern);
+
+    sinks.push_back(console_sink);
+
+    if (logfile_path.has_value()) {
+        auto const max_logfile_size = 1024 * 1024 * 5; // 5 MB
+        auto const max_num_logfiles = 3;
+
+        auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+            logfile_path.value(),
+            max_logfile_size,
+            max_num_logfiles
+        );
+        file_sink->set_level(spdlog::level::trace);
+        file_sink->set_pattern(log_pattern);
+
+        sinks.push_back(file_sink);
+    }
+
+    auto logger = std::make_shared<spdlog::logger>("floxer", begin(sinks), end(sinks));
+    logger->set_level(spdlog::level::trace);
+    logger->flush_on(spdlog::level::debug);
+    
+    spdlog::set_default_logger(logger);
+}
+
+std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
+    auto const elapsed_seconds = stopwatch.elapsed();
+    if (elapsed_seconds <= std::chrono::seconds(60)) {
+        return fmt::format("{:.7} seconds", elapsed_seconds);
+    }
+
+    size_t const all_in_seconds = elapsed_seconds.count();
+    size_t const seconds = all_in_seconds % 60;
+
+    size_t const all_in_minutes = all_in_seconds / 60;
+    size_t const minutes = all_in_minutes % 60;
+
+    size_t const all_in_hours = all_in_minutes / 60;
+    size_t const hours = all_in_hours % 24;
+
+    if (hours > 0) {
+        return fmt::format("{}:{:02}:{:02} hours", hours, minutes, seconds);
+    } else {
+        return fmt::format("{:02}:{:02} minutes", minutes, seconds);
     }
 }
 

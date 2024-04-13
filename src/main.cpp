@@ -18,67 +18,10 @@
 #include <vector>
 
 #include <spdlog/fmt/fmt.h>
-#include <spdlog/fmt/std.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/stopwatch.h>
 
 #include <ivsigma/ivsigma.h>
-
-void initialize_logger(std::optional<std::filesystem::path> const logfile_path) {
-    std::vector<spdlog::sink_ptr> sinks;
-    
-    auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
-    console_sink->set_level(spdlog::level::info);
-    std::string const log_pattern = "[thread %t] %+";
-    console_sink->set_pattern(log_pattern);
-
-    sinks.push_back(console_sink);
-
-    if (logfile_path.has_value()) {
-        auto const max_logfile_size = 1024 * 1024 * 5; // 5 MB
-        auto const max_num_logfiles = 3;
-
-        auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-            logfile_path.value(),
-            max_logfile_size,
-            max_num_logfiles
-        );
-        file_sink->set_level(spdlog::level::trace);
-        file_sink->set_pattern(log_pattern);
-
-        sinks.push_back(file_sink);
-    }
-
-    auto logger = std::make_shared<spdlog::logger>("floxer", begin(sinks), end(sinks));
-    logger->set_level(spdlog::level::trace);
-    logger->flush_on(spdlog::level::debug);
-    
-    spdlog::set_default_logger(logger);
-}
-
-std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
-    auto const elapsed_seconds = stopwatch.elapsed();
-    if (elapsed_seconds <= std::chrono::seconds(60)) {
-        return fmt::format("{:.7} seconds", elapsed_seconds);
-    }
-
-    size_t const all_in_seconds = elapsed_seconds.count();
-    size_t const seconds = all_in_seconds % 60;
-
-    size_t const all_in_minutes = all_in_seconds / 60;
-    size_t const minutes = all_in_minutes % 60;
-
-    size_t const all_in_hours = all_in_minutes / 60;
-    size_t const hours = all_in_hours % 24;
-
-    if (hours > 0) {
-        return fmt::format("{}:{:02}:{:02} hours", hours, minutes, seconds);
-    } else {
-        return fmt::format("{:02}:{:02} minutes", minutes, seconds);
-    }
-}
 
 int main(int argc, char** argv) {
     cli::command_line_input cli_input;
@@ -90,7 +33,7 @@ int main(int argc, char** argv) {
     }
 
     try {
-        initialize_logger(cli_input.logfile_path());
+        output::initialize_logger(cli_input.logfile_path());
     } catch (std::exception const& e) {
         fmt::print(
             "[ERROR] An error occured while trying to set up logging. "
@@ -160,7 +103,7 @@ int main(int argc, char** argv) {
             cli_input.num_threads()
         );
 
-        spdlog::info("building index took {}", format_elapsed_time(build_index_stopwatch));
+        spdlog::info("building index took {}", output::format_elapsed_time(build_index_stopwatch));
 
         if (cli_input.index_path().has_value()) {
             auto const index_path = cli_input.index_path().value();
@@ -233,7 +176,7 @@ int main(int argc, char** argv) {
 
     spdlog::stopwatch aligning_stopwatch;  
 
-    // reduction(name, type, combining_function)
+    // omp declare reduction(name : type : combining_function) initializer(expression)
     #pragma omp declare reduction( \
             statsReduction : \
             statistics::search_and_alignment_statistics : \
@@ -363,7 +306,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    spdlog::info("finished aligning successfully in {}", format_elapsed_time(aligning_stopwatch));
+    spdlog::info("finished aligning successfully in {}", output::format_elapsed_time(aligning_stopwatch));
     
     if (cli_input.print_stats()) {
         stats.print_all_histograms();

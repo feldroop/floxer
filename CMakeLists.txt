@@ -56,7 +56,6 @@ CPMaddPackage("gh:iv-project/IVio#8fcb901bc08dd48d050bcfbcf73d5fe40db6c90a")
 CPMaddPackage("gh:iv-project/IVSigma#4b76036ed331b91b7a08fc7249ac51b4def71c74")
 
 # for the FM-index
-# set(LIBSAIS_USE_OPENMP ON)
 CPMaddPackage("gh:SGSSGene/fmindex-collection#b0e311f122f6ae9d15d470ca88ac21f028dc010a")
 
 # ----- floxer source code -----

@@ -10,6 +10,8 @@
 #include <fstream>
 #include <map>
 
+#include <spdlog/stopwatch.h>
+
 namespace output {
 
 void save_index(fmindex const& _index, std::filesystem::path const& _index_path);
@@ -31,5 +33,9 @@ public:
         alignment::fastq_query_alignments const& alignments
     );
 };
+
+void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
+
+std::string format_elapsed_time(spdlog::stopwatch const& stopwatch);
 
 } // namespace output
