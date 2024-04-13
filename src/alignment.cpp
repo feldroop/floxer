@@ -10,6 +10,8 @@
 #include <tuple>
 #include <utility>
 
+#include <spdlog/spdlog.h>
+
 namespace alignment {
 
 char to_char(alignment_operation v) {
@@ -41,6 +43,10 @@ void cigar_sequence::add_operation(alignment_operation const operation) {
 
 void cigar_sequence::reverse() {
     std::ranges::reverse(operation_blocks);
+}
+
+size_t cigar_sequence::num_operation_blocks() const {
+    return operation_blocks.size();
 }
 
 std::string cigar_sequence::to_string() const {
@@ -294,6 +300,19 @@ bool alignment_insertion_gatekeeper::insert_alignment_if_its_useful(
     );
 
     useful_existing_alignments.update_primary_alignment(inserted_iter->second);
+
+    // temporary test for space usage
+    size_t const estimated_alignment_space_usage =  (8 + 8 + 8 + 8 + 1 +
+        inserted_iter->second.cigar.num_operation_blocks() * 9);
+    size_t const estimated_all_alignments_space_usage = useful_existing_alignments.size() * estimated_alignment_space_usage;
+       
+    if (estimated_all_alignments_space_usage >= 5'000'000'000) {
+        spdlog::trace(
+            "WARNING: {} alignments in store and estimated total space usage of {}",
+            useful_existing_alignments.size(),
+            estimated_all_alignments_space_usage
+        );
+    }
 
     return true;
 }

@@ -32,6 +32,8 @@ public:
     void add_operation(alignment_operation const operation);
 
     void reverse();
+    
+    size_t num_operation_blocks() const;
 
     std::string to_string() const;
 };
@@ -98,6 +100,8 @@ private:
 // makes sure that only useful alignments are inserted into the fastq_query_alignments class
 // the other job of this class is to transform the indices of the computed alignment for a span
 // the indices of the whole reference
+
+// TODO refactor and separate insertion and index backtransformation logic
 class alignment_insertion_gatekeeper {
     size_t const reference_id;
     size_t const reference_span_start_offset;
