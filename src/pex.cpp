@@ -270,7 +270,7 @@ void pex_tree::hierarchical_verification(
     // case for when the whole PEX tree is just a single root
     // this could be optimized by not aligning again, but instead using the FM-index alignment
     if (pex_node.is_root()) {
-        bool const query_found = try_to_align_corresponding_query_span_at_anchor(
+        [[maybe_unused]] bool const query_found = try_to_align_corresponding_query_span_at_anchor(
             hit,
             pex_node,
             leaf_query_index_from,
@@ -280,7 +280,6 @@ void pex_tree::hierarchical_verification(
             is_reverse_complement
         );
 
-        (void)query_found;
         assert(query_found);
 
         return;
