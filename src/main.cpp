@@ -22,8 +22,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/stopwatch.h>
 
-#include <ivsigma/ivsigma.h>
-
 int main(int argc, char** argv) {
     cli::command_line_input cli_input;
     try {
@@ -236,40 +234,13 @@ int main(int argc, char** argv) {
             };
             auto const& tree = tree_cache.get(tree_config);
 
-            auto alignments = alignment::fastq_query_alignments(references.size());
-
-            bool is_reverse_complement = false;
-            tree.search(
+            auto alignments = tree.align_forward_and_reverse_complement(
                 references,
                 fastq_query.rank_sequence,
-                alignments,
-                is_reverse_complement,
-                scheme_cache,
                 index,
+                scheme_cache,
                 stats
             );
-
-            auto const reverse_complement_fastq_query_rank_sequence = 
-                ivs::reverse_complement_rank<ivs::d_dna4>(fastq_query.rank_sequence);
-            is_reverse_complement = true;
-
-            tree.search(
-                references,
-                reverse_complement_fastq_query_rank_sequence,
-                alignments,
-                is_reverse_complement,
-                scheme_cache,
-                index,
-                stats
-            );
-
-            stats.add_num_alignments(alignments.size());
-
-            for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-                for (auto const& [_, alignment] : alignments.for_reference(reference_id)) {
-                    stats.add_alignment_edit_distance(alignment.num_errors);
-                }
-            }
 
             #pragma omp critical
             sam_output.output_for_query(

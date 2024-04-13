@@ -36,13 +36,11 @@ public:
         bool is_root() const;
     };
 
-    void search(
+    alignment::fastq_query_alignments align_forward_and_reverse_complement(
         std::vector<input::reference_record> const& references,
-        std::span<const uint8_t> const fastq_query,
-        alignment::fastq_query_alignments& output_alignments,
-        bool const is_reverse_complement,
-        search::search_scheme_cache& scheme_cache,
+        std::span<const uint8_t> const query,
         fmindex const& index,
+        search::search_scheme_cache& scheme_cache,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
@@ -65,7 +63,17 @@ private:
     );
 
     // returns queries in the same order as the leaves are stored in the tree
-    std::vector<search::query> generate_leaf_queries(std::span<const uint8_t> const& full_query) const;
+    std::vector<search::query> generate_leaf_queries(std::span<const uint8_t> const full_query) const;
+
+    void align_query_in_given_orientation(
+        std::vector<input::reference_record> const& references,
+        std::span<const uint8_t> const fastq_query,
+        alignment::fastq_query_alignments& output_alignments,
+        bool const is_reverse_complement,
+        search::search_scheme_cache& scheme_cache,
+        fmindex const& index,
+        statistics::search_and_alignment_statistics& stats
+    ) const;
 
     void hierarchical_verification(
         search::hit const& hit,

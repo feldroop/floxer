@@ -5,6 +5,7 @@
 #include <ranges>
 #include <tuple>
 
+#include <ivsigma/ivsigma.h>
 #include <spdlog/spdlog.h>
 
 size_t ceil_div(size_t const a, size_t const b) {
@@ -31,7 +32,52 @@ bool pex_tree::node::is_root() const {
     return parent_id == null_id;
 }
 
-void pex_tree::search(
+alignment::fastq_query_alignments pex_tree::align_forward_and_reverse_complement(
+    std::vector<input::reference_record> const& references,
+    std::span<const uint8_t> const query,
+    fmindex const& index,
+    search::search_scheme_cache& scheme_cache,
+    statistics::search_and_alignment_statistics& stats
+) const {
+    auto alignments = alignment::fastq_query_alignments(references.size());
+
+    bool is_reverse_complement = false;
+    align_query_in_given_orientation(
+        references,
+        query,
+        alignments,
+        is_reverse_complement,
+        scheme_cache,
+        index,
+        stats
+    );
+
+    auto const reverse_complement_query = 
+        ivs::reverse_complement_rank<ivs::d_dna4>(query);
+    is_reverse_complement = true;
+
+    align_query_in_given_orientation(
+        references,
+        reverse_complement_query,
+        alignments,
+        is_reverse_complement,
+        scheme_cache,
+        index,
+        stats
+    );
+
+    stats.add_num_alignments(alignments.size());
+
+    for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+        for (auto const& [_, alignment] : alignments.for_reference(reference_id)) {
+            stats.add_alignment_edit_distance(alignment.num_errors);
+        }
+    }
+
+    return alignments;
+}
+
+void pex_tree::align_query_in_given_orientation(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const fastq_query,
     alignment::fastq_query_alignments& output_alignments,
@@ -124,7 +170,7 @@ void pex_tree::add_nodes(
 }
 
 std::vector<search::query> pex_tree::generate_leaf_queries(
-    std::span<const uint8_t> const& full_query
+    std::span<const uint8_t> const full_query
 ) const {
     std::vector<search::query> leaf_queries{};
     leaf_queries.reserve(leaves.size());
