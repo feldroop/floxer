@@ -30,7 +30,7 @@ public:
     void output_for_query(
         input::query_record const& fastq_query,
         std::vector<input::reference_record> const& references,
-        alignment::fastq_query_alignments const& alignments
+        alignment::query_alignments const& alignments
     );
 };
 

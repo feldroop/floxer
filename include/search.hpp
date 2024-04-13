@@ -22,16 +22,16 @@ private:
     std::unordered_map<std::tuple<size_t, size_t>, search_schemes::Scheme> schemes;
 };
 
-struct query {
+struct seed {
     std::span<const uint8_t> const sequence;
     size_t const num_errors;
 };
 
-struct hit {
+struct anchor {
     size_t position;
     size_t num_errors;
 
-    bool is_better_than(hit const& other);
+    bool is_better_than(anchor const& other);
 
     void mark_for_erasure();
 
@@ -39,10 +39,10 @@ struct hit {
 };
 
 // REFACTOR LATER hits[leaf_query_id][reference_id] -> hits
-using hit_list = std::vector<std::vector<std::vector<hit>>>;
+using anchors_by_seed_and_reference = std::vector<std::vector<std::vector<anchor>>>;
 
-hit_list search_leaf_queries(
-    std::vector<query> const& leaf_queries,
+anchors_by_seed_and_reference search_seeds(
+    std::vector<seed> const& seeds,
     fmindex const& index,
     search_scheme_cache& scheme_cache,
     size_t const num_reference_sequences

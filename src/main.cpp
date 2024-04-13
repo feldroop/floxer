@@ -130,9 +130,9 @@ int main(int argc, char** argv) {
 
     spdlog::info("reading queries from {}", cli_input.queries_path());
 
-    std::vector<input::query_record> fastq_queries;
+    std::vector<input::query_record> queries;
     try {
-        fastq_queries = input::read_queries(cli_input.queries_path());
+        queries = input::read_queries(cli_input.queries_path());
     } catch (std::exception const& e) {
         spdlog::error(
             "An error occured while trying to read the queries from "
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
         "and writing output file to {}",
-        fastq_queries.size(),
+        queries.size(),
         references.size(),
         cli_input.num_threads(),
         cli_input.num_threads() == 1 ? "" : "s",
@@ -183,25 +183,25 @@ int main(int argc, char** argv) {
         num_threads(cli_input.num_threads()) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(fastq_queries, cli_input, references, index, \
+        shared(queries, cli_input, references, index, \
             sam_output, exceptions, encountered_error, progress_bar) \
         schedule(dynamic) \
         reduction(statsReduction:stats)
-    for (size_t query_index = 0; query_index < fastq_queries.size(); ++query_index) {
+    for (size_t query_id = 0; query_id < queries.size(); ++query_id) {
         if (encountered_error) {
             continue;
         }
 
         try {
-            auto const& fastq_query = fastq_queries[query_index];
-            size_t const query_num_errors = fastq_query.num_errors_from_user_config(cli_input);
+            auto const& query = queries[query_id];
+            size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
 
-            if (fastq_query.rank_sequence.size() <= query_num_errors) {
+            if (query.rank_sequence.size() <= query_num_errors) {
                 spdlog::warn(
                     "Skipping query {}, because its length of {} is smaller or equal to "
                     "the configured number of errors {}.\n",
-                    fastq_query.raw_tag,
-                    fastq_query.rank_sequence.size(),
+                    query.raw_tag,
+                    query.rank_sequence.size(),
                     query_num_errors
                 );
 
@@ -213,7 +213,7 @@ int main(int argc, char** argv) {
                     "Skipping query {}, because using the given error rate {}, it has an allowed "
                     "number of errors of {}, which is smaller than the given number of errors "
                     "in PEX tree leaves of {}.\n",
-                    fastq_query.raw_tag,
+                    query.raw_tag,
                     // in this case the error probability must have been given
                     cli_input.query_error_probability().value(),
                     query_num_errors,
@@ -223,12 +223,12 @@ int main(int argc, char** argv) {
                 continue;
             }
             
-            spdlog::debug("aligning query: {}", fastq_query.raw_tag);
+            spdlog::debug("aligning query: {}", query.raw_tag);
 
-            stats.add_query_length(fastq_query.rank_sequence.size());
+            stats.add_query_length(query.rank_sequence.size());
 
             auto const tree_config = pex_tree_config {
-                .total_query_length = fastq_query.rank_sequence.size(),
+                .total_query_length = query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
                 .leaf_max_num_errors = cli_input.pex_seed_num_errors()
             };
@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
 
             auto alignments = tree.align_forward_and_reverse_complement(
                 references,
-                fastq_query.rank_sequence,
+                query.rank_sequence,
                 index,
                 scheme_cache,
                 stats
@@ -244,13 +244,13 @@ int main(int argc, char** argv) {
 
             #pragma omp critical
             sam_output.output_for_query(
-                fastq_query,
+                query,
                 references,
                 alignments
             );
 
             #pragma omp critical
-            progress_bar.progress(query_index);
+            progress_bar.progress(query_id);
         } catch (...) {
             #pragma omp critical
             exceptions.emplace_back(std::current_exception());

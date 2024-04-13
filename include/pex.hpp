@@ -32,11 +32,11 @@ public:
         size_t query_index_to;
         size_t num_errors;
 
-        size_t query_length() const;
+        size_t length_of_query_span() const;
         bool is_root() const;
     };
 
-    alignment::fastq_query_alignments align_forward_and_reverse_complement(
+    alignment::query_alignments align_forward_and_reverse_complement(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
         fmindex const& index,
@@ -62,13 +62,13 @@ private:
         size_t const parent_id
     );
 
-    // returns queries in the same order as the leaves are stored in the tree
-    std::vector<search::query> generate_leaf_queries(std::span<const uint8_t> const full_query) const;
+    // returns seeds in the same order as the leaves are stored in the tree
+    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
 
     void align_query_in_given_orientation(
         std::vector<input::reference_record> const& references,
-        std::span<const uint8_t> const fastq_query,
-        alignment::fastq_query_alignments& output_alignments,
+        std::span<const uint8_t> const query,
+        alignment::query_alignments& alignments,
         bool const is_reverse_complement,
         search::search_scheme_cache& scheme_cache,
         fmindex const& index,
@@ -76,11 +76,11 @@ private:
     ) const;
 
     void hierarchical_verification(
-        search::hit const& hit,
-        size_t const leaf_query_id,
-        std::span<const uint8_t> const fastq_query,
+        search::anchor const& anchor,
+        size_t const seed_id,
+        std::span<const uint8_t> const query,
         input::reference_record const& reference,
-        alignment::fastq_query_alignments& alignments,
+        alignment::query_alignments& alignments,
         bool const is_reverse_complement
     ) const;
 };

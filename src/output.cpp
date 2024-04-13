@@ -215,12 +215,12 @@ sam_output::sam_output(
 void sam_output::output_for_query(
     input::query_record const& fastq_query,
     std::vector<input::reference_record> const& references,
-    alignment::fastq_query_alignments const& alignments
+    alignment::query_alignments const& alignments
 ) {
     bool found_any_alignments = false;
 
     for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-        auto const& reference_alignments = alignments.for_reference(reference_id);
+        auto const& reference_alignments = alignments.to_reference(reference_id);
         auto const& reference = references[reference_id];
     
         if (!reference_alignments.empty()) {

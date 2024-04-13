@@ -122,10 +122,10 @@ std::vector<alignment_operation> alignment_from_string(std::string const& s) {
     return alignment;
 }
 
-fastq_query_alignments::fastq_query_alignments(size_t const num_references)
+query_alignments::query_alignments(size_t const num_references)
     : alignments_per_reference(num_references) {}
 
-alignment_insertion_gatekeeper fastq_query_alignments::get_insertion_gatekeeper(
+alignment_insertion_gatekeeper query_alignments::get_insertion_gatekeeper(
     size_t const reference_id,
     size_t const reference_span_start_offset,
     size_t const reference_span_length,
@@ -140,7 +140,7 @@ alignment_insertion_gatekeeper fastq_query_alignments::get_insertion_gatekeeper(
     );
 }
 
-bool fastq_query_alignments::is_primary_alignment(query_alignment const& alignment) const {
+bool query_alignments::is_primary_alignment(query_alignment const& alignment) const {
     if (!primary_alignment_end_position.has_value() || !primary_alignment_reference_id.has_value()) {
         return false;
     }
@@ -149,7 +149,7 @@ bool fastq_query_alignments::is_primary_alignment(query_alignment const& alignme
         alignment.end_in_reference == primary_alignment_end_position.value();
 }
 
-void fastq_query_alignments::update_primary_alignment(query_alignment const& new_alignment) {
+void query_alignments::update_primary_alignment(query_alignment const& new_alignment) {
     if (
         !primary_alignment_score.has_value() ||
         !primary_alignment_end_position.has_value() ||
@@ -171,7 +171,7 @@ void fastq_query_alignments::update_primary_alignment(query_alignment const& new
     }
 }
 
-size_t fastq_query_alignments::size() const {
+size_t query_alignments::size() const {
     size_t size = 0;
 
     for (auto const& alignments_of_reference : alignments_per_reference) {
@@ -181,7 +181,7 @@ size_t fastq_query_alignments::size() const {
     return size;
 }
 
-fastq_query_alignments::reference_alignments const& fastq_query_alignments::for_reference(
+query_alignments::alignments_to_reference const& query_alignments::to_reference(
     size_t const reference_id
 ) const {
     return alignments_per_reference[reference_id];
@@ -192,7 +192,7 @@ alignment_insertion_gatekeeper::alignment_insertion_gatekeeper(
     size_t const reference_span_start_offset_,
     size_t const reference_span_length_,
     bool const is_reverse_complement_,
-    fastq_query_alignments& useful_existing_alignments_
+    query_alignments& useful_existing_alignments_
 ) : reference_id{reference_id_},
     reference_span_start_offset{reference_span_start_offset_},
     reference_span_length{reference_span_length_},

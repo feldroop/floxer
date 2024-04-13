@@ -33,7 +33,7 @@ search_schemes::Scheme const& search_scheme_cache::get(
 }
 
 
-bool hit::is_better_than(hit const& other) {
+bool anchor::is_better_than(anchor const& other) {
     size_t const position_difference = position < other.position ?
         other.position - position : position - other.position;
 
@@ -43,91 +43,93 @@ bool hit::is_better_than(hit const& other) {
 
 static constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
 
-void hit::mark_for_erasure() {
+void anchor::mark_for_erasure() {
     num_errors = erase_marker;
 }
 
-bool hit::should_be_erased() const {
+bool anchor::should_be_erased() const {
     return num_errors == erase_marker;
 }
 
-void erase_useless_hits(hit_list & hits) {
-    for (auto & query_hits : hits) {
-        for (auto & query_to_ref_hits : query_hits) {
+void erase_useless_anchors(anchors_by_seed_and_reference & anchors) {
+    for (auto & anchors_of_seed : anchors) {
+        for (auto & anchors_of_seed_and_reference : anchors_of_seed) {
             // this must stay, otherwise the expression in the below for loop head could underflow
-            if (query_to_ref_hits.empty()) {
+            if (anchors_of_seed_and_reference.empty()) {
                 continue;
             }
 
-            std::ranges::sort(query_to_ref_hits, {}, [] (hit const& h) { return h.position; });
+            std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor const& h) { return h.position; });
 
-            for (size_t i = 0; i < query_to_ref_hits.size() - 1;) {
-                auto & current_hit = query_to_ref_hits[i];
-                size_t j = i + 1;
+            for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
+                auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
+                size_t other_anchor_index = current_anchor_index + 1;
 
-                while (j < query_to_ref_hits.size() && current_hit.is_better_than(query_to_ref_hits[j])) {
-                    query_to_ref_hits[j].mark_for_erasure();
-                    ++j;
+                while (
+                    other_anchor_index < anchors_of_seed_and_reference.size() &&
+                    current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index]))
+                {
+                    anchors_of_seed_and_reference[other_anchor_index].mark_for_erasure();
+                    ++other_anchor_index;
                 }
 
-                if (j < query_to_ref_hits.size() && query_to_ref_hits[j].is_better_than(current_hit)) {
-                    current_hit.mark_for_erasure();
+                if (
+                    other_anchor_index < anchors_of_seed_and_reference.size() &&
+                    anchors_of_seed_and_reference[other_anchor_index].is_better_than(current_anchor)) {
+                    current_anchor.mark_for_erasure();
                 }
 
-                i = j;
+                current_anchor_index = other_anchor_index;
             }
 
-            std::erase_if(query_to_ref_hits, [] (hit const& h) { return h.should_be_erased(); } );
+            std::erase_if(anchors_of_seed_and_reference, [] (anchor const& a) { return a.should_be_erased(); } );
         }
     }
 }
 
-hit_list search_leaf_queries(
-    std::vector<query> const& leaf_queries,
+anchors_by_seed_and_reference search_seeds(
+    std::vector<seed> const& seeds,
     fmindex const& index,
     search_scheme_cache& scheme_cache,
     size_t const num_reference_sequences
 ) {
-    hit_list hits(
-        leaf_queries.size(), 
-        std::vector<std::vector<hit>>(num_reference_sequences)
+    anchors_by_seed_and_reference anchors(
+        seeds.size(), 
+        std::vector<std::vector<anchor>>(num_reference_sequences)
     );
 
-    auto const leaf_queries_span = std::span(leaf_queries);
+    auto const seeds_span = std::span(seeds);
 
-    for (size_t i = 0; i < leaf_queries.size(); ++i) {
-        auto const& leaf_query = leaf_queries[i];
+    for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
+        auto const& seed = seeds[seed_id];
         auto const& search_scheme = scheme_cache.get(
-            leaf_query.sequence.size(),
-            leaf_query.num_errors
+            seed.sequence.size(),
+            seed.num_errors
         );
 
-        // wrapper for the search interface that expects something range-like
-        auto const leaf_query_single_span = leaf_queries_span.subspan(i, 1) 
-            | std::views::transform(&search::query::sequence);
+        // wrapper for the search interface that expects a range
+        auto const seed_single_span = seeds_span.subspan(seed_id, 1) 
+            | std::views::transform(&search::seed::sequence);
 
-        auto& query_hits = hits[i];
+        auto& anchors_of_seed = anchors[seed_id];
 
-        // if the preorder function inside fmindex search occurs in any perf profile, we can optimize it
-        // also, search_ng22 is for the additional alignment output
+        // if the preorder function inside fmindex search occurs in any profile, we can optimize it away
         fmindex_collection::search_ng21::search(
             index,
-            leaf_query_single_span,
+            seed_single_span,
             search_scheme,
-            [&index, &query_hits] (size_t const leaf_query_id, auto cursor, size_t const errors) {                
-                (void)leaf_query_id; // <- always 0 with this approach
-                
-                for (auto hit : cursor) {
-                    auto const [reference_id, pos] = index.locate(hit);
-                    query_hits[reference_id].emplace_back(pos, errors);
+            [&index, &anchors_of_seed] ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {                                
+                for (auto anchor : cursor) {
+                    auto const [reference_id, position] = index.locate(anchor);
+                    anchors_of_seed[reference_id].emplace_back(position, errors);
                 }
             }
         );
     }
 
-    erase_useless_hits(hits);
+    erase_useless_anchors(anchors);
 
-    return hits;
+    return anchors;
 }
 
 } // namespace search

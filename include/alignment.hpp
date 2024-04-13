@@ -64,10 +64,10 @@ class alignment_insertion_gatekeeper;
 
 // important invariant: there are only useful (locally optimal) alignments stored in this class
 // only the alignment insertion gatekeeper should be used to insert alignments into this class
-class fastq_query_alignments {
-    using reference_alignments = std::map<size_t, query_alignment>;
+class query_alignments {
+    using alignments_to_reference = std::map<size_t, query_alignment>;
 
-    std::vector<reference_alignments> alignments_per_reference;
+    std::vector<alignments_to_reference> alignments_per_reference;
 
     std::optional<int64_t> primary_alignment_score = std::nullopt;
     std::optional<size_t> primary_alignment_reference_id = std::nullopt;
@@ -76,7 +76,7 @@ class fastq_query_alignments {
     friend alignment_insertion_gatekeeper;
 
 public:
-    fastq_query_alignments(size_t const num_references);
+    query_alignments(size_t const num_references);
 
     alignment_insertion_gatekeeper get_insertion_gatekeeper(
         size_t const reference_id,
@@ -85,7 +85,7 @@ public:
         bool const is_reverse_complement
     );
 
-    reference_alignments const& for_reference(size_t const reference_id) const;
+    alignments_to_reference const& to_reference(size_t const reference_id) const;
 
     // primary alignment is the alignment with the highest score.
     // in case of ties, the one with the lowest position is chosen
@@ -107,14 +107,14 @@ class alignment_insertion_gatekeeper {
     size_t const reference_span_start_offset;
     size_t const reference_span_length;
     bool const is_reverse_complement;
-    fastq_query_alignments& useful_existing_alignments;
+    query_alignments& useful_existing_alignments;
 public:
     alignment_insertion_gatekeeper(
         size_t const reference_id_,
         size_t const reference_span_start_offset_,
         size_t const reference_span_length_,
         bool const is_reverse_complement,
-        fastq_query_alignments& useful_existing_alignments_
+        query_alignments& useful_existing_alignments_
     );
 
     // returns whether the alignment was added
