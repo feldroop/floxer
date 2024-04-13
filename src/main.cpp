@@ -145,12 +145,6 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    if (fastq_queries.empty()) {
-        spdlog::warn(
-            "The query file {} is empty.\n", cli_input.queries_path()
-        );
-    }
-
     auto sam_output = output::sam_output(
         cli_input.output_path(),
         references,
