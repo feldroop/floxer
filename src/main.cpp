@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 
     spdlog::info("reading reference sequences from {}", cli_input.reference_path());
 
-    std::vector<input::reference_record> references;
+    input::references references;
     try {
         references = input::read_references(cli_input.reference_path());
     } catch (std::exception const& e) {
@@ -61,13 +61,15 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    if (references.empty()) {
+    if (references.records.empty()) {
         spdlog::error(
             "The reference file {} is empty, which is not allowed.\n",
             cli_input.reference_path()
         );
         return -1;
     }
+
+    spdlog::info("total reference size: {:L}", references.total_sequence_length);
 
     fmindex index;
     if (cli_input.index_path().has_value() && std::filesystem::exists(cli_input.index_path().value())) {
@@ -97,7 +99,7 @@ int main(int argc, char** argv) {
 
         size_t constexpr suffix_array_sampling_rate = 16; 
         index = fmindex(
-            references | std::views::transform(&input::reference_record::rank_sequence),
+            references.records | std::views::transform(&input::reference_record::rank_sequence),
             suffix_array_sampling_rate,
             cli_input.num_threads()
         );
@@ -130,7 +132,7 @@ int main(int argc, char** argv) {
 
     spdlog::info("reading queries from {}", cli_input.queries_path());
 
-    std::vector<input::query_record> queries;
+    input::queries queries;
     try {
         queries = input::read_queries(cli_input.queries_path());
     } catch (std::exception const& e) {
@@ -143,9 +145,11 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    spdlog::info("total query size: {:L}", queries.total_sequence_length);
+
     auto sam_output = output::sam_output(
         cli_input.output_path(),
-        references,
+        references.records,
         command_line_call
     );
 
@@ -156,8 +160,8 @@ int main(int argc, char** argv) {
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
         "and writing output file to {}",
-        queries.size(),
-        references.size(),
+        queries.records.size(),
+        references.records.size(),
         cli_input.num_threads(),
         cli_input.num_threads() == 1 ? "" : "s",
         cli_input.output_path()
@@ -187,13 +191,13 @@ int main(int argc, char** argv) {
             sam_output, exceptions, encountered_error, progress_bar) \
         schedule(dynamic) \
         reduction(statsReduction:stats)
-    for (size_t query_id = 0; query_id < queries.size(); ++query_id) {
+    for (size_t query_id = 0; query_id < queries.records.size(); ++query_id) {
         if (encountered_error) {
             continue;
         }
 
         try {
-            auto const& query = queries[query_id];
+            auto const& query = queries.records[query_id];
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
 
             if (query.rank_sequence.size() <= query_num_errors) {
@@ -235,7 +239,7 @@ int main(int argc, char** argv) {
             auto const& tree = tree_cache.get(tree_config);
 
             auto alignments = tree.align_forward_and_reverse_complement(
-                references,
+                references.records,
                 query.rank_sequence,
                 index,
                 scheme_cache,
@@ -245,7 +249,7 @@ int main(int argc, char** argv) {
             #pragma omp critical
             sam_output.output_for_query(
                 query,
-                references,
+                references.records,
                 alignments
             );
 

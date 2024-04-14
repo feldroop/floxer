@@ -96,7 +96,7 @@ std::string replace_degenerate_chars(std::string_view const& sequence) {
     return std::string(replaced_view.begin(), replaced_view.end());
 }
 
-std::vector<reference_record> read_references(std::filesystem::path const& reference_sequence_path) {
+references read_references(std::filesystem::path const& reference_sequence_path) {
     std::vector<reference_record> records{};
     
     size_t id = 0;
@@ -171,12 +171,10 @@ std::vector<reference_record> read_references(std::filesystem::path const& refer
         ++id;
     }
 
-    spdlog::info("total reference size: {:L}", total_length);
-
-    return records;
+    return references { .records = std::move(records), .total_sequence_length = total_length };
 }
 
-std::vector<query_record> read_queries(std::filesystem::path const& queries_path) {
+queries read_queries(std::filesystem::path const& queries_path) {
     std::vector<query_record> records{};
 
     size_t id = 0;
@@ -260,9 +258,7 @@ std::vector<query_record> read_queries(std::filesystem::path const& queries_path
         ++id;
     }
 
-    spdlog::info("total query size: {:L}", total_length);
-
-    return records;
+    return queries{ .records = std::move(records), .total_sequence_length = total_length };
 }
 
 fmindex load_index(std::filesystem::path const& _index_path) {

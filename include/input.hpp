@@ -27,9 +27,19 @@ struct query_record {
     size_t num_errors_from_user_config(cli::command_line_input const& cli_input) const;
 };
 
-std::vector<reference_record> read_references(std::filesystem::path const& reference_sequence_path);
+struct references {
+    std::vector<reference_record> records;
+    size_t total_sequence_length;
+};
 
-std::vector<query_record> read_queries(std::filesystem::path const& queries_path);
+struct queries {
+    std::vector<query_record> records;
+    size_t total_sequence_length;
+};
+
+references read_references(std::filesystem::path const& reference_sequence_path);
+
+queries read_queries(std::filesystem::path const& queries_path);
 
 fmindex load_index(std::filesystem::path const& _index_path);
 
