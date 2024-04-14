@@ -69,7 +69,10 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    spdlog::info("total reference size: {:L}", references.total_sequence_length);
+    spdlog::info(
+        "total reference size: {}",
+        output::format_large_numer(references.total_sequence_length, "bases")
+    );
 
     fmindex index;
     if (cli_input.index_path().has_value() && std::filesystem::exists(cli_input.index_path().value())) {
@@ -145,7 +148,10 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    spdlog::info("total query size: {:L}", queries.total_sequence_length);
+    spdlog::info(
+        "total query size: {}",
+        output::format_large_numer(queries.total_sequence_length, "bases")
+    );
 
     auto sam_output = output::sam_output(
         cli_input.output_path(),

@@ -38,6 +38,8 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
 
 std::string format_elapsed_time(spdlog::stopwatch const& stopwatch);
 
+std::string format_large_numer(size_t const number, std::string const& unit);
+
 // not thread safe, should only be used once and without other output in between
 struct progress_bar{
     size_t const num_updates = 100;

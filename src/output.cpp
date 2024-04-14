@@ -373,4 +373,48 @@ void progress_bar::print_bar(
     std::cerr.flush();
 }
 
+std::string format_large_numer(size_t const number, std::string const& unit) {
+    static const char separator = ' ';
+    static const size_t block_size = 3;
+    static const size_t unit_prefix_base = 1000;
+    static std::vector<std::string> const unit_prefixes{"", "kilo", "mega", "giga", "tera", "peta"};
+
+    std::string const raw_number_string = fmt::format("{}", number);
+    
+    std::string formatted_number_string{};
+    size_t i = 0;
+    for(auto const digit : std::views::reverse(raw_number_string)) {
+        if (i > 0 && i % block_size == 0) {
+            formatted_number_string += separator;
+        }
+
+        formatted_number_string += digit;
+        ++i;
+    }
+    std::ranges::reverse(formatted_number_string);
+
+    double number_with_unit_prefix = number;
+    std::string chosen_unit_prefix{};
+    for (auto const& unit_prefix : unit_prefixes) {
+        if (number_with_unit_prefix >= unit_prefix_base && unit_prefix != unit_prefixes.back()) {
+            number_with_unit_prefix /= unit_prefix_base;
+            continue;
+        }
+
+        chosen_unit_prefix = unit_prefix;
+        break;
+    }
+
+    if (number >= 1000) {
+        formatted_number_string += fmt::format(
+            " ({:.2} {}{})",
+            number_with_unit_prefix,
+            chosen_unit_prefix,
+            unit
+        );
+    }
+
+    return formatted_number_string;
+}
+
 } // namespace output
