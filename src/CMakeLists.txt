@@ -1,5 +1,5 @@
-# An interface to reuse common properties.
 add_library ("${PROJECT_NAME}_interface" INTERFACE)
+# add dependecies here
 target_link_libraries (
     "${PROJECT_NAME}_interface" INTERFACE
     sharg::sharg
@@ -9,41 +9,21 @@ target_link_libraries (
     cereal::cereal
     spdlog::spdlog
 )
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
-target_link_libraries ("${PROJECT_NAME}_interface" INTERFACE )
 target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../include")
 target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra" "-fopenmp")
 
-add_library (cli_lib STATIC cli.cpp)
-target_link_libraries (cli_lib PUBLIC "${PROJECT_NAME}_interface")
-
-add_library (input_lib STATIC input.cpp)
-target_link_libraries (input_lib PUBLIC "${PROJECT_NAME}_interface")
-
-add_library (output_lib STATIC output.cpp)
-target_link_libraries (output_lib PUBLIC "${PROJECT_NAME}_interface")
-
-add_library (pex_lib STATIC pex.cpp)
-target_link_libraries (pex_lib PUBLIC "${PROJECT_NAME}_interface")
-
-add_library (search_lib STATIC search.cpp)
-target_link_libraries (search_lib PUBLIC "${PROJECT_NAME}_interface")
-
-add_library (alignment_lib STATIC alignment.cpp)
-target_link_libraries (alignment_lib PUBLIC "${PROJECT_NAME}_interface")
+file(GLOB FLOXER_SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 add_executable ("${PROJECT_NAME}" main.cpp)
-target_link_libraries (
-    "${PROJECT_NAME}"
-    PRIVATE
-    cli_lib
-    input_lib
-    output_lib
-    pex_lib
-    search_lib
-    alignment_lib
-    -fopenmp
-)
+target_link_libraries("${PROJECT_NAME}" PRIVATE "-fopenmp")
+
+# every file in this folder, except for main.cpp is a static library that will
+# be linked to the dependencies and main will be linked to it
+foreach (_src_file ${FLOXER_SOURCE_FILES})
+    get_filename_component (_lib_name ${_src_file} NAME_WE)
+    if (NOT ("${_lib_name}" STREQUAL "main"))
+        add_library ("${_lib_name}" STATIC "${_src_file}")
+        target_link_libraries ("${_lib_name}" PUBLIC "${PROJECT_NAME}_interface")
+        target_link_libraries ("${PROJECT_NAME}" PRIVATE "${_lib_name}")
+    endif ()
+endforeach ()
