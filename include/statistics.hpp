@@ -36,43 +36,13 @@ class search_and_alignment_statistics {
         std::vector<size_t> data{};
         size_t num_values{0};
 
-        histogram(histogram_config const& config_, std::string const& name_) : config{config_}, name{name_} {
-            data.resize(config.thresholds.size() + 1, 0);
-        }
+        histogram(histogram_config const& config_, std::string const& name_);
 
-        void add_value(size_t const value) {
-            ++num_values;
+        void add_value(size_t const value);
 
-            for (size_t i = 0; i < config.thresholds.size(); ++i) {
-                if (value <= config.thresholds[i]) {
-                    ++data[i];
-                    return;
-                }
-            }
+        void merge_with(histogram const& other);
 
-            ++data.back();
-        }
-
-        void merge_with(histogram const& other) {
-            assert(config.thresholds == other.donfig.thresholds);
-            num_values += other.num_values;
-
-            for (size_t i = 0; i < data.size(); ++i) {
-                data[i] += other.data[i];
-            }
-        }
-
-        std::string format_to_string() const {
-            return fmt::format(
-                "histogram for {} (total: {})\n"
-                "threshold:\t{}\tinf\n"
-                "occurrences:\t{}",
-                name,
-                num_values,
-                fmt::join(config.thresholds, "\t"),
-                fmt::join(data, "\t")
-            );
-        }
+        std::string format_to_string() const;
     };
 
     static inline const std::string query_lengths_name = "query lengths";
@@ -91,50 +61,22 @@ class search_and_alignment_statistics {
         histogram{small_values_log_scale, alignments_edit_distance_name}
     };
 
-    void insert_value_to(std::string const& target_name, size_t const value) {
-        auto iter = std::ranges::find_if(histograms, [&] (histogram const& histo) {
-            return histo.name == target_name;
-        });
-
-        if (iter == histograms.end()) {
-            throw std::runtime_error("Internal bug in stats generation");
-        }
-
-        iter->add_value(value);
-    }
+    void insert_value_to(std::string const& target_name, size_t const value);
 
 public:
-    void add_query_length(size_t const value) {
-        insert_value_to(query_lengths_name, value);
-    }
+    void add_query_length(size_t const value);
 
-    void add_seed_length(size_t const value) {
-        insert_value_to(seed_lengths_name, value);
-    }
+    void add_seed_length(size_t const value);
 
-    void add_num_anchors_per_seed(size_t const value) {
-        insert_value_to(anchors_per_seed_name, value);
-    }
+    void add_num_anchors_per_seed(size_t const value);
 
-    void add_num_anchors_per_query(size_t const value) {
-        insert_value_to(anchors_per_query_name, value);
-    }
+    void add_num_anchors_per_query(size_t const value);
 
-    void add_num_alignments(size_t const value) {
-        insert_value_to(alignments_per_query_name, value);
-    }
+    void add_num_alignments(size_t const value);
 
-    void add_alignment_edit_distance(size_t const value) {
-        insert_value_to(alignments_edit_distance_name, value);
-    }
+    void add_alignment_edit_distance(size_t const value);
 
-    void print_all_histograms() const {
-        for (auto const& histo : histograms) {
-            spdlog::info(
-                "{}", histo.format_to_string()
-            );
-        }
-    }
+    void print_all_histograms() const;
 
     friend search_and_alignment_statistics& combine_stats(
         search_and_alignment_statistics & inout,
@@ -142,15 +84,9 @@ public:
     );
 };
 
-inline search_and_alignment_statistics& combine_stats(
+search_and_alignment_statistics& combine_stats(
     search_and_alignment_statistics & inout,
     search_and_alignment_statistics const& other
-) {
-    for (size_t i = 0; i < inout.histograms.size(); ++i) {
-        inout.histograms.at(i).merge_with(other.histograms.at(i));
-    }
-
-    return inout;
-}
+);
 
 } // namespace statistics
