@@ -1,7 +1,8 @@
+# this interface is used to give the same properties to all libraries
 add_library ("${PROJECT_NAME}_interface" INTERFACE)
-# add dependecies here
 target_link_libraries (
     "${PROJECT_NAME}_interface" INTERFACE
+    # add dependecies here
     sharg::sharg
     ivio::ivio
     ivsigma::ivsigma
@@ -10,15 +11,20 @@ target_link_libraries (
     spdlog::spdlog
 )
 target_include_directories ("${PROJECT_NAME}_interface" INTERFACE "../include")
-target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra" "-fopenmp")
+target_compile_options ("${PROJECT_NAME}_interface" INTERFACE "-pedantic" "-Wall" "-Wextra")
+if (NOT ${PROJECT_NAME}_NO_OPENMP)
+    target_compile_options("${PROJECT_NAME}_interface" INTERFACE "-fopenmp")
+endif ()
 
 file(GLOB FLOXER_SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 add_executable ("${PROJECT_NAME}" main.cpp)
-target_link_libraries("${PROJECT_NAME}" PRIVATE "-fopenmp")
+if (NOT ${PROJECT_NAME}_NO_OPENMP)
+    target_link_libraries("${PROJECT_NAME}" PRIVATE "-fopenmp")
+endif ()
 
 # every file in this folder, except for main.cpp is a static library that will
-# be linked to the dependencies and main will be linked to it
+# be linked with the dependencies and main will be linked with it
 foreach (_src_file ${FLOXER_SOURCE_FILES})
     get_filename_component (_lib_name ${_src_file} NAME_WE)
     if (NOT ("${_lib_name}" STREQUAL "main"))

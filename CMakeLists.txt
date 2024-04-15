@@ -32,7 +32,8 @@ CPMGetPackage(IVSigma) # for sequence alphabet and transformation utilities
 CPMGetPackage(fmindex-collection) # for the FM-index
 CPMGetPackage(cereal) # for FM-index serialization
 
-# floxer source code and build configuration
+# ----- floxer source code and build configuration -----
+option (${PROJECT_NAME}_NO_OPENMP "Disable parallelism using OpenMP" OFF)
 add_subdirectory(src)
 
 # ----- testing -----
