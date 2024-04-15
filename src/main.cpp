@@ -75,7 +75,10 @@ int main(int argc, char** argv) {
     );
 
     fmindex index;
-    if (cli_input.index_path().has_value() && std::filesystem::exists(cli_input.index_path().value())) {
+    if (
+        cli_input.index_path().has_value() &&
+        std::filesystem::exists(cli_input.index_path().value())
+    ) {
         auto const index_path = cli_input.index_path().value();
 
         try {
@@ -289,7 +292,10 @@ int main(int argc, char** argv) {
     }
 
     progress_bar.finish();
-    spdlog::info("finished aligning successfully in {}", output::format_elapsed_time(aligning_stopwatch));
+    spdlog::info(
+        "finished aligning successfully in {}",
+        output::format_elapsed_time(aligning_stopwatch)
+    );
     
     if (cli_input.print_stats()) {
         stats.print_all_histograms();
