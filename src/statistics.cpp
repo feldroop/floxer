@@ -82,12 +82,14 @@ void search_and_alignment_statistics::add_alignment_edit_distance(size_t const v
     insert_value_to(alignments_edit_distance_name, value);
 }
 
-void search_and_alignment_statistics::print_all_histograms() const {
+std::vector<std::string> search_and_alignment_statistics::format_histograms() const {
+    std::vector<std::string> formatted_histograms{};
+    
     for (auto const& histo : histograms) {
-        spdlog::info(
-            "{}", histo.format_to_string()
-        );
+        formatted_histograms.push_back(histo.format_to_string());
     }
+
+    return formatted_histograms;
 }
 
 search_and_alignment_statistics& combine_stats(

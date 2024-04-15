@@ -298,7 +298,10 @@ int main(int argc, char** argv) {
     );
     
     if (cli_input.print_stats()) {
-        stats.print_all_histograms();
+        auto const formatted_histograms = stats.format_histograms();
+        for (auto const& formatted_histogram : formatted_histograms) {
+            spdlog::info("{}", formatted_histogram);
+        }
     }
 
     return 0;
