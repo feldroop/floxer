@@ -41,50 +41,12 @@ bool anchor::is_better_than(anchor const& other) {
         position_difference <= other.num_errors - num_errors;
 }
 
-static constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
-
 void anchor::mark_for_erasure() {
-    num_errors = erase_marker;
+    num_errors = internal::erase_marker;
 }
 
 bool anchor::should_be_erased() const {
-    return num_errors == erase_marker;
-}
-
-void erase_useless_anchors(anchors_by_seed_and_reference & anchors) {
-    for (auto & anchors_of_seed : anchors) {
-        for (auto & anchors_of_seed_and_reference : anchors_of_seed) {
-            // this must stay, otherwise the expression in the below for loop head could underflow
-            if (anchors_of_seed_and_reference.empty()) {
-                continue;
-            }
-
-            std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor const& h) { return h.position; });
-
-            for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
-                auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
-                size_t other_anchor_index = current_anchor_index + 1;
-
-                while (
-                    other_anchor_index < anchors_of_seed_and_reference.size() &&
-                    current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index]))
-                {
-                    anchors_of_seed_and_reference[other_anchor_index].mark_for_erasure();
-                    ++other_anchor_index;
-                }
-
-                if (
-                    other_anchor_index < anchors_of_seed_and_reference.size() &&
-                    anchors_of_seed_and_reference[other_anchor_index].is_better_than(current_anchor)) {
-                    current_anchor.mark_for_erasure();
-                }
-
-                current_anchor_index = other_anchor_index;
-            }
-
-            std::erase_if(anchors_of_seed_and_reference, [] (anchor const& a) { return a.should_be_erased(); } );
-        }
-    }
+    return num_errors == internal::erase_marker;
 }
 
 anchors_by_seed_and_reference search_seeds(
@@ -127,9 +89,49 @@ anchors_by_seed_and_reference search_seeds(
         );
     }
 
-    erase_useless_anchors(anchors);
+    internal::erase_useless_anchors(anchors);
 
     return anchors;
 }
+
+namespace internal {
+
+void erase_useless_anchors(anchors_by_seed_and_reference & anchors) {
+    for (auto & anchors_of_seed : anchors) {
+        for (auto & anchors_of_seed_and_reference : anchors_of_seed) {
+            // this must stay, otherwise the expression in the below for loop head could underflow
+            if (anchors_of_seed_and_reference.empty()) {
+                continue;
+            }
+
+            std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor const& h) { return h.position; });
+
+            for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
+                auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
+                size_t other_anchor_index = current_anchor_index + 1;
+
+                while (
+                    other_anchor_index < anchors_of_seed_and_reference.size() &&
+                    current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index]))
+                {
+                    anchors_of_seed_and_reference[other_anchor_index].mark_for_erasure();
+                    ++other_anchor_index;
+                }
+
+                if (
+                    other_anchor_index < anchors_of_seed_and_reference.size() &&
+                    anchors_of_seed_and_reference[other_anchor_index].is_better_than(current_anchor)) {
+                    current_anchor.mark_for_erasure();
+                }
+
+                current_anchor_index = other_anchor_index;
+            }
+
+            std::erase_if(anchors_of_seed_and_reference, [] (anchor const& a) { return a.should_be_erased(); } );
+        }
+    }
+}
+
+} // namespace internal
 
 } // namespace search

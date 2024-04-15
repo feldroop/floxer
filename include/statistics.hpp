@@ -76,6 +76,7 @@ public:
 
     void add_alignment_edit_distance(size_t const value);
 
+    // TODO refactor to return histograms as vector of string to make testable
     void print_all_histograms() const;
 
     friend search_and_alignment_statistics& combine_stats(

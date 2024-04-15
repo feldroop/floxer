@@ -43,4 +43,16 @@ queries read_queries(std::filesystem::path const& queries_path);
 
 fmindex load_index(std::filesystem::path const& _index_path);
 
+namespace internal {
+
+std::string sanitize_reference_name_for_sam(std::string const& reference_name);
+
+std::string sanitize_query_name_for_sam(std::string const& query_name);
+
+constexpr std::array<char, 256> degenerate_to_simple_char_conversion_table();
+
+std::string replace_degenerate_chars(std::string_view const& sequence);
+
+} // namespace internal
+
 } // namespace input

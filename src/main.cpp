@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
 
     statistics::search_and_alignment_statistics stats{};
     search::search_scheme_cache scheme_cache;
-    pex_tree_cache tree_cache;
+    pex::pex_tree_cache tree_cache;
 
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
 
             stats.add_query_length(query.rank_sequence.size());
 
-            auto const tree_config = pex_tree_config {
+            auto const tree_config = pex::pex_tree_config {
                 .total_query_length = query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
                 .leaf_max_num_errors = cli_input.pex_seed_num_errors()

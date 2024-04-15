@@ -3,14 +3,11 @@
 
 #include <cassert>
 #include <ranges>
-#include <tuple>
 
 #include <ivsigma/ivsigma.h>
 #include <spdlog/spdlog.h>
 
-size_t ceil_div(size_t const a, size_t const b) {
-    return (a % b) ? a / b + 1 : a / b;
-}
+namespace pex {
 
 pex_tree::pex_tree(pex_tree_config const config) 
     : no_error_leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
@@ -137,7 +134,7 @@ void pex_tree::add_nodes(
     size_t const parent_id
 ) {
     // not sure that this name is the correct meaning of this value from the book
-    size_t const num_leafs_left = ceil_div(num_errors + 1, 2);
+    size_t const num_leafs_left = internal::ceil_div(num_errors + 1, 2);
 
     node const curr_node = {
         parent_id,
@@ -183,77 +180,6 @@ std::vector<search::seed> pex_tree::generate_seeds(
     return seeds;
 }
 
-std::tuple<size_t, size_t> compute_reference_span_start_and_length(
-    search::anchor const& anchor,
-    pex_tree::node const& pex_node,
-    size_t const leaf_query_index_from,
-    size_t const full_reference_length
-) {
-    // this extra wiggle room is added around the reference span because it was observed
-    // that it leads no nicer alignments in certain edge cases 
-    // and it likely has no impact on performance
-    size_t constexpr extra_wiggle_room = 1;
-
-    int64_t const start_signed = static_cast<int64_t>(anchor.position) - 
-        (leaf_query_index_from - pex_node.query_index_from)
-        - pex_node.num_errors - extra_wiggle_room;
-    size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
-    size_t const reference_span_length = std::min(
-        pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
-        full_reference_length - reference_span_start
-    );
-
-    return std::make_tuple(reference_span_start, reference_span_length);
-}
-
-// returns whether an alignment was found
-bool try_to_align_corresponding_query_span_at_anchor(
-    search::anchor const& anchor,
-    pex_tree::node const& pex_node,
-    size_t const seed_query_index_from,
-    input::reference_record const& reference,
-    std::span<const uint8_t> const query,
-    alignment::query_alignments& alignments,
-    bool const is_reverse_complement
-) {
-    auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
-
-    auto const [reference_span_start, reference_span_length] = compute_reference_span_start_and_length(
-        anchor,
-        pex_node,
-        seed_query_index_from,
-        full_reference_span.size()
-    );
-
-    auto const this_node_query_span = query.subspan(
-        pex_node.query_index_from,
-        pex_node.length_of_query_span()
-    );
-
-    auto const reference_subspan =
-        full_reference_span.subspan(reference_span_start, reference_span_length);
-
-    auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
-        reference.id,
-        reference_span_start,
-        reference_span_length,
-        is_reverse_complement
-    );
-
-    bool const query_found = alignment::VerifyingAligner::align_query(
-        // the reversing here is done to allow the DP traceback to start from the start position
-        // of the alignment in the reference. This in turn allows to skip tracebacks for many
-        // alignment candidates that are not useful
-        std::views::reverse(reference_subspan),
-        std::views::reverse(this_node_query_span),
-        pex_node.num_errors,
-        pex_node.is_root(),
-        alignment_insertion_gatekeeper
-    );
-
-    return query_found;
-}
-
 void pex_tree::hierarchical_verification(
     search::anchor const& anchor,
     size_t const seed_id,
@@ -270,7 +196,7 @@ void pex_tree::hierarchical_verification(
     // case for when the whole PEX tree is just a single root
     // this could be optimized by not aligning again, but instead using the FM-index alignment
     if (pex_node.is_root()) {
-        [[maybe_unused]] bool const query_found = try_to_align_corresponding_query_span_at_anchor(
+        [[maybe_unused]] bool const query_found = internal::try_to_align_corresponding_query_span_at_anchor(
             anchor,
             pex_node,
             seed_query_index_from,
@@ -288,7 +214,7 @@ void pex_tree::hierarchical_verification(
     pex_node = inner_nodes.at(pex_node.parent_id);
 
     while (true) {
-        bool const query_found = try_to_align_corresponding_query_span_at_anchor(
+        bool const query_found = internal::try_to_align_corresponding_query_span_at_anchor(
             anchor,
             pex_node,
             seed_query_index_from,
@@ -310,3 +236,88 @@ pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
     auto [iter, _] = trees.try_emplace(config.total_query_length, config);
     return iter->second;
 }
+
+namespace internal {
+
+size_t ceil_div(size_t const a, size_t const b) {
+    return (a % b) ? a / b + 1 : a / b;
+}
+
+span_config compute_reference_span_start_and_length(
+    search::anchor const& anchor,
+    pex_tree::node const& pex_node,
+    size_t const leaf_query_index_from,
+    size_t const full_reference_length
+) {
+    // this extra wiggle room is added around the reference span because it was observed
+    // that it leads no nicer alignments in certain edge cases 
+    // and it likely has no impact on performance
+    size_t constexpr extra_wiggle_room = 1;
+
+    int64_t const start_signed = static_cast<int64_t>(anchor.position) - 
+        (leaf_query_index_from - pex_node.query_index_from)
+        - pex_node.num_errors - extra_wiggle_room;
+    size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
+    size_t const reference_span_length = std::min(
+        pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
+        full_reference_length - reference_span_start
+    );
+
+    return span_config{
+        .offset = reference_span_start,
+        .length = reference_span_length
+    };
+}
+
+bool try_to_align_corresponding_query_span_at_anchor(
+    search::anchor const& anchor,
+    pex_tree::node const& pex_node,
+    size_t const seed_query_index_from,
+    input::reference_record const& reference,
+    std::span<const uint8_t> const query,
+    alignment::query_alignments& alignments,
+    bool const is_reverse_complement
+) {
+    auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
+
+    auto const reference_span_config = compute_reference_span_start_and_length(
+        anchor,
+        pex_node,
+        seed_query_index_from,
+        full_reference_span.size()
+    );
+
+    auto const this_node_query_span = query.subspan(
+        pex_node.query_index_from,
+        pex_node.length_of_query_span()
+    );
+
+    auto const reference_subspan = full_reference_span.subspan(
+        reference_span_config.offset,
+        reference_span_config.length
+    );
+
+    auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
+        reference.id,
+        reference_span_config.offset,
+        reference_span_config.length,
+        is_reverse_complement
+    );
+
+    bool const query_found = alignment::VerifyingAligner::align_query(
+        // the reversing here is done to allow the DP traceback to start from the start position
+        // of the alignment in the reference. This in turn allows to skip tracebacks for many
+        // alignment candidates that are not useful
+        std::views::reverse(reference_subspan),
+        std::views::reverse(this_node_query_span),
+        pex_node.num_errors,
+        pex_node.is_root(),
+        alignment_insertion_gatekeeper
+    );
+
+    return query_found;
+}
+
+} // namespace internal
+
+} // namespace pex

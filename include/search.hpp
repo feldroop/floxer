@@ -38,7 +38,7 @@ struct anchor {
     bool should_be_erased() const;
 };
 
-// REFACTOR LATER hits[leaf_query_id][reference_id] -> hits
+// TODO REFACTOR hits[leaf_query_id][reference_id] -> hits
 using anchors_by_seed_and_reference = std::vector<std::vector<std::vector<anchor>>>;
 
 anchors_by_seed_and_reference search_seeds(
@@ -47,5 +47,13 @@ anchors_by_seed_and_reference search_seeds(
     search_scheme_cache& scheme_cache,
     size_t const num_reference_sequences
 );
+
+namespace internal {
+
+static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
+
+void erase_useless_anchors(anchors_by_seed_and_reference & anchors);
+
+} // namespace internal
 
 } // namespace search

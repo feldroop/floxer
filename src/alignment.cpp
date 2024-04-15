@@ -92,36 +92,6 @@ alignment_quality_comparison query_alignment::local_quality_comparison_versus(
     return potential_comparison;
 }
 
-std::vector<alignment_operation> alignment_from_string(std::string const& s) {
-    std::vector<alignment_operation> alignment{};
-
-    for (char const c : s) {
-        switch (c) {
-            case 'M':
-            case '=':
-                alignment.push_back(alignment_operation::match);
-                break;
-            
-            case 'X':
-                alignment.push_back(alignment_operation::mismatch);
-                break;
-
-            case 'I':
-                alignment.push_back(alignment_operation::insertion_to_reference);
-                break;
-
-            case 'D':
-                alignment.push_back(alignment_operation::deletion_from_reference);
-                break;
-
-            default:
-                throw std::runtime_error("Unexpected character in string");
-        }
-    }
-
-    return alignment;
-}
-
 query_alignments::query_alignments(size_t const num_references)
     : alignments_per_reference(num_references) {}
 

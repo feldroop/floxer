@@ -57,9 +57,6 @@ struct query_alignment {
     ) const;
 };
 
-// for testing
-std::vector<alignment_operation> alignment_from_string(std::string const& s);
-
 class alignment_insertion_gatekeeper;
 
 // important invariant: there are only useful (locally optimal) alignments stored in this class

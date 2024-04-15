@@ -15,6 +15,8 @@
 
 #include <fmindex-collection/concepts.h>
 
+namespace pex {
+
 struct pex_tree_config {
     size_t const total_query_length;
     size_t const query_num_errors;
@@ -94,3 +96,34 @@ private:
     // of errors per query is a function of only the query length
     std::unordered_map<size_t, pex_tree> trees;
 };
+
+namespace internal {
+
+size_t ceil_div(size_t const a, size_t const b);
+
+struct span_config {
+    size_t const offset{};
+    size_t const length{};
+};
+
+span_config compute_reference_span_start_and_length(
+    search::anchor const& anchor,
+    pex_tree::node const& pex_node,
+    size_t const leaf_query_index_from,
+    size_t const full_reference_length
+);
+
+// returns whether an alignment was found
+bool try_to_align_corresponding_query_span_at_anchor(
+    search::anchor const& anchor,
+    pex_tree::node const& pex_node,
+    size_t const seed_query_index_from,
+    input::reference_record const& reference,
+    std::span<const uint8_t> const query,
+    alignment::query_alignments& alignments,
+    bool const is_reverse_complement
+);
+
+} // namespace internal
+
+} // namespace pex

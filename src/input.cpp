@@ -28,6 +28,181 @@ size_t query_record::num_errors_from_user_config(cli::command_line_input const& 
         cli_input.query_num_errors().value();
 }
 
+references read_references(std::filesystem::path const& reference_sequence_path) {
+    std::vector<reference_record> records{};
+    
+    size_t id = 0;
+    size_t num_unnamed = 0;
+    size_t total_length = 0;
+
+    std::unordered_map<std::string, size_t> reference_names{};
+    bool duplicate_name_warning_given = false;
+
+    for (auto const record_view : ivio::fasta::reader{{ .input = reference_sequence_path }}) {
+        std::string raw_tag(record_view.id);
+        if (raw_tag.empty()) {
+            raw_tag = fmt::format("_reference_without_name_{}_", num_unnamed);
+            ++num_unnamed;
+        }
+
+        if (record_view.seq.empty()) {
+            spdlog::warn(
+                "The record {} in the reference file has an empty sequence and will be skipped.\n",
+                raw_tag
+            );
+
+            continue;
+        }
+
+        std::string sam_format_sanitized_name = internal::sanitize_reference_name_for_sam(raw_tag);
+
+        if (reference_names.contains(sam_format_sanitized_name)) {
+            if (!duplicate_name_warning_given) {
+                spdlog::warn(
+                    "Found duplicate names in the reference file. "
+                    "These records will be treated separately and given unique names in the output.\n"
+                );
+                duplicate_name_warning_given = true;
+            }
+            size_t& num_encountered = reference_names[sam_format_sanitized_name];
+            ++num_encountered;
+            sam_format_sanitized_name += fmt::format("_{}", num_encountered);
+        } else {
+            reference_names.emplace(sam_format_sanitized_name, 1);
+        }
+
+        std::string const no_degenerate_char_sequence = internal::replace_degenerate_chars(record_view.seq);
+        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna5>(no_degenerate_char_sequence);
+
+        auto const result = ivs::verify_rank(sequence);
+        if (result.has_value()) {
+            size_t const position = result.value();
+
+            throw std::runtime_error(
+                fmt::format(
+                    "The reference sequence {} "
+                    "contians the invalid character {} "
+                    "at position {}.\n",
+                    record_view.id,
+                    record_view.seq[position],
+                    position
+                )
+            );
+        }
+
+        spdlog::debug("read reference: \"{}\", length {:L}", raw_tag, sequence.size());
+
+        total_length += sequence.size();
+        records.emplace_back(
+            id,
+            std::move(raw_tag),
+            std::move(sam_format_sanitized_name),
+            std::move(sequence)
+        );
+
+        ++id;
+    }
+
+    return references { .records = std::move(records), .total_sequence_length = total_length };
+}
+
+queries read_queries(std::filesystem::path const& queries_path) {
+    std::vector<query_record> records{};
+
+    size_t id = 0;
+    size_t num_unnamed = 0;
+    size_t total_length = 0;
+
+    std::unordered_map<std::string, size_t> query_names{};
+    bool duplicate_name_warning_given = false;
+
+    for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
+        std::string raw_tag(record_view.id);
+        if (raw_tag.empty()) {
+            raw_tag = fmt::format("_query_without_name_{}_", num_unnamed);
+            ++num_unnamed;
+        }
+
+        if (record_view.seq.empty()) {
+            spdlog::warn(
+                "The record {} in the reference file has an empty sequence and will be skipped.\n",
+                raw_tag
+            );
+
+            continue;
+        }
+
+        std::string sam_format_sanitized_name = internal::sanitize_query_name_for_sam(raw_tag);
+
+        if (query_names.contains(sam_format_sanitized_name)) {
+            if (!duplicate_name_warning_given) {
+                spdlog::warn(
+                    "Found duplicate names in the query file. "
+                    "These records will be treated separately and given unique names in the output.\n"
+                );
+                duplicate_name_warning_given = true;
+            }
+            size_t& num_encountered = query_names[sam_format_sanitized_name];
+            ++num_encountered;
+            sam_format_sanitized_name += fmt::format("_{}", num_encountered);
+        } else {
+            query_names.emplace(sam_format_sanitized_name, 1);
+        }
+
+        std::string quality(record_view.qual);
+        if (quality.size() != record_view.seq.size()) {
+            spdlog::warn(
+                "The quality of record {} does not have "
+                "the correct length and will be ignored.\n",
+                raw_tag
+            );
+            quality.clear();
+        }
+
+        std::string const no_degenerate_char_sequence = internal::replace_degenerate_chars(record_view.seq);
+        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(no_degenerate_char_sequence);
+
+        auto const result = ivs::verify_rank(rank_sequence);
+        if (result.has_value()) {
+            size_t const position = result.value();
+
+            spdlog::warn(
+                "Skipped the query {} "
+                "due to the invalid character {} "
+                "at position {}.\n",
+                raw_tag,
+                record_view.seq[position],
+                position
+            );
+
+            continue;
+        }
+
+        total_length += rank_sequence.size();
+        records.emplace_back(
+            id,
+            std::move(raw_tag),
+            std::move(sam_format_sanitized_name),
+            std::move(rank_sequence),
+            std::move(quality)
+        );
+
+        ++id;
+    }
+
+    return queries{ .records = std::move(records), .total_sequence_length = total_length };
+}
+
+fmindex load_index(std::filesystem::path const& _index_path) {
+    auto ifs     = std::ifstream(_index_path, std::ios::binary);
+    auto archive = cereal::BinaryInputArchive{ifs};
+    auto index = fmindex{};
+    archive(index);
+    return index;
+}
+
+namespace internal {
+
 std::string sanitize_reference_name_for_sam(std::string const& reference_name) {
     static constexpr char replacement_char = '_';
 
@@ -96,177 +271,6 @@ std::string replace_degenerate_chars(std::string_view const& sequence) {
     return std::string(replaced_view.begin(), replaced_view.end());
 }
 
-references read_references(std::filesystem::path const& reference_sequence_path) {
-    std::vector<reference_record> records{};
-    
-    size_t id = 0;
-    size_t num_unnamed = 0;
-    size_t total_length = 0;
-
-    std::unordered_map<std::string, size_t> reference_names{};
-    bool duplicate_name_warning_given = false;
-
-    for (auto const record_view : ivio::fasta::reader{{ .input = reference_sequence_path }}) {
-        std::string raw_tag(record_view.id);
-        if (raw_tag.empty()) {
-            raw_tag = fmt::format("_reference_without_name_{}_", num_unnamed);
-            ++num_unnamed;
-        }
-
-        if (record_view.seq.empty()) {
-            spdlog::warn(
-                "The record {} in the reference file has an empty sequence and will be skipped.\n",
-                raw_tag
-            );
-
-            continue;
-        }
-
-        std::string sam_format_sanitized_name = sanitize_reference_name_for_sam(raw_tag);
-
-        if (reference_names.contains(sam_format_sanitized_name)) {
-            if (!duplicate_name_warning_given) {
-                spdlog::warn(
-                    "Found duplicate names in the reference file. "
-                    "These records will be treated separately and given unique names in the output.\n"
-                );
-                duplicate_name_warning_given = true;
-            }
-            size_t& num_encountered = reference_names[sam_format_sanitized_name];
-            ++num_encountered;
-            sam_format_sanitized_name += fmt::format("_{}", num_encountered);
-        } else {
-            reference_names.emplace(sam_format_sanitized_name, 1);
-        }
-
-        std::string const no_degenerate_char_sequence = replace_degenerate_chars(record_view.seq);
-        std::vector<uint8_t> const sequence = ivs::convert_char_to_rank<ivs::d_dna5>(no_degenerate_char_sequence);
-
-        auto const result = ivs::verify_rank(sequence);
-        if (result.has_value()) {
-            size_t const position = result.value();
-
-            throw std::runtime_error(
-                fmt::format(
-                    "The reference sequence {} "
-                    "contians the invalid character {} "
-                    "at position {}.\n",
-                    record_view.id,
-                    record_view.seq[position],
-                    position
-                )
-            );
-        }
-
-        spdlog::debug("read reference: \"{}\", length {:L}", raw_tag, sequence.size());
-
-        total_length += sequence.size();
-        records.emplace_back(
-            id,
-            std::move(raw_tag),
-            std::move(sam_format_sanitized_name),
-            std::move(sequence)
-        );
-
-        ++id;
-    }
-
-    return references { .records = std::move(records), .total_sequence_length = total_length };
-}
-
-queries read_queries(std::filesystem::path const& queries_path) {
-    std::vector<query_record> records{};
-
-    size_t id = 0;
-    size_t num_unnamed = 0;
-    size_t total_length = 0;
-
-    std::unordered_map<std::string, size_t> query_names{};
-    bool duplicate_name_warning_given = false;
-
-    for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
-        std::string raw_tag(record_view.id);
-        if (raw_tag.empty()) {
-            raw_tag = fmt::format("_query_without_name_{}_", num_unnamed);
-            ++num_unnamed;
-        }
-
-        if (record_view.seq.empty()) {
-            spdlog::warn(
-                "The record {} in the reference file has an empty sequence and will be skipped.\n",
-                raw_tag
-            );
-
-            continue;
-        }
-
-        std::string sam_format_sanitized_name = sanitize_query_name_for_sam(raw_tag);
-
-        if (query_names.contains(sam_format_sanitized_name)) {
-            if (!duplicate_name_warning_given) {
-                spdlog::warn(
-                    "Found duplicate names in the query file. "
-                    "These records will be treated separately and given unique names in the output.\n"
-                );
-                duplicate_name_warning_given = true;
-            }
-            size_t& num_encountered = query_names[sam_format_sanitized_name];
-            ++num_encountered;
-            sam_format_sanitized_name += fmt::format("_{}", num_encountered);
-        } else {
-            query_names.emplace(sam_format_sanitized_name, 1);
-        }
-
-        std::string quality(record_view.qual);
-        if (quality.size() != record_view.seq.size()) {
-            spdlog::warn(
-                "The quality of record {} does not have "
-                "the correct length and will be ignored.\n",
-                raw_tag
-            );
-            quality.clear();
-        }
-
-        std::string const no_degenerate_char_sequence = replace_degenerate_chars(record_view.seq);
-        std::vector<uint8_t> const rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(no_degenerate_char_sequence);
-
-        auto const result = ivs::verify_rank(rank_sequence);
-        if (result.has_value()) {
-            size_t const position = result.value();
-
-            spdlog::warn(
-                "Skipped the query {} "
-                "due to the invalid character {} "
-                "at position {}.\n",
-                raw_tag,
-                record_view.seq[position],
-                position
-            );
-
-            continue;
-        }
-
-        total_length += rank_sequence.size();
-        records.emplace_back(
-            id,
-            std::move(raw_tag),
-            std::move(sam_format_sanitized_name),
-            std::move(rank_sequence),
-            std::move(quality)
-        );
-
-        ++id;
-    }
-
-    return queries{ .records = std::move(records), .total_sequence_length = total_length };
-}
-
-fmindex load_index(std::filesystem::path const& _index_path) {
-    auto ifs     = std::ifstream(_index_path, std::ios::binary);
-    auto archive = cereal::BinaryInputArchive{ifs};
-    auto index = fmindex{};
-    archive(index);
-    return index;
-}
+} // namespace internal
 
 } // namespace input
