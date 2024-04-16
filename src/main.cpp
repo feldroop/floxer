@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
     );
 
     // workaround for handling errors in threads
-    std::atomic_bool encountered_error = false;
+    std::atomic_bool threads_should_stop = false;
     std::vector<std::exception_ptr> exceptions{};
 
     spdlog::stopwatch const aligning_stopwatch;  
@@ -199,13 +199,21 @@ int main(int argc, char** argv) {
         num_threads(cli_input.num_threads()) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(queries, cli_input, references, index, \
-            sam_output, exceptions, encountered_error, progress_bar) \
+        shared(queries, cli_input, references, index, sam_output, \
+            aligning_stopwatch, exceptions, threads_should_stop, progress_bar) \
         schedule(dynamic) \
         reduction(statsReduction:stats)
     for (size_t query_id = 0; query_id < queries.records.size(); ++query_id) {
-        if (encountered_error) {
+        if (threads_should_stop) {
             continue;
+        }
+
+        if (cli_input.timeout_seconds().has_value()) {
+            auto const timeout = std::chrono::seconds(cli_input.timeout_seconds().value());
+            if (aligning_stopwatch.elapsed() >= timeout) {
+                threads_should_stop = true;
+                continue;
+            }
         }
 
         try {
@@ -271,7 +279,7 @@ int main(int argc, char** argv) {
             #pragma omp critical
             exceptions.emplace_back(std::current_exception());
 
-            encountered_error = true;
+            threads_should_stop = true;
         }
     }
 

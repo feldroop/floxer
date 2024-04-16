@@ -45,6 +45,7 @@ class command_line_input {
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     
+    cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
     cli_option<bool> print_stats_{ 'a', "print-stats", false };
 
 public:
@@ -60,6 +61,8 @@ public:
     std::optional<double> query_error_probability() const;
     size_t pex_seed_num_errors() const;
     size_t num_threads() const;
+
+    std::optional<size_t> timeout_seconds() const;
     bool print_stats() const;
 
     // not the exact one, but a sanitized and canonical version

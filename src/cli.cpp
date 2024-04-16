@@ -61,6 +61,14 @@ size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
 
+std::optional<size_t> command_line_input::timeout_seconds() const {
+    if (timeout_seconds_.value == 0) {
+        return std::nullopt;
+    } else {
+        return timeout_seconds_.value;
+    }
+}
+
 bool command_line_input::print_stats() const {
     return print_stats_.value;
 }
@@ -77,6 +85,7 @@ std::string command_line_input::command_line_call() const {
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
         num_threads_.command_line_call(),
+        timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
         print_stats() ? print_stats_.command_line_call() : ""
     };
 
@@ -197,6 +206,15 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = num_threads_.long_id, 
         .description = "The number of threads to use in the different steps of the program.",
         .validator = sharg::arithmetic_range_validator{1, 4096}
+    });
+
+    parser.add_option(timeout_seconds_.value, sharg::config{
+        .short_id = timeout_seconds_.short_id, 
+        .long_id = timeout_seconds_.long_id, 
+        .description = "If given, no new alignments will be started after this amount "
+            "of seconds and the program will shut down once the already running "
+            "alignment jobs have been completed.",
+        .default_message = "no default"
     });
 
     parser.add_flag(print_stats_.value, sharg::config{
