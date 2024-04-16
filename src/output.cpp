@@ -1,6 +1,5 @@
 #include <output.hpp>
 
-#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -139,8 +138,7 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
     spdlog::set_default_logger(logger);
 }
 
-std::string format_elapsed_time(spdlog::stopwatch const& stopwatch) {
-    auto const elapsed_seconds = stopwatch.elapsed();
+std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seconds) {
     if (elapsed_seconds <= std::chrono::seconds(60)) {
         return fmt::format("{:.7} seconds", elapsed_seconds);
     }

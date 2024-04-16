@@ -5,13 +5,12 @@
 #include <fmindex.hpp>
 #include <input.hpp>
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <ostream>
-
-#include <spdlog/stopwatch.h>
 
 namespace output {
 
@@ -37,7 +36,7 @@ public:
 
 void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
 
-std::string format_elapsed_time(spdlog::stopwatch const& stopwatch);
+std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seconds);
 
 std::string format_large_numer(size_t const number, std::string const& unit);
 

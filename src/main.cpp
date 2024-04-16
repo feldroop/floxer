@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
             cli_input.num_threads() == 1 ? "" : "s"
         );
 
-        spdlog::stopwatch build_index_stopwatch;    
+        spdlog::stopwatch const build_index_stopwatch;    
 
         size_t constexpr suffix_array_sampling_rate = 16; 
         index = fmindex(
@@ -110,7 +110,10 @@ int main(int argc, char** argv) {
             cli_input.num_threads()
         );
 
-        spdlog::info("building index took {}", output::format_elapsed_time(build_index_stopwatch));
+        spdlog::info(
+            "building index took {}",
+            output::format_elapsed_time(build_index_stopwatch.elapsed())
+        );
 
         if (cli_input.index_path().has_value()) {
             auto const index_path = cli_input.index_path().value();
@@ -180,7 +183,7 @@ int main(int argc, char** argv) {
     std::atomic_bool encountered_error = false;
     std::vector<std::exception_ptr> exceptions{};
 
-    spdlog::stopwatch aligning_stopwatch;  
+    spdlog::stopwatch const aligning_stopwatch;  
     auto progress_bar = output::progress_bar{ .total_num_events = 8263 };
     progress_bar.start();
 
@@ -294,7 +297,7 @@ int main(int argc, char** argv) {
     progress_bar.finish();
     spdlog::info(
         "finished aligning successfully in {}",
-        output::format_elapsed_time(aligning_stopwatch)
+        output::format_elapsed_time(aligning_stopwatch.elapsed())
     );
     
     if (cli_input.print_stats()) {
