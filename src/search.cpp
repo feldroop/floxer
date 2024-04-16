@@ -70,7 +70,7 @@ anchors_by_seed_and_reference search_seeds(
         );
 
         // wrapper for the search interface that expects a range
-        auto const seed_single_span = seeds_span.subspan(seed_id, 1) 
+        auto const seed_single_span = seeds_span.subspan(seed_id, 1)
             | std::views::transform(&search::seed::sequence);
 
         auto& anchors_of_seed = anchors[seed_id];
@@ -80,11 +80,14 @@ anchors_by_seed_and_reference search_seeds(
             index,
             seed_single_span,
             search_scheme,
-            [&index, &anchors_of_seed] ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {                                
+            [&index, &anchors_of_seed] ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
+                // cursor can be saved outside of this and used to locate later
                 for (auto anchor : cursor) {
                     auto const [reference_id, position] = index.locate(anchor);
                     anchors_of_seed[reference_id].emplace_back(position, errors);
                 }
+
+                // as a possible hack: could throw here to stop the search as future optimization
             }
         );
     }
