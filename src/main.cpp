@@ -304,13 +304,15 @@ int main(int argc, char** argv) {
 
     if (threads_should_stop) {
         spdlog::info(
-            "Timeout after {} seconds. Aligned {} queries.",
-            cli_input.timeout_seconds().value(),
+            "\nTimed out after {}. Aligned {} queries.",
+            output::format_elapsed_time(aligning_stopwatch.elapsed()),
             stats.num_queries()
         );
+        return 0;
     }
-
+    
     progress_bar.finish();
+
     spdlog::info(
         "finished aligning successfully in {}",
         output::format_elapsed_time(aligning_stopwatch.elapsed())
