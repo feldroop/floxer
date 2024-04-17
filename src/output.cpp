@@ -231,7 +231,7 @@ std::string format_large_numer(size_t const number, std::string const& unit) {
 
     if (number >= 1000) {
         formatted_number_string += fmt::format(
-            " ({:.2} {}{})",
+            " ({:.2f} {}{})",
             number_with_unit_prefix,
             chosen_unit_prefix,
             unit
