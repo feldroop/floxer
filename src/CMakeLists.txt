@@ -30,6 +30,11 @@ foreach (_src_file ${FLOXER_SOURCE_FILES})
     if (NOT ("${_lib_name}" STREQUAL "main"))
         add_library ("${_lib_name}" STATIC "${_src_file}")
         target_link_libraries ("${_lib_name}" PUBLIC "${PROJECT_NAME}_interface")
-        target_link_libraries ("${PROJECT_NAME}" PRIVATE "${_lib_name}")
+        list(APPEND FLOXER_LIBRARIES "${_lib_name}")
     endif ()
 endforeach ()
+
+# this is actually necessary twice to make sure that all the links are found
+# the linker lld works without this, but ld needs it
+target_link_libraries("${PROJECT_NAME}" PRIVATE ${FLOXER_LIBRARIES})
+target_link_libraries("${PROJECT_NAME}" PRIVATE ${FLOXER_LIBRARIES})
