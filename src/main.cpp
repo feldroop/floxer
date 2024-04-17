@@ -302,6 +302,14 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    if (threads_should_stop) {
+        spdlog::info(
+            "Timeout after {} seconds. Aligned {} queries.",
+            cli_input.timeout_seconds().value(),
+            stats.num_queries()
+        );
+    }
+
     progress_bar.finish();
     spdlog::info(
         "finished aligning successfully in {}",

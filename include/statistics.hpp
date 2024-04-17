@@ -61,6 +61,9 @@ class search_and_alignment_statistics {
         histogram{small_values_log_scale, alignments_edit_distance_name}
     };
 
+    histogram& histogram_by_name(std::string const& name);
+    histogram const& histogram_by_name(std::string const& name) const;
+
     void insert_value_to(std::string const& target_name, size_t const value);
 
 public:
@@ -75,6 +78,8 @@ public:
     void add_num_alignments(size_t const value);
 
     void add_alignment_edit_distance(size_t const value);
+
+    size_t num_queries() const;
 
     std::vector<std::string> format_histograms() const;
 

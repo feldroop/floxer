@@ -43,19 +43,38 @@ std::string search_and_alignment_statistics::histogram::format_to_string() const
     );
 }
 
-void search_and_alignment_statistics::insert_value_to(
-    std::string const& target_name,
-    size_t const value
-) {
+search_and_alignment_statistics::histogram& 
+search_and_alignment_statistics::histogram_by_name(std::string const& name) {
     auto iter = std::ranges::find_if(histograms, [&] (histogram const& histo) {
-        return histo.name == target_name;
+        return histo.name == name;
     });
 
     if (iter == histograms.end()) {
         throw std::runtime_error("Internal bug in stats generation");
     }
 
-    iter->add_value(value);
+    return *iter;
+}
+
+search_and_alignment_statistics::histogram const&
+search_and_alignment_statistics::histogram_by_name(std::string const& name) const {
+    auto iter = std::ranges::find_if(histograms, [&] (histogram const& histo) {
+        return histo.name == name;
+    });
+
+    if (iter == histograms.end()) {
+        throw std::runtime_error("Internal bug in stats generation");
+    }
+
+    return *iter;
+}
+
+
+void search_and_alignment_statistics::insert_value_to(
+    std::string const& target_name,
+    size_t const value
+) {
+    histogram_by_name(target_name).add_value(value);
 }
 
 void search_and_alignment_statistics::add_query_length(size_t const value) {
@@ -80,6 +99,10 @@ void search_and_alignment_statistics::add_num_alignments(size_t const value) {
 
 void search_and_alignment_statistics::add_alignment_edit_distance(size_t const value) {
     insert_value_to(alignments_edit_distance_name, value);
+}
+
+size_t search_and_alignment_statistics::num_queries() const {
+    return histogram_by_name(query_lengths_name).num_values;
 }
 
 std::vector<std::string> search_and_alignment_statistics::format_histograms() const {
