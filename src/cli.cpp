@@ -213,7 +213,8 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = timeout_seconds_.long_id, 
         .description = "If given, no new alignments will be started after this amount "
             "of seconds and the program will shut down once the already running "
-            "alignment jobs have been completed.",
+            "alignment jobs have been completed. The index building and input reading does "
+            "not count into this.",
         .default_message = "no default"
     });
 
