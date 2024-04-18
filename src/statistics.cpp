@@ -1,5 +1,7 @@
 #include <statistics.hpp>
 
+#include <algorithm>
+
 namespace statistics {
 
 std::string search_and_alignment_statistics::count::format_to_string() const {
@@ -15,6 +17,9 @@ search_and_alignment_statistics::histogram::histogram(
 
 void search_and_alignment_statistics::histogram::add_value(size_t const value) {
     ++num_values;
+    min = std::min(min, value);
+    sum += value;
+    max = std::max(max, value);
 
     for (size_t i = 0; i < config.thresholds.size(); ++i) {
         if (value <= config.thresholds[i]) {
@@ -29,6 +34,9 @@ void search_and_alignment_statistics::histogram::add_value(size_t const value) {
 void search_and_alignment_statistics::histogram::merge_with(histogram const& other) {
     assert(config.thresholds == other.donfig.thresholds);
     num_values += other.num_values;
+    min = std::min(min, other.min);
+    sum += other.sum;
+    max = std::max(max, other.max);
 
     for (size_t i = 0; i < data.size(); ++i) {
         data[i] += other.data[i];
@@ -36,14 +44,21 @@ void search_and_alignment_statistics::histogram::merge_with(histogram const& oth
 }
 
 std::string search_and_alignment_statistics::histogram::format_to_string() const {
+    std::string basic_stats = num_values > 0 ? 
+        fmt::format(
+            "\nmin = {}, mean = {:.2f}, max = {}", min, sum / num_values, max
+        ) : "";
+    
     return fmt::format(
         "histogram for {} (total: {})\n"
         "threshold:\t{}\tinf\n"
-        "occurrences:\t{}",
+        "occurrences:\t{}"
+        "{}",
         name,
         num_values,
         fmt::join(config.thresholds, "\t"),
-        fmt::join(data, "\t")
+        fmt::join(data, "\t"),
+        basic_stats
     );
 }
 

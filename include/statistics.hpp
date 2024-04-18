@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -43,6 +44,9 @@ class search_and_alignment_statistics {
 
         std::vector<size_t> data{};
         size_t num_values{0};
+        size_t min = std::numeric_limits<size_t>::max();
+        double sum = 0.0;
+        size_t max = std::numeric_limits<size_t>::min();
 
         histogram(histogram_config const& config_, std::string const& name_);
 
