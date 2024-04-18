@@ -47,13 +47,9 @@ bool anchor::should_be_erased() const {
     return num_errors == internal::erase_marker;
 }
 
-search_result search_seeds(
-    std::vector<seed> const& seeds,
-    fmindex const& index,
-    search_config const config,
-    search_scheme_cache& scheme_cache,
-    size_t const num_reference_sequences
-) {
+search_result searcher::search_seeds(
+    std::vector<seed> const& seeds
+) const {
     std::vector<search_result::anchors_of_seed> anchors_by_seed{};
     size_t num_excluded_seeds = 0;
 

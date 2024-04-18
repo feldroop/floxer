@@ -14,8 +14,8 @@ namespace cli {
 class command_line_input {
     template<typename T>
     struct cli_option {
-        const char short_id;
-        const std::string long_id;
+        char const short_id;
+        std::string const long_id;
         T value;
 
         std::string command_line_call() const {
@@ -43,8 +43,9 @@ class command_line_input {
     cli_option<size_t> query_num_errors_{ 'e', "query-errors", std::numeric_limits<size_t>::max() };
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
-    cli_option<size_t> num_threads_{ 't', "threads", 1 };
+    cli_option<size_t> max_num_raw_anchors_{ 'm', "max-anchors", 1'000 };
     
+    cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
     cli_option<bool> print_stats_{ 'a', "print-stats", false };
 
@@ -60,8 +61,9 @@ public:
     std::optional<size_t> query_num_errors() const;
     std::optional<double> query_error_probability() const;
     size_t pex_seed_num_errors() const;
-    size_t num_threads() const;
+    size_t max_num_raw_anchors() const;
 
+    size_t num_threads() const;
     std::optional<size_t> timeout_seconds() const;
     bool print_stats() const;
 

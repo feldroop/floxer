@@ -64,13 +64,17 @@ struct search_result {
     size_t const num_excluded_seeds;
 };
 
-search_result search_seeds(
-    std::vector<seed> const& seeds,
-    fmindex const& index,
-    search_config const config,
-    search_scheme_cache& scheme_cache,
-    size_t const num_reference_sequences
-);
+// not thread safe due to search scheme cache
+struct searcher {
+    fmindex const& index;
+    size_t const num_reference_sequences;
+    search_scheme_cache& scheme_cache;
+    search_config const config;
+
+    search_result search_seeds(
+        std::vector<seed> const& seeds
+    ) const;
+};
 
 namespace internal {
 

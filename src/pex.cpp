@@ -32,8 +32,7 @@ bool pex_tree::node::is_root() const {
 alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const query,
-    fmindex const& index,
-    search::search_scheme_cache& scheme_cache,
+    search::searcher const& searcher,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto alignments = alignment::query_alignments(references.size());
@@ -44,8 +43,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         query,
         alignments,
         is_reverse_complement,
-        scheme_cache,
-        index,
+        searcher,
         stats
     );
 
@@ -58,8 +56,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         reverse_complement_query,
         alignments,
         is_reverse_complement,
-        scheme_cache,
-        index,
+        searcher,
         stats
     );
 
@@ -79,8 +76,7 @@ void pex_tree::align_query_in_given_orientation(
     std::span<const uint8_t> const query,
     alignment::query_alignments& alignments,
     bool const is_reverse_complement,
-    search::search_scheme_cache& scheme_cache,
-    fmindex const& index,
+    search::searcher const& searcher,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
@@ -89,13 +85,7 @@ void pex_tree::align_query_in_given_orientation(
         stats.add_seed_length(seed.sequence.size());
     }
 
-    auto const search_result = search::search_seeds(
-        seeds,
-        index,
-        search::search_config { .max_num_raw_anchors = 10'000 }, //  TODO make configurable
-        scheme_cache,
-        references.size()
-    );
+    auto const search_result = searcher.search_seeds(seeds);
 
     size_t num_anchors_of_whole_query = 0;
 

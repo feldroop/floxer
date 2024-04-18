@@ -251,6 +251,15 @@ int main(int argc, char** argv) {
 
             stats.add_query_length(query.rank_sequence.size());
 
+            auto const searcher = search::searcher{
+                .index = index,
+                .num_reference_sequences = references.records.size(),
+                .scheme_cache = scheme_cache,
+                .config = search::search_config{
+                    .max_num_raw_anchors = cli_input.max_num_raw_anchors()
+                }
+            };
+
             auto const tree_config = pex::pex_tree_config {
                 .total_query_length = query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
@@ -261,8 +270,7 @@ int main(int argc, char** argv) {
             auto alignments = tree.align_forward_and_reverse_complement(
                 references.records,
                 query.rank_sequence,
-                index,
-                scheme_cache,
+                searcher,
                 stats
             );
 

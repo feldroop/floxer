@@ -41,8 +41,7 @@ public:
     alignment::query_alignments align_forward_and_reverse_complement(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
-        fmindex const& index,
-        search::search_scheme_cache& scheme_cache,
+        search::searcher const& searcher,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
@@ -72,8 +71,7 @@ private:
         std::span<const uint8_t> const query,
         alignment::query_alignments& alignments,
         bool const is_reverse_complement,
-        search::search_scheme_cache& scheme_cache,
-        fmindex const& index,
+        search::searcher const& searcher,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
