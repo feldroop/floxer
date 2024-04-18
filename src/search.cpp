@@ -1,5 +1,4 @@
 #include <fmindex.hpp>
-#include <pex.hpp>
 #include <search.hpp>
 
 #include <algorithm>
@@ -32,7 +31,6 @@ search_schemes::Scheme const& search_scheme_cache::get(
     return iter->second;
 }
 
-
 bool anchor::is_better_than(anchor const& other) {
     size_t const position_difference = position < other.position ?
         other.position - position : position - other.position;
@@ -49,16 +47,15 @@ bool anchor::should_be_erased() const {
     return num_errors == internal::erase_marker;
 }
 
-anchors_by_seed_and_reference search_seeds(
+search_result search_seeds(
     std::vector<seed> const& seeds,
     fmindex const& index,
+    search_config const config,
     search_scheme_cache& scheme_cache,
     size_t const num_reference_sequences
 ) {
-    anchors_by_seed_and_reference anchors(
-        seeds.size(), 
-        std::vector<std::vector<anchor>>(num_reference_sequences)
-    );
+    std::vector<search_result::anchors_of_seed> anchors_by_seed{};
+    size_t num_excluded_seeds = 0;
 
     auto const seeds_span = std::span(seeds);
 
@@ -73,66 +70,93 @@ anchors_by_seed_and_reference search_seeds(
         auto const seed_single_span = seeds_span.subspan(seed_id, 1)
             | std::views::transform(&search::seed::sequence);
 
-        auto& anchors_of_seed = anchors[seed_id];
+        size_t num_raw_anchors = 0;
+        std::vector<internal::fmindex_search_return> fmindex_search_returns{};
 
         // if the preorder function inside fmindex search occurs in any profile, we can optimize it away
         fmindex_collection::search_ng21::search(
             index,
             seed_single_span,
             search_scheme,
-            [&index, &anchors_of_seed] ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
-                // cursor can be saved outside of this and used to locate later
-                for (auto anchor : cursor) {
-                    auto const [reference_id, position] = index.locate(anchor);
-                    anchors_of_seed[reference_id].emplace_back(position, errors);
-                }
-
+            [&fmindex_search_returns, &num_raw_anchors] 
+            ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
+                num_raw_anchors += cursor.count();
+                fmindex_search_returns.emplace_back(internal::fmindex_search_return{
+                    .cursor = std::move(cursor),
+                    .num_errors = errors
+                });
                 // as a possible hack: could throw here to stop the search as future optimization
             }
         );
+
+        if (num_raw_anchors >= config.max_num_raw_anchors) {
+            anchors_by_seed.emplace_back(search_result::anchors_of_seed {
+                .excluded = true,
+                .num_anchors = num_raw_anchors,
+                .anchors_by_reference = std::vector<anchors>{}
+            });
+            continue;
+        }
+
+        std::vector<anchors> anchors_by_reference(num_reference_sequences);
+        for (auto const& [cursor, num_errors] : fmindex_search_returns) {
+            for (auto const& anchor: cursor) {
+                auto const [reference_id, position] = index.locate(anchor);
+                anchors_by_reference[reference_id].emplace_back(position, num_errors);
+            }
+        }
+
+        size_t num_useful_anchors = 0;
+        for (auto& anchors_of_seed_and_reference : anchors_by_reference) {
+            internal::erase_useless_anchors(anchors_of_seed_and_reference);
+            num_useful_anchors += anchors_of_seed_and_reference.size();
+        }
+
+        anchors_by_seed.emplace_back(search_result::anchors_of_seed{
+            .excluded = false,
+            .num_anchors = num_useful_anchors,
+            .anchors_by_reference = std::move(anchors_by_reference)
+        });
     }
 
-    internal::erase_useless_anchors(anchors);
-
-    return anchors;
+    return search_result {
+        .anchors_by_seed = std::move(anchors_by_seed),
+        .num_excluded_seeds = num_excluded_seeds
+    };
 }
 
 namespace internal {
 
-void erase_useless_anchors(anchors_by_seed_and_reference & anchors) {
-    for (auto & anchors_of_seed : anchors) {
-        for (auto & anchors_of_seed_and_reference : anchors_of_seed) {
-            // this must stay, otherwise the expression in the below for loop head could underflow
-            if (anchors_of_seed_and_reference.empty()) {
-                continue;
-            }
-
-            std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor const& h) { return h.position; });
-
-            for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
-                auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
-                size_t other_anchor_index = current_anchor_index + 1;
-
-                while (
-                    other_anchor_index < anchors_of_seed_and_reference.size() &&
-                    current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index]))
-                {
-                    anchors_of_seed_and_reference[other_anchor_index].mark_for_erasure();
-                    ++other_anchor_index;
-                }
-
-                if (
-                    other_anchor_index < anchors_of_seed_and_reference.size() &&
-                    anchors_of_seed_and_reference[other_anchor_index].is_better_than(current_anchor)) {
-                    current_anchor.mark_for_erasure();
-                }
-
-                current_anchor_index = other_anchor_index;
-            }
-
-            std::erase_if(anchors_of_seed_and_reference, [] (anchor const& a) { return a.should_be_erased(); } );
-        }
+void erase_useless_anchors(anchors& anchors_of_seed_and_reference) {
+    // this must stay, otherwise the expression in the below for loop head could underflow
+    if (anchors_of_seed_and_reference.empty()) {
+        return;
     }
+
+    std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor const& h) { return h.position; });
+
+    for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
+        auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
+        size_t other_anchor_index = current_anchor_index + 1;
+
+        while (
+            other_anchor_index < anchors_of_seed_and_reference.size() &&
+            current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index]))
+        {
+            anchors_of_seed_and_reference[other_anchor_index].mark_for_erasure();
+            ++other_anchor_index;
+        }
+
+        if (
+            other_anchor_index < anchors_of_seed_and_reference.size() &&
+            anchors_of_seed_and_reference[other_anchor_index].is_better_than(current_anchor)) {
+            current_anchor.mark_for_erasure();
+        }
+
+        current_anchor_index = other_anchor_index;
+    }
+
+    std::erase_if(anchors_of_seed_and_reference, [] (anchor const& a) { return a.should_be_erased(); } );
 }
 
 } // namespace internal

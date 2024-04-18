@@ -38,12 +38,36 @@ struct anchor {
     bool should_be_erased() const;
 };
 
-// TODO REFACTOR hits[leaf_query_id][reference_id] -> hits
-using anchors_by_seed_and_reference = std::vector<std::vector<std::vector<anchor>>>;
+struct search_config {
+    // if the number of anchors for a seed exceeds this threshold, 
+    // no anchors will be reported for that seed
+    // current problem: the number of raw anchors is larger than what
+    // we actually need, because of the repetitive alignments,
+    // so currently this is difficult to set right
+    size_t const max_num_raw_anchors;
+};
 
-anchors_by_seed_and_reference search_seeds(
+using anchors = std::vector<anchor>;
+
+struct search_result {
+    struct anchors_of_seed {
+        bool const excluded;
+        // if excluded is true, this is the number of raw anchors
+        // otherwise
+        size_t const num_anchors;
+
+        // empty if excluded
+        std::vector<anchors> const anchors_by_reference;
+    };
+
+    std::vector<anchors_of_seed> const anchors_by_seed{};
+    size_t const num_excluded_seeds;
+};
+
+search_result search_seeds(
     std::vector<seed> const& seeds,
     fmindex const& index,
+    search_config const config,
     search_scheme_cache& scheme_cache,
     size_t const num_reference_sequences
 );
@@ -52,7 +76,12 @@ namespace internal {
 
 static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
 
-void erase_useless_anchors(anchors_by_seed_and_reference & anchors);
+void erase_useless_anchors(anchors& anchors_of_seed_and_reference);
+
+struct fmindex_search_return {
+    fmindex_cursor const cursor;
+    size_t const num_errors;
+};
 
 } // namespace internal
 

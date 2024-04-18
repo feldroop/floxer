@@ -89,31 +89,27 @@ void pex_tree::align_query_in_given_orientation(
         stats.add_seed_length(seed.sequence.size());
     }
 
-    auto const anchors = search::search_seeds(
+    auto const search_result = search::search_seeds(
         seeds,
         index,
+        search::search_config { .max_num_raw_anchors = 10'000 }, //  TODO make configurable
         scheme_cache,
         references.size()
     );
 
     size_t num_anchors_of_whole_query = 0;
 
-    for (auto const& anchors_of_seed : anchors) {
-        size_t num_anchors_of_seed = 0;
-
-        for (auto const& anchors_of_seed_and_reference : anchors_of_seed) {
-            num_anchors_of_seed += anchors_of_seed_and_reference.size();
-        }
-
-        stats.add_num_anchors_per_seed(num_anchors_of_seed);
-        num_anchors_of_whole_query += num_anchors_of_seed;
+    for (auto const& anchors_of_seed : search_result.anchors_by_seed) {
+        stats.add_num_anchors_per_seed(anchors_of_seed.num_anchors);
+        num_anchors_of_whole_query += anchors_of_seed.num_anchors;
     }
 
     stats.add_num_anchors_per_query(num_anchors_of_whole_query);
 
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
+        auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            for (auto const& anchor : anchors[seed_id][reference_id]) {
+            for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
                 hierarchical_verification(
                     anchor,
                     seed_id,
