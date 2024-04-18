@@ -1,5 +1,6 @@
 #pragma once 
 
+#include <fmindex.hpp>
 #include <tuple_hash.hpp>
 
 #include <span>

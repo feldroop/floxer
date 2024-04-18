@@ -80,21 +80,10 @@ void pex_tree::align_query_in_given_orientation(
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
-
-    for (auto const& seed : seeds) {
-        stats.add_seed_length(seed.sequence.size());
-    }
+    stats.add_seed_lengths(seeds);
 
     auto const search_result = searcher.search_seeds(seeds);
-
-    size_t num_anchors_of_whole_query = 0;
-
-    for (auto const& anchors_of_seed : search_result.anchors_by_seed) {
-        stats.add_num_anchors_per_seed(anchors_of_seed.num_anchors);
-        num_anchors_of_whole_query += anchors_of_seed.num_anchors;
-    }
-
-    stats.add_num_anchors_per_query(num_anchors_of_whole_query);
+    stats.add_statistics_for_search_result(search_result);
 
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
         auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
