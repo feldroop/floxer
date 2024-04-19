@@ -218,9 +218,14 @@ int main(int argc, char** argv) {
 
         try {
             auto const& query = queries.records[query_id];
+
+            #pragma omp critical
+            progress_bar.output_in_between([] () { std::cerr << "Test blabla\n"; });
+
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
 
             if (query.rank_sequence.size() <= query_num_errors) {
+                // TODO instead of this warning, debug output and write to sam as unaligned
                 spdlog::warn(
                     "Skipping query {}, because its length of {} is smaller or equal to "
                     "the configured number of errors {}.\n",
@@ -233,7 +238,7 @@ int main(int argc, char** argv) {
             }            
             
             if (query_num_errors < cli_input.pex_seed_num_errors()) {
-                // TODO instead of this warnign, just directly align it with the fmindex
+                // TODO instead of this warning, just directly align it with the fmindex
                 spdlog::warn(
                     "Skipping query {}, because using the given error rate {}, it has an allowed "
                     "number of errors of {}, which is smaller than the given number of errors "
@@ -248,7 +253,7 @@ int main(int argc, char** argv) {
                 continue;
             }
             
-            spdlog::debug("aligning query: {}", query.raw_tag);
+            spdlog::trace("aligning query: {}", query.raw_tag);
 
             stats.add_query_length(query.rank_sequence.size());
 

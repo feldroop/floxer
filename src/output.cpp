@@ -159,6 +159,11 @@ std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seco
     }
 }
 
+void progress_bar::start() {
+    auto const bar = format_bar(0, max_bar_width, 0);
+    print_bar(bar);
+}
+
 void progress_bar::progress(size_t const event_index) {
     if (event_index >= next_print_event_index) {
         double const fraction_done = event_index / static_cast<double>(total_num_events);
@@ -172,11 +177,6 @@ void progress_bar::progress(size_t const event_index) {
 
         next_print_event_index += total_num_events / num_updates;
     }
-}
-
-void progress_bar::start() {
-    auto const bar = format_bar(0, max_bar_width, 0);
-    print_bar(bar);
 }
 
 void progress_bar::finish() {
