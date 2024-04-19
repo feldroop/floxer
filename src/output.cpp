@@ -166,22 +166,27 @@ void progress_bar::progress(size_t const event_index) {
         size_t const remaining_bar_width = max_bar_width - done_bar_width;
         size_t const percent_done = fraction_done * 100;
 
-        print_bar(done_bar_width, remaining_bar_width, percent_done);
+        auto const bar = format_bar(done_bar_width, remaining_bar_width, percent_done);
+        erase_characters(bar.size());
+        print_bar(bar);
 
         next_print_event_index += total_num_events / num_updates;
     }
 }
 
 void progress_bar::start() {
-    print_bar(0, max_bar_width, 0);
+    auto const bar = format_bar(0, max_bar_width, 0);
+    print_bar(bar);
 }
 
 void progress_bar::finish() {
-    print_bar(max_bar_width, 0, 100);
+    auto const bar = format_bar(max_bar_width, 0, 100);
+    erase_characters(bar.size());
+    print_bar(bar);
     std::cerr << '\n';
 }
 
-void progress_bar::print_bar(
+std::string progress_bar::format_bar(
     size_t const done_bar_width,
     size_t const remaining_bar_width,
     size_t const percent_done
@@ -193,7 +198,16 @@ void progress_bar::print_bar(
     bar += std::string(remaining_bar_width, empty_char);
     bar += range_close;
 
-    fmt::print(stderr, "\rProgress: {} {: >3}%", bar, percent_done);
+    return fmt::format("Progress: {} {: >3}%", bar, percent_done);
+}
+
+void progress_bar::erase_characters(size_t const num_chars_to_erase) const {
+    std::cerr << std::string(num_chars_to_erase, '\b');
+    std::cerr.flush();
+}
+
+void progress_bar::print_bar(std::string const& bar) const {
+    std::cerr << bar;
     std::cerr.flush();
 }
 

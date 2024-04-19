@@ -61,11 +61,15 @@ struct progress_bar{
     void finish();
 
 private:
-    void print_bar(
+    std::string format_bar(
         size_t const done_bar_width,
         size_t const remaining_bar_width,
         size_t const percent_done
     );
+
+    void erase_characters(size_t const num_chars_to_erase) const;
+
+    void print_bar(std::string const& bar) const;
 };
 
 namespace internal {
