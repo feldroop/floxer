@@ -198,7 +198,7 @@ void progress_bar::print_bar(
 }
 
 std::string format_large_numer(size_t const number, std::string const& unit) {
-    static const char separator = ' ';
+    static const char separator = ',';
     static const size_t block_size = 3;
     static const size_t unit_prefix_base = 1000;
     static std::vector<std::string> const unit_prefixes{"", "kilo", "mega", "giga", "tera", "peta"};

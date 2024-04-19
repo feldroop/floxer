@@ -168,6 +168,11 @@ int main(int argc, char** argv) {
     statistics::search_and_alignment_statistics stats{};
     search::search_scheme_cache scheme_cache;
     pex::pex_tree_cache tree_cache;
+    spdlog::stopwatch const aligning_stopwatch;  
+
+    // workaround for handling errors in threads
+    std::atomic_bool threads_should_stop = false;
+    std::vector<std::exception_ptr> exceptions{};
 
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
@@ -179,12 +184,7 @@ int main(int argc, char** argv) {
         cli_input.output_path()
     );
 
-    // workaround for handling errors in threads
-    std::atomic_bool threads_should_stop = false;
-    std::vector<std::exception_ptr> exceptions{};
-
-    spdlog::stopwatch const aligning_stopwatch;  
-    auto progress_bar = output::progress_bar{ .total_num_events = 8263 };
+    auto progress_bar = output::progress_bar{ .total_num_events = queries.records.size() };
     progress_bar.start();
 
     // omp declare reduction(name : type : combining_function) initializer(expression)
@@ -233,6 +233,7 @@ int main(int argc, char** argv) {
             }            
             
             if (query_num_errors < cli_input.pex_seed_num_errors()) {
+                // TODO instead of this warnign, just directly align it with the fmindex
                 spdlog::warn(
                     "Skipping query {}, because using the given error rate {}, it has an allowed "
                     "number of errors of {}, which is smaller than the given number of errors "
