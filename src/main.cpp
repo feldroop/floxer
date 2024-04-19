@@ -218,10 +218,6 @@ int main(int argc, char** argv) {
 
         try {
             auto const& query = queries.records[query_id];
-
-            #pragma omp critical
-            progress_bar.output_in_between([] () { std::cerr << "Test blabla\n"; });
-
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
 
             if (query.rank_sequence.size() <= query_num_errors) {
