@@ -80,7 +80,7 @@ void pex_tree::align_query_in_given_orientation(
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
-    stats.add_seed_lengths(seeds);
+    stats.add_seed_lengths_and_num_seeds_per_query(seeds);
 
     auto const search_result = searcher.search_seeds(seeds);
     stats.add_statistics_for_search_result(search_result);
@@ -154,8 +154,8 @@ std::vector<search::seed> pex_tree::generate_seeds(
 
     for (auto const& leaf : leaves) {
         auto const seed_span = query.subspan(leaf.query_index_from, leaf.length_of_query_span());
-        seeds.emplace_back(std::move(seed_span), leaf.num_errors);
-    }   
+        seeds.emplace_back(seed_span, leaf.num_errors);
+    }
 
     return seeds;
 }

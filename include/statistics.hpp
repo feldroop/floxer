@@ -65,6 +65,7 @@ class search_and_alignment_statistics {
 
     static inline const std::string query_lengths_name = "query lengths";
     static inline const std::string seed_lengths_name = "seed lengths";
+    static inline const std::string seeds_per_query_name = "seeds per query";
     static inline const std::string anchors_per_seed_name = "anchors per (non-excluded) seed";
     static inline const std::string raw_anchors_per_excluded_seed_name = "(raw) anchors per excluded seed";
     static inline const std::string anchors_per_query_name = "anchors per query (from non-excluded seeds)";
@@ -75,6 +76,7 @@ class search_and_alignment_statistics {
     std::vector<histogram> histograms{
         histogram{large_values_log_scale, query_lengths_name},
         histogram{small_values_linear_scale, seed_lengths_name},
+        histogram{small_values_log_scale, seeds_per_query_name},
         histogram{large_values_log_scale, anchors_per_seed_name},
         histogram{large_values_log_scale, raw_anchors_per_excluded_seed_name},
         histogram{large_values_log_scale, anchors_per_query_name},
@@ -99,7 +101,9 @@ public:
 
     void add_seed_length(size_t const value);
 
-    void add_seed_lengths(std::vector<search::seed> const& seeds);
+    void add_num_seeds_per_query(size_t const value);
+
+    void add_seed_lengths_and_num_seeds_per_query(std::vector<search::seed> const& seeds);
 
     void add_num_anchors_per_seed(size_t const value);
 

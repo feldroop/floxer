@@ -32,7 +32,7 @@ void search_and_alignment_statistics::histogram::add_value(size_t const value) {
 }
 
 void search_and_alignment_statistics::histogram::merge_with(histogram const& other) {
-    assert(config.thresholds == other.donfig.thresholds);
+    assert(config.thresholds == other.config.thresholds);
     num_values += other.num_values;
     min = std::min(min, other.min);
     sum += other.sum;
@@ -137,7 +137,13 @@ void search_and_alignment_statistics::add_seed_length(size_t const value) {
     insert_value_to(seed_lengths_name, value);
 }
 
-void search_and_alignment_statistics::add_seed_lengths(std::vector<search::seed> const& seeds) {
+void search_and_alignment_statistics::add_num_seeds_per_query(size_t const value) {
+    insert_value_to(seeds_per_query_name, value);
+}
+
+void search_and_alignment_statistics::add_seed_lengths_and_num_seeds_per_query(std::vector<search::seed> const& seeds) {
+    add_num_seeds_per_query(seeds.size());
+    
     for (auto const& seed : seeds) {
         add_seed_length(seed.sequence.size());
     }
