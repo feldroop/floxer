@@ -49,6 +49,10 @@ public:
 
     std::string dot_statement() const;
 
+    size_t max_leaf_query_span() const;
+
+    size_t num_leaves() const;
+
 private:
     static constexpr size_t null_id = std::numeric_limits<size_t>::max();
     

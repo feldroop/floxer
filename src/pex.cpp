@@ -110,6 +110,18 @@ std::string pex_tree::dot_statement() const {
     return dot;
 }
 
+size_t pex_tree::max_leaf_query_span() const {
+    size_t max_span = 0;
+    for (auto const& leaf : leaves) {
+        max_span = std::max(max_span, leaf.length_of_query_span());
+    }
+    return max_span;
+}
+
+size_t pex_tree::num_leaves() const {
+    return leaves.size();
+}
+
 void pex_tree::align_query_in_given_orientation(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const query,
@@ -163,23 +175,54 @@ void pex_tree::add_nodes(
     };
 
     if (num_errors <= leaf_max_num_errors) {
-        leaves.push_back(curr_node);
+        leaves.emplace_back(curr_node);
     } else {
         size_t const curr_node_id = inner_nodes.size();
-        inner_nodes.push_back(curr_node);
+        inner_nodes.emplace_back(curr_node);
+        size_t const parent_query_span_length = inner_nodes.back().length_of_query_span();
 
-        size_t const query_split_index = query_index_from + num_leafs_left * no_error_leaf_query_length;
+        // the comment below is the implementation according to the book
+        // as of now, I don't know why the split is done like that. It leads to
+        // an uneven splitting with one super large seed at the end.
+        // (maybe there is a bug like a rounding error, 
+        // but I did some of the calculations by hand and it seems correct)
+        // size_t const query_split_index = query_index_from + num_leafs_left * no_error_leaf_query_length;
 
+        // simply splitting in half is also not a good option, because the errors for both children are not necessarily the same
+
+        size_t const num_errors_for_left_child = (num_leafs_left * num_errors) / (num_errors + 1);
+        size_t const num_errors_for_right_child = ((num_errors + 1 - num_leafs_left) * num_errors) / (num_errors + 1);
+        
+        size_t const num_errors_for_children = num_errors_for_left_child + num_errors_for_right_child;
+        
+        double fraction_of_leaf_errors_for_left_child;
+        switch (num_errors_for_children) {
+            case 0:
+                fraction_of_leaf_errors_for_left_child = 0.5;
+                break;
+
+            case 1:
+                fraction_of_leaf_errors_for_left_child = num_errors_for_left_child == 0 ? 1.0 / 3.0 : 2.0 / 3.0;
+                break;
+            
+            default:
+                fraction_of_leaf_errors_for_left_child = num_errors_for_left_child / static_cast<double>(num_errors_for_children);
+        }
+
+        size_t const query_split_index = query_index_from + static_cast<size_t>(std::round(
+            parent_query_span_length * fraction_of_leaf_errors_for_left_child
+        ));
+        
         add_nodes(
             query_index_from,
             query_split_index - 1,
-            (num_leafs_left * num_errors) / (num_errors + 1),
+            num_errors_for_left_child,
             curr_node_id
         );
         add_nodes(
             query_split_index,
             query_index_to,
-            ((num_errors + 1 - num_leafs_left) * num_errors) / (num_errors + 1),
+            num_errors_for_right_child,
             curr_node_id
         );
     }
