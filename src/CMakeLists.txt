@@ -1,5 +1,5 @@
 file(GLOB FLOXER_SOURCE_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-list(REMOVE_ITEM FLOXER_SOURCE_FILES main.cpp)
+list(FILTER FLOXER_SOURCE_FILES EXCLUDE REGEX ^.*main.cpp$)
 
 add_library ("${PROJECT_NAME}_lib" ${FLOXER_SOURCE_FILES})
 target_link_libraries (
@@ -23,3 +23,6 @@ target_link_libraries("${PROJECT_NAME}" PUBLIC "${PROJECT_NAME}_lib")
 if (NOT ${PROJECT_NAME}_NO_OPENMP)
     target_link_libraries("${PROJECT_NAME}" PRIVATE "-fopenmp")
 endif ()
+
+add_executable ("view-pex-tree" EXCLUDE_FROM_ALL view_pex_tree_main.cpp)
+target_link_libraries("view-pex-tree" PUBLIC "${PROJECT_NAME}_lib")

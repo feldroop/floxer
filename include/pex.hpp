@@ -36,6 +36,8 @@ public:
 
         size_t length_of_query_span() const;
         bool is_root() const;
+
+        std::string dot_statement(size_t const id) const;
     };
 
     alignment::query_alignments align_forward_and_reverse_complement(
@@ -44,6 +46,8 @@ public:
         search::searcher const& searcher,
         statistics::search_and_alignment_statistics& stats
     ) const;
+
+    std::string dot_statement() const;
 
 private:
     static constexpr size_t null_id = std::numeric_limits<size_t>::max();
@@ -62,6 +66,8 @@ private:
         size_t const num_errors, 
         size_t const parent_id
     );
+
+    void add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const;
 
     // returns seeds in the same order as the leaves are stored in the tree
     std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;

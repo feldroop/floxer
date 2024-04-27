@@ -5,6 +5,7 @@
 #include <ranges>
 
 #include <ivsigma/ivsigma.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 namespace pex {
@@ -14,7 +15,7 @@ pex_tree::pex_tree(pex_tree_config const config)
     leaf_max_num_errors{config.leaf_max_num_errors} {
     // use 1 based indices until final computation to make sure to match pseudocode
     add_nodes(
-        1, 
+        1,
         config.total_query_length,
         config.query_num_errors,
         null_id
@@ -27,6 +28,17 @@ size_t pex_tree::node::length_of_query_span() const {
 
 bool pex_tree::node::is_root() const {
     return parent_id == null_id;
+}
+
+std::string pex_tree::node::dot_statement(size_t const id) const {
+    return fmt::format(
+        "{} [label=\"errors: {}\\nlength: {}\\nrange: [{},{}]\"];\n",
+        id,
+        num_errors,
+        length_of_query_span(),
+        query_index_from,
+        query_index_to
+    );
 }
 
 alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
@@ -69,6 +81,33 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
     }
 
     return alignments;
+}
+
+std::string pex_tree::dot_statement() const {
+    std::string dot = fmt::format(
+        "graph {{\n"
+        "label = \"PEX tree for query length {}, {} errors and leaf threshold {} ({} leaves)\";\n"
+        "labelloc = \"t\";\n"
+        "node [shape=record];\n",
+        inner_nodes[0].query_index_to + 1,
+        inner_nodes[0].num_errors,
+        leaf_max_num_errors,
+        num_leaves()
+    );
+    
+    size_t id = 0;
+    for (auto const& inner_node : inner_nodes) {
+        add_node_to_dot_statement(inner_node, id, dot);
+        ++id;
+    }
+    for (auto const& leaf_node : leaves) {
+        add_node_to_dot_statement(leaf_node, id, dot);
+        ++id;
+    }
+
+    dot += "}\n";
+
+    return dot;
 }
 
 void pex_tree::align_query_in_given_orientation(
@@ -143,6 +182,13 @@ void pex_tree::add_nodes(
             ((num_errors + 1 - num_leafs_left) * num_errors) / (num_errors + 1),
             curr_node_id
         );
+    }
+}
+
+void pex_tree::add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const {
+    dot += curr_node.dot_statement(id);
+    if (!curr_node.is_root()) {
+        dot += fmt::format("{} -- {};\n", id, curr_node.parent_id);
     }
 }
 
