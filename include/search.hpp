@@ -54,7 +54,7 @@ struct search_result {
     struct anchors_of_seed {
         bool const excluded;
         // if excluded is true, this is the number of raw anchors
-        // otherwise
+        // otherwise it is the number of useful anchors
         size_t const num_anchors;
 
         // empty if excluded
