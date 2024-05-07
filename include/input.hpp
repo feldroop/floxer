@@ -11,16 +11,13 @@
 namespace input {
 
 struct reference_record {
-    size_t const id;
-    std::string const raw_tag;
-    std::string const sam_format_sanitized_name;
+    std::string const id;
     std::vector<uint8_t> const rank_sequence;
+    size_t const internal_id;
 };
 
 struct query_record {
-    size_t const id;
-    std::string const raw_tag;
-    std::string const sam_format_sanitized_name;
+    std::string const id;
     std::vector<uint8_t> const rank_sequence;
     std::string const quality;
 
@@ -45,13 +42,13 @@ fmindex load_index(std::filesystem::path const& _index_path);
 
 namespace internal {
 
-std::string sanitize_reference_name_for_sam(std::string const& reference_name);
+std::string extract_record_id(std::string_view const& reference_name);
 
-std::string sanitize_query_name_for_sam(std::string const& query_name);
+constexpr std::array<char, 256> invalid_and_degenerate_to_n_conversion_table();
 
-constexpr std::array<char, 256> degenerate_to_simple_char_conversion_table();
+char invalid_and_degenerate_chars_to_n(char const c);
 
-std::string replace_degenerate_chars(std::string_view const& sequence);
+std::vector<uint8_t> chars_to_rank_sequence(std::string_view const chars);
 
 } // namespace internal
 

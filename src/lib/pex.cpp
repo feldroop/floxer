@@ -411,7 +411,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
 
         alignments.insert(
             std::move(alignment_result.alignment.value()),
-            reference.id
+            reference.internal_id
         );
     }
 

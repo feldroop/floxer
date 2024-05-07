@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
             aligning_stopwatch, exceptions, threads_should_stop) \
         schedule(dynamic) \
         reduction(statsReduction:stats)
-    for (size_t query_id = 0; query_id < queries.records.size(); ++query_id) {
+    for (size_t query_index = 0; query_index < queries.records.size(); ++query_index) {
         if (threads_should_stop) {
             continue;
         }
@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
         }
 
         try {
-            auto const& query = queries.records[query_id];
+            auto const& query = queries.records[query_index];
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
             stats.add_query_length(query.rank_sequence.size());
 
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
             ) {
                 spdlog::debug(
                     "({}/{}) skipping query: {} due to bad num_errors configuration", 
-                    query_id, queries.records.size(), query.raw_tag
+                    query_index, queries.records.size(), query.id
                 );
 
                 auto no_alignments = alignment::query_alignments(references.records.size());
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
                 continue;
             }            
             
-            spdlog::debug("({}/{}) aligning query: {}", query_id, queries.records.size(), query.raw_tag);
+            spdlog::debug("({}/{}) aligning query: {}", query_index, queries.records.size(), query.id);
 
             auto const searcher = search::searcher{
                 .index = index,
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
                 std::move(alignments)
             );
 
-            spdlog::debug("({}/{}) finished aligning query: {}", query_id, queries.records.size(), query.raw_tag);
+            spdlog::debug("({}/{}) finished aligning query: {}", query_index, queries.records.size(), query.id);
         } catch (...) {
             #pragma omp critical
             exceptions.emplace_back(std::current_exception());

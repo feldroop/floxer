@@ -43,7 +43,7 @@ alignment_output_t create_alignment_output(
     std::filesystem::path const& output_path,
     std::vector<input::reference_record> const& references
 ) {
-    auto reference_id_view = references | std::views::transform(&input::reference_record::sam_format_sanitized_name);
+    auto reference_id_view = references | std::views::transform(&input::reference_record::id);
     std::vector<std::string> reference_ids(reference_id_view.begin(), reference_id_view.end());
 
     return seqan3::sam_file_output(
@@ -89,9 +89,9 @@ void output_for_query(
             tags.get<"NM"_tag>() = alignment.num_errors;
 
             alignment_output.emplace_back(
-                query.sam_format_sanitized_name, // id
+                query.id, // id
                 flag, // flag
-                reference.sam_format_sanitized_name, // ref_id
+                reference.id, // ref_id
                 math::saturate_value_to_int32_max(alignment.start_in_reference), // ref_offset
                 std::move(alignment.cigar), // cigar
                 query_char_sequence, // seq
@@ -103,7 +103,7 @@ void output_for_query(
 
     if (!primary_alignment_was_written) {
         alignment_output.emplace_back(
-            query.sam_format_sanitized_name, // id
+            query.id, // id
             seqan3::sam_flag::unmapped, // flag
             std::string{}, // ref_id
             0, // ref_offset
