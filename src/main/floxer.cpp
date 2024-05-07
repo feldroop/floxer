@@ -34,10 +34,7 @@ int main(int argc, char** argv) {
     output::initialize_logger(cli_input.logfile_path());
 
     spdlog::info("successfully parsed CLI input ... starting");
-
-    // TODO instead just summarize config
-    auto const command_line_call = cli_input.command_line_call();
-    spdlog::debug("command line call: {}", command_line_call);
+    spdlog::debug("command line call: {}", cli_input.command_line_call());
 
     input::references references;
     try {
@@ -84,7 +81,7 @@ int main(int argc, char** argv) {
 
         spdlog::stopwatch const build_index_stopwatch;    
 
-        size_t constexpr suffix_array_sampling_rate = 16; 
+        size_t constexpr suffix_array_sampling_rate = 16; // TODO determine good value for this
         index = fmindex(
             references.records | std::views::transform(&input::reference_record::rank_sequence),
             suffix_array_sampling_rate,
