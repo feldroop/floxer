@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cli.hpp>
+#include <floxer_cli.hpp>
 #include <fmindex.hpp>
 
 #include <cstdint>
