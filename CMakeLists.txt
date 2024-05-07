@@ -22,19 +22,22 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 # for the CPM package manager
 # it is recommended to set the CPM_SOURCE_CACHE variable to avoid repetitive downloads
 include(cmake/CPM.cmake)
-CPMUsePackageLock (${CMAKE_CURRENT_LIST_DIR}/cmake/package-lock.cmake)
+CPMUsePackageLock (cmake/package-lock.cmake)
 
-CPMGetPackage(use_ccache) # for faster compile times
 CPMGetPackage(sharg) # for CLI parsing
 CPMGetPackage(spdlog) # for logging and output (includes libfmt)
-CPMGetPackage(IVio) # for sequence input
-CPMGetPackage(IVSigma) # for sequence alphabet and transformation utilities
+CPMGetPackage(IVio) # for sequence input (that works well with fmindex-collection)
+CPMGetPackage(IVSigma) # for sequence alphabet and transformation utilities (that works well with fmindex-collection)
 CPMGetPackage(fmindex-collection) # for the FM-index
 CPMGetPackage(cereal) # for FM-index serialization
+CPMGetPackage(seqan3) # for alignment and sam/bam output
+CPMGetPackage(use_ccache) # for faster compile times
 
 # ----- floxer source code and build configuration -----
+
 option (${PROJECT_NAME}_NO_OPENMP "Disable parallelism using OpenMP" OFF)
-add_subdirectory(src)
+add_subdirectory(src/lib)
+add_subdirectory(src/main)
 
 # ----- testing -----
 
@@ -44,4 +47,3 @@ option (${PROJECT_NAME}_TEST "Enable testing for ${PROJECT_NAME}." ON)
 if (${PROJECT_NAME}_TEST)
     add_subdirectory (test EXCLUDE_FROM_ALL)
 endif ()
-

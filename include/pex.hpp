@@ -3,6 +3,7 @@
 #include <alignment.hpp>
 #include <fmindex.hpp>
 #include <input.hpp>
+#include <intervals.hpp>
 #include <search.hpp>
 #include <statistics.hpp>
 
@@ -25,9 +26,6 @@ struct pex_tree_config {
 
 class pex_tree {
 public:
-    pex_tree() = delete;
-    pex_tree(pex_tree_config const config);
-
     struct node {
         size_t parent_id;
         size_t query_index_from;
@@ -40,6 +38,8 @@ public:
         std::string dot_statement(size_t const id) const;
     };
 
+    pex_tree(pex_tree_config const config);
+
     alignment::query_alignments align_forward_and_reverse_complement(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
@@ -49,9 +49,8 @@ public:
 
     std::string dot_statement() const;
 
-    size_t max_leaf_query_span() const;
-
-    size_t num_leaves() const;
+    // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
+    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
 
 private:
     static constexpr size_t null_id = std::numeric_limits<size_t>::max();
@@ -64,6 +63,8 @@ private:
     
     size_t const leaf_max_num_errors;
 
+    node const& root() const;
+
     void add_nodes(
         size_t const query_index_from,
         size_t const query_index_to,
@@ -73,14 +74,13 @@ private:
 
     void add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const;
 
-    // returns seeds in the same order as the leaves are stored in the tree
-    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
+    size_t num_leaves() const;
 
     void align_query_in_given_orientation(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
         alignment::query_alignments& alignments,
-        bool const is_reverse_complement,
+        alignment::query_orientation const orientation,
         search::searcher const& searcher,
         statistics::search_and_alignment_statistics& stats
     ) const;
@@ -89,9 +89,11 @@ private:
         search::anchor const& anchor,
         size_t const seed_id,
         std::span<const uint8_t> const query,
+        alignment::query_orientation const orientation,
         input::reference_record const& reference,
+        intervals::interval_set& already_verified_intervals,
         alignment::query_alignments& alignments,
-        bool const is_reverse_complement
+        statistics::search_and_alignment_statistics& stats
     ) const;
 };
 
@@ -107,29 +109,29 @@ private:
 
 namespace internal {
 
-size_t ceil_div(size_t const a, size_t const b);
-
 struct span_config {
     size_t const offset{};
     size_t const length{};
+
+    intervals::half_open_interval as_half_open_interval() const;
 };
 
 span_config compute_reference_span_start_and_length(
     search::anchor const& anchor,
     pex_tree::node const& pex_node,
     size_t const leaf_query_index_from,
-    size_t const full_reference_length
+    size_t const full_reference_length,
+    size_t const extra_wiggle_room
 );
 
-// returns whether an alignment was found
-bool try_to_align_corresponding_query_span_at_anchor(
-    search::anchor const& anchor,
+alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     pex_tree::node const& pex_node,
-    size_t const seed_query_index_from,
     input::reference_record const& reference,
+    span_config const reference_span_config,
     std::span<const uint8_t> const query,
+    alignment::query_orientation const orientation,
     alignment::query_alignments& alignments,
-    bool const is_reverse_complement
+    statistics::search_and_alignment_statistics& stats
 );
 
 } // namespace internal

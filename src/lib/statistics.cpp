@@ -137,14 +137,19 @@ void search_and_alignment_statistics::add_seed_length(size_t const value) {
     insert_value_to(seed_lengths_name, value);
 }
 
+void search_and_alignment_statistics::add_num_errors_per_seed(size_t const value) {
+    insert_value_to(errors_per_seed_name, value);
+}
+
 void search_and_alignment_statistics::add_num_seeds_per_query(size_t const value) {
     insert_value_to(seeds_per_query_name, value);
 }
 
-void search_and_alignment_statistics::add_seed_lengths_and_num_seeds_per_query(std::vector<search::seed> const& seeds) {
+void search_and_alignment_statistics::add_statistics_for_seeds(std::vector<search::seed> const& seeds) {
     add_num_seeds_per_query(seeds.size());
-    
+
     for (auto const& seed : seeds) {
+        add_num_errors_per_seed(seed.num_errors);
         add_seed_length(seed.sequence.size());
     }
 }
@@ -163,6 +168,18 @@ void search_and_alignment_statistics::add_num_anchors_per_query(size_t const val
 
 void search_and_alignment_statistics::add_num_excluded_raw_anchors_per_query(size_t const value) {
     insert_value_to(excluded_raw_anchors_per_query_name, value);
+}
+
+void search_and_alignment_statistics::add_reference_span_size_aligned_inner_node(size_t const value) {
+    insert_value_to(reference_span_sizes_aligned_inner_nodes_name, value);
+}
+
+void search_and_alignment_statistics::add_reference_span_size_aligned_root(size_t const value) {
+    insert_value_to(reference_span_sizes_aligned_root_name, value);
+}
+
+void search_and_alignment_statistics::add_reference_span_size_avoided_root(size_t const value) {
+    insert_value_to(reference_span_sizes_avoided_root_name, value);
 }
 
 void search_and_alignment_statistics::add_num_alignments(size_t const value) {

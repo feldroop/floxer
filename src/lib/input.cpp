@@ -16,6 +16,7 @@
 #include <ivsigma/ivsigma.h>
 
 #include <spdlog/fmt/fmt.h>
+#include <spdlog/fmt/std.h>
 #include <spdlog/spdlog.h>
 
 namespace input {
@@ -32,6 +33,8 @@ size_t query_record::num_errors_from_user_config(cli::command_line_input const& 
 }
 
 references read_references(std::filesystem::path const& reference_sequence_path) {
+    spdlog::info("reading reference sequences from {}", reference_sequence_path);
+
     std::vector<reference_record> records{};
     
     size_t id = 0;
@@ -106,10 +109,16 @@ references read_references(std::filesystem::path const& reference_sequence_path)
         ++id;
     }
 
+    if (records.empty()) {
+        throw std::runtime_error("The reference file is empty, which is not allowed.\n");
+    }
+
     return references { .records = std::move(records), .total_sequence_length = total_length };
 }
 
 queries read_queries(std::filesystem::path const& queries_path) {
+    spdlog::info("reading queries from {}", queries_path);
+
     std::vector<query_record> records{};
 
     size_t id = 0;
@@ -196,11 +205,14 @@ queries read_queries(std::filesystem::path const& queries_path) {
     return queries{ .records = std::move(records), .total_sequence_length = total_length };
 }
 
-fmindex load_index(std::filesystem::path const& _index_path) {
-    auto ifs     = std::ifstream(_index_path, std::ios::binary);
+fmindex load_index(std::filesystem::path const& index_path) {
+    spdlog::info("loading index from {}", index_path);
+
+    auto ifs     = std::ifstream(index_path, std::ios::binary);
     auto archive = cereal::BinaryInputArchive{ifs};
     auto index = fmindex{};
     archive(index);
+
     return index;
 }
 

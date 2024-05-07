@@ -31,6 +31,10 @@ class search_and_alignment_statistics {
         .thresholds = { 0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 }
     };
 
+    static inline const histogram_config tiny_values_linear_scale{
+        .thresholds = { 0, 1, 2, 3, 4 }
+    };
+
     struct count {
         std::string const name;
         size_t value = 0;
@@ -65,22 +69,30 @@ class search_and_alignment_statistics {
 
     static inline const std::string query_lengths_name = "query lengths";
     static inline const std::string seed_lengths_name = "seed lengths";
+    static inline const std::string errors_per_seed_name = "errors per seed";
     static inline const std::string seeds_per_query_name = "seeds per query";
     static inline const std::string anchors_per_seed_name = "anchors per (non-excluded) seed";
     static inline const std::string raw_anchors_per_excluded_seed_name = "(raw) anchors per excluded seed";
     static inline const std::string anchors_per_query_name = "anchors per query (from non-excluded seeds)";
     static inline const std::string excluded_raw_anchors_per_query_name = "excluded (raw) anchors per query";
+    static inline const std::string reference_span_sizes_aligned_inner_nodes_name = "reference span sizes aligned (inner nodes)";
+    static inline const std::string reference_span_sizes_aligned_root_name = "reference span sizes aligned (roots)";
+    static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes with alignment avoided (roots)";
     static inline const std::string alignments_per_query_name = "alignments per query";
     static inline const std::string alignments_edit_distance_name = "alignments edit distance";
 
     std::vector<histogram> histograms{
         histogram{large_values_log_scale, query_lengths_name},
         histogram{small_values_linear_scale, seed_lengths_name},
+        histogram{tiny_values_linear_scale, errors_per_seed_name},
         histogram{small_values_log_scale, seeds_per_query_name},
         histogram{large_values_log_scale, anchors_per_seed_name},
         histogram{large_values_log_scale, raw_anchors_per_excluded_seed_name},
         histogram{large_values_log_scale, anchors_per_query_name},
         histogram{large_values_log_scale, excluded_raw_anchors_per_query_name},
+        histogram{large_values_log_scale, reference_span_sizes_aligned_inner_nodes_name},
+        histogram{large_values_log_scale, reference_span_sizes_aligned_root_name},
+        histogram{large_values_log_scale, reference_span_sizes_avoided_root_name},
         histogram{large_values_log_scale, alignments_per_query_name},
         histogram{small_values_log_scale, alignments_edit_distance_name}
     };
@@ -101,9 +113,11 @@ public:
 
     void add_seed_length(size_t const value);
 
+    void add_num_errors_per_seed(size_t const value);
+
     void add_num_seeds_per_query(size_t const value);
 
-    void add_seed_lengths_and_num_seeds_per_query(std::vector<search::seed> const& seeds);
+    void add_statistics_for_seeds(std::vector<search::seed> const& seeds);
 
     void add_num_anchors_per_seed(size_t const value);
 
@@ -112,6 +126,12 @@ public:
     void add_num_anchors_per_query(size_t const value);
     
     void add_num_excluded_raw_anchors_per_query(size_t const value);
+    
+    void add_reference_span_size_aligned_inner_node(size_t const value);
+
+    void add_reference_span_size_aligned_root(size_t const value);
+
+    void add_reference_span_size_avoided_root(size_t const value);
 
     void add_num_alignments(size_t const value);
 

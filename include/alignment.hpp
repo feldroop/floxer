@@ -1,127 +1,71 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
-#include <map>
 #include <optional>
 #include <span>
-#include <string>
 #include <vector>
+
+#include <seqan3/alphabet/cigar/cigar.hpp>
 
 namespace alignment {
 
-enum class alignment_operation {
-    match, mismatch, deletion_from_reference, insertion_to_reference
-};
-
-char to_char(alignment_operation v);
-
-enum class alignment_quality_comparison {
-    unrelated, equal, better, worse
-};
-
-class cigar_sequence {
-    struct operation_block {
-        alignment_operation operation;
-        size_t count;
-    };
-
-    std::vector<operation_block> operation_blocks;
-
-public:
-    void add_operation(alignment_operation const operation);
-
-    void reverse();
-    
-    size_t num_operation_blocks() const;
-
-    std::string to_string() const;
+enum class query_orientation {
+    forward, reverse_complement
 };
 
 struct query_alignment {
-    // half open range [start_in_reference, end_in_reference)
     size_t start_in_reference;
-    size_t end_in_reference;
-    size_t reference_id;
     size_t num_errors;
-    int64_t score;
-    bool is_reverse_complement;
-    cigar_sequence cigar;
-
-    size_t length_in_reference() const;
-
-    // this assumes that the alignments reference id is equivalent
-    alignment_quality_comparison local_quality_comparison_versus(
-        size_t const other_start_in_reference,
-        size_t const other_num_errors
-    ) const;
+    query_orientation orientation;
+    std::vector<seqan3::cigar> cigar;
 };
 
-class alignment_insertion_gatekeeper;
-
-// important invariant: there are only useful (locally optimal) alignments stored in this class
-// only the alignment insertion gatekeeper should be used to insert alignments into this class
+// this class stores all of the alignments of one query to all references
 class query_alignments {
-    using alignments_to_reference = std::map<size_t, query_alignment>;
+    using alignments_to_reference = std::vector<query_alignment>;
 
     std::vector<alignments_to_reference> alignments_per_reference;
 
-    std::optional<int64_t> primary_alignment_score = std::nullopt;
-    std::optional<size_t> primary_alignment_reference_id = std::nullopt;
-    std::optional<size_t> primary_alignment_end_position = std::nullopt;
-
-    friend alignment_insertion_gatekeeper;
+    std::optional<size_t> best_num_errors_ = std::nullopt;
 
 public:
     query_alignments(size_t const num_references);
 
-    alignment_insertion_gatekeeper get_insertion_gatekeeper(
-        size_t const reference_id,
-        size_t const reference_span_start_offset,
-        size_t const reference_span_length,
-        bool const is_reverse_complement
-    );
-
+    void insert(query_alignment const alignment, size_t const reference_id);
+    
     alignments_to_reference const& to_reference(size_t const reference_id) const;
 
-    // primary alignment is the alignment with the highest score.
-    // in case of ties, the one with the lowest position is chosen
-    // and then the one with the lowest reference id
-    bool is_primary_alignment(query_alignment const& alignment) const;
-
+    alignments_to_reference& to_reference(size_t const reference_id);
+    
+    std::optional<size_t> best_num_errors() const;
+    
     size_t size() const;
-private:
-    void update_primary_alignment(query_alignment const& alignment);
 };
 
-// makes sure that only useful alignments are inserted into the fastq_query_alignments class
-// the other job of this class is to transform the indices of the computed alignment for a span
-// the indices of the whole reference
-
-// TODO refactor and separate insertion and index backtransformation logic
-class alignment_insertion_gatekeeper {
-    size_t const reference_id;
-    size_t const reference_span_start_offset;
-    size_t const reference_span_length;
-    bool const is_reverse_complement;
-    query_alignments& useful_existing_alignments;
-public:
-    alignment_insertion_gatekeeper(
-        size_t const reference_id_,
-        size_t const reference_span_start_offset_,
-        size_t const reference_span_length_,
-        bool const is_reverse_complement,
-        query_alignments& useful_existing_alignments_
-    );
-
-    // returns whether the alignment was added
-    bool insert_alignment_if_its_useful(
-        // this value should be the end position as seen by the alignment algorithm,
-        // but it's actually the start position, because the sequence was reversed
-        size_t const candidate_reference_span_reverse_end_position,
-        size_t const candidate_num_erros,
-        std::function<query_alignment()> const compute_alignment_to_reference_span
-    );
+enum class alignment_mode {
+    only_verify_existance, verify_and_return_alignment
 };
+
+struct alignment_config {
+    size_t const reference_span_offset;
+    size_t const num_allowed_errors;
+    query_orientation const orientation;
+    alignment_mode const mode;
+};
+
+enum class alignment_outcome {
+    alignment_exists, no_adequate_alignment_exists 
+};
+
+struct alignment_result {
+    alignment_outcome outcome;
+    std::optional<query_alignment> alignment = std::nullopt; 
+};
+
+alignment_result align(
+    std::span<const uint8_t> const reference,
+    std::span<const uint8_t> const query,
+    alignment_config const config
+);
 
 } // namespace verification

@@ -12,17 +12,6 @@
 
 namespace search {
 
-class search_scheme_cache {
-public:    
-    search_schemes::Scheme const& get(
-        size_t const pex_leaf_query_length,
-        size_t const pex_leaf_num_errors
-    );
-
-private:
-    std::unordered_map<std::tuple<size_t, size_t>, search_schemes::Scheme> schemes;
-};
-
 struct seed {
     std::span<const uint8_t> const sequence;
     size_t const num_errors;
@@ -39,6 +28,8 @@ struct anchor {
     bool should_be_erased() const;
 };
 
+using anchors = std::vector<anchor>;
+
 struct search_config {
     // if the number of anchors for a seed exceeds this threshold, 
     // no anchors will be reported for that seed
@@ -48,7 +39,6 @@ struct search_config {
     size_t const max_num_raw_anchors;
 };
 
-using anchors = std::vector<anchor>;
 
 struct search_result {
     struct anchors_of_seed {
@@ -65,6 +55,8 @@ struct search_result {
     size_t const num_excluded_seeds;
 };
 
+class search_scheme_cache;
+
 // not thread safe due to search scheme cache
 struct searcher {
     fmindex const& index;
@@ -75,6 +67,17 @@ struct searcher {
     search_result search_seeds(
         std::vector<seed> const& seeds
     ) const;
+};
+
+class search_scheme_cache {
+public:    
+    search_schemes::Scheme const& get(
+        size_t const pex_leaf_query_length,
+        size_t const pex_leaf_num_errors
+    );
+
+private:
+    std::unordered_map<std::tuple<size_t, size_t>, search_schemes::Scheme> schemes;
 };
 
 namespace internal {

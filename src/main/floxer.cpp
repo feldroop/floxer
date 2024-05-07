@@ -31,22 +31,13 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    try {
-        output::initialize_logger(cli_input.logfile_path());
-    } catch (std::exception const& e) {
-        fmt::print(
-            "[ERROR] An error occured while trying to set up logging. "
-            "Trying to continue without logging output.\n {}\n",
-            e.what()
-        );
-    }
+    output::initialize_logger(cli_input.logfile_path());
 
     spdlog::info("successfully parsed CLI input ... starting");
 
+    // TODO instead just summarize config
     auto const command_line_call = cli_input.command_line_call();
     spdlog::debug("command line call: {}", command_line_call);
-
-    spdlog::info("reading reference sequences from {}", cli_input.reference_path());
 
     input::references references;
     try {
@@ -61,17 +52,9 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    if (references.records.empty()) {
-        spdlog::error(
-            "The reference file {} is empty, which is not allowed.\n",
-            cli_input.reference_path()
-        );
-        return -1;
-    }
-
     spdlog::info(
         "total reference size: {}",
-        output::format_large_numer(references.total_sequence_length, "bases")
+        output::format_large_numer(references.total_sequence_length)
     );
 
     fmindex index;
@@ -82,8 +65,6 @@ int main(int argc, char** argv) {
         auto const index_path = cli_input.index_path().value();
 
         try {
-            spdlog::info("loading index from {}", index_path);
-            
             index = input::load_index(index_path);
         } catch (std::exception const& e) {
             spdlog::error(
@@ -116,30 +97,9 @@ int main(int argc, char** argv) {
         );
 
         if (cli_input.index_path().has_value()) {
-            auto const index_path = cli_input.index_path().value();
-
-            try {
-                spdlog::info("saving index to {}", index_path);
-
-                output::save_index(index, index_path);
-            } catch (std::exception const& e) {
-                spdlog::warn(
-                    "An error occured while trying to write the index to "
-                    "the file {}.\nContinueing without saving the index.\n{}\n",
-                    index_path,
-                    e.what()
-                );
-            }
+            output::save_index(index, cli_input.index_path().value());
         }
     }
-
-    // not available
-    // spdlog::info(
-    //     "index memory usage: {:L} bytes",
-    //     index.memoryUsage()
-    // );
-
-    spdlog::info("reading queries from {}", cli_input.queries_path());
 
     input::queries queries;
     try {
@@ -156,23 +116,24 @@ int main(int argc, char** argv) {
 
     spdlog::info(
         "total query size: {}",
-        output::format_large_numer(queries.total_sequence_length, "bases")
+        output::format_large_numer(queries.total_sequence_length)
     );
 
-    auto sam_output = output::sam_output(
+    auto alignment_output = output::create_alignment_output(
         cli_input.output_path(),
-        references.records,
-        command_line_call
+        references.records
     );
 
-    statistics::search_and_alignment_statistics stats{};
     search::search_scheme_cache scheme_cache;
     pex::pex_tree_cache tree_cache;
-    spdlog::stopwatch const aligning_stopwatch;  
-
-    // workaround for handling errors in threads
+    
+    // setup for workaround for handling errors in threads
     std::atomic_bool threads_should_stop = false;
     std::vector<std::exception_ptr> exceptions{};
+
+    statistics::search_and_alignment_statistics stats{};
+
+    spdlog::stopwatch const aligning_stopwatch;  
 
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
@@ -184,11 +145,9 @@ int main(int argc, char** argv) {
         cli_input.output_path()
     );
 
-    auto progress_bar = output::progress_bar{ .total_num_events = queries.records.size() };
-    progress_bar.start();
-
+    // arcane syntax for declaring a custom OpenMP reduction operation for the statistics object
     // omp declare reduction(name : type : combining_function) initializer(expression)
-    #pragma omp declare reduction( \
+    #pragma omp declare reduction ( \
             statsReduction : \
             statistics::search_and_alignment_statistics : \
             statistics::combine_stats(omp_out, omp_in) \
@@ -199,8 +158,8 @@ int main(int argc, char** argv) {
         num_threads(cli_input.num_threads()) \
         default(none) \
         private(tree_cache, scheme_cache) \
-        shared(queries, cli_input, references, index, sam_output, \
-            aligning_stopwatch, exceptions, threads_should_stop, progress_bar) \
+        shared(queries, cli_input, references, index, alignment_output, \
+            aligning_stopwatch, exceptions, threads_should_stop) \
         schedule(dynamic) \
         reduction(statsReduction:stats)
     for (size_t query_id = 0; query_id < queries.records.size(); ++query_id) {
@@ -219,39 +178,33 @@ int main(int argc, char** argv) {
         try {
             auto const& query = queries.records[query_id];
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
+            stats.add_query_length(query.rank_sequence.size());
 
-            if (query.rank_sequence.size() <= query_num_errors) {
-                // TODO instead of this warning, debug output and write to sam as unaligned
-                spdlog::warn(
-                    "Skipping query {}, because its length of {} is smaller or equal to "
-                    "the configured number of errors {}.\n",
-                    query.raw_tag,
-                    query.rank_sequence.size(),
-                    query_num_errors
+            // two cases that likely don't occur in practice where the error are configured in a way such that the 
+            // alignment algorithm makes no sense and floxer just flags them as unaligned
+            if (
+                query.rank_sequence.size() <= query_num_errors ||
+                query_num_errors < cli_input.pex_seed_num_errors()
+            ) {
+                spdlog::debug(
+                    "({}/{}) skipping query: {} due to bad num_errors configuration", 
+                    query_id, queries.records.size(), query.raw_tag
+                );
+
+                auto no_alignments = alignment::query_alignments(references.records.size());
+
+                #pragma omp critical
+                output::output_for_query(
+                    alignment_output,
+                    query,
+                    references.records,
+                    std::move(no_alignments)
                 );
 
                 continue;
             }            
             
-            if (query_num_errors < cli_input.pex_seed_num_errors()) {
-                // TODO instead of this warning, just directly align it with the fmindex
-                spdlog::warn(
-                    "Skipping query {}, because using the given error rate {}, it has an allowed "
-                    "number of errors of {}, which is smaller than the given number of errors "
-                    "in PEX tree leaves of {}.\n",
-                    query.raw_tag,
-                    // in this case the error probability must have been given
-                    cli_input.query_error_probability().value(),
-                    query_num_errors,
-                    cli_input.pex_seed_num_errors()
-                );
-
-                continue;
-            }
-            
-            spdlog::trace("aligning query: {}", query.raw_tag);
-
-            stats.add_query_length(query.rank_sequence.size());
+            spdlog::debug("({}/{}) aligning query: {}", query_id, queries.records.size(), query.raw_tag);
 
             auto const searcher = search::searcher{
                 .index = index,
@@ -267,6 +220,7 @@ int main(int argc, char** argv) {
                 .query_num_errors = query_num_errors,
                 .leaf_max_num_errors = cli_input.pex_seed_num_errors()
             };
+
             auto const& tree = tree_cache.get(tree_config);
 
             auto alignments = tree.align_forward_and_reverse_complement(
@@ -277,14 +231,14 @@ int main(int argc, char** argv) {
             );
 
             #pragma omp critical
-            sam_output.output_for_query(
+            output::output_for_query(
+                alignment_output,
                 query,
                 references.records,
-                alignments
+                std::move(alignments)
             );
 
-            #pragma omp critical
-            progress_bar.progress(query_id);
+            spdlog::debug("({}/{}) finished aligning query: {}", query_id, queries.records.size(), query.raw_tag);
         } catch (...) {
             #pragma omp critical
             exceptions.emplace_back(std::current_exception());
@@ -298,7 +252,7 @@ int main(int argc, char** argv) {
             std::rethrow_exception(e);
         } catch (std::exception const& e) {
             spdlog::error(
-                "\nAn error occured while a thread was aligning reads or writing output to "
+                "An error occured while a thread was aligning reads or writing output to "
                 "the file {}.\nThe output file is likely incomplete and invalid.\n{}\n",
                 cli_input.output_path(),
                 e.what()
@@ -314,14 +268,12 @@ int main(int argc, char** argv) {
 
     if (threads_should_stop) {
         spdlog::info(
-            "\nTimed out after {}. Aligned {} queries.",
+            "Timed out after {}. Aligned {} queries.",
             output::format_elapsed_time(aligning_stopwatch.elapsed()),
             stats.num_queries()
         );
         return 0;
     }
-    
-    progress_bar.finish();
 
     spdlog::info(
         "finished aligning successfully in {}",

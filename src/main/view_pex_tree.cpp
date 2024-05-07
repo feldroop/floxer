@@ -23,10 +23,13 @@ int main(int argc, char** argv) {
     parser.info.date = "27.04.2024";
 
     size_t total_query_length;
+
     size_t const given_query_num_errors_default = std::numeric_limits<size_t>::max();
     size_t given_query_num_errors = given_query_num_errors_default;
+    
     double const query_error_probability_default = NAN;
     double query_error_probability = query_error_probability_default;
+    
     size_t leaf_max_num_errors = 2;
 
     parser.add_option(total_query_length, sharg::config{

@@ -56,7 +56,18 @@ CPMDeclarePackage (
         "SKIP_PERFORMANCE_COMPARISON ON"
         "BUILD_SANDBOX OFF"
         "BUILD_DOC OFF"
-        #"WITH_WERROR OFF"
+)
+
+CPMDeclarePackage (
+    seqan3
+    NAME seqan3
+    GITHUB_REPOSITORY seqan/seqan3
+    GIT_TAG fee3fb8e5976b455e848dd68c57f64fd3f67c3c2
+    EXCLUDE_FROM_ALL TRUE
+    SYSTEM TRUE
+    OPTIONS
+        "INSTALL_SEQAN3 OFF"
+        "CMAKE_MESSAGE_LOG_LEVEL WARNING"
 )
 
 CPMDeclarePackage (

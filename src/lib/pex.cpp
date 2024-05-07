@@ -1,4 +1,4 @@
-#include <alignment_algorithm.hpp>
+#include <math.hpp>
 #include <pex.hpp>
 
 #include <cassert>
@@ -49,25 +49,23 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
 ) const {
     auto alignments = alignment::query_alignments(references.size());
 
-    bool is_reverse_complement = false;
     align_query_in_given_orientation(
         references,
         query,
         alignments,
-        is_reverse_complement,
+        alignment::query_orientation::forward,
         searcher,
         stats
     );
 
     auto const reverse_complement_query = 
         ivs::reverse_complement_rank<ivs::d_dna4>(query);
-    is_reverse_complement = true;
 
     align_query_in_given_orientation(
         references,
         reverse_complement_query,
         alignments,
-        is_reverse_complement,
+        alignment::query_orientation::reverse_complement,
         searcher,
         stats
     );
@@ -75,7 +73,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
     stats.add_num_alignments(alignments.size());
 
     for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-        for (auto const& [_, alignment] : alignments.to_reference(reference_id)) {
+        for (auto const& alignment : alignments.to_reference(reference_id)) {
             stats.add_alignment_edit_distance(alignment.num_errors);
         }
     }
@@ -110,14 +108,6 @@ std::string pex_tree::dot_statement() const {
     return dot;
 }
 
-size_t pex_tree::max_leaf_query_span() const {
-    size_t max_span = 0;
-    for (auto const& leaf : leaves) {
-        max_span = std::max(max_span, leaf.length_of_query_span());
-    }
-    return max_span;
-}
-
 size_t pex_tree::num_leaves() const {
     return leaves.size();
 }
@@ -126,12 +116,12 @@ void pex_tree::align_query_in_given_orientation(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const query,
     alignment::query_alignments& alignments,
-    bool const is_reverse_complement,
+    alignment::query_orientation const orientation,
     search::searcher const& searcher,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
-    stats.add_seed_lengths_and_num_seeds_per_query(seeds);
+    stats.add_statistics_for_seeds(seeds);
 
     auto const search_result = searcher.search_seeds(seeds);
     stats.add_statistics_for_search_result(search_result);
@@ -144,18 +134,26 @@ void pex_tree::align_query_in_given_orientation(
         }
         
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+            intervals::interval_set already_verified_intervals;
+
             for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
                 hierarchical_verification(
                     anchor,
                     seed_id,
                     query,
+                    orientation,
                     references[reference_id],
+                    already_verified_intervals,
                     alignments,
-                    is_reverse_complement
+                    stats
                 );
             }
         }
     }
+}
+
+pex_tree::node const& pex_tree::root() const {
+    return inner_nodes.empty() ? leaves.at(0) : inner_nodes.at(0);
 }
 
 void pex_tree::add_nodes(
@@ -165,7 +163,7 @@ void pex_tree::add_nodes(
     size_t const parent_id
 ) {
     // not sure that this name is the correct meaning of this value from the book
-    size_t const num_leafs_left = internal::ceil_div(num_errors + 1, 2);
+    size_t const num_leafs_left = math::ceil_div(num_errors + 1, 2);
 
     node const curr_node = {
         parent_id,
@@ -253,29 +251,46 @@ void pex_tree::hierarchical_verification(
     search::anchor const& anchor,
     size_t const seed_id,
     std::span<const uint8_t> const query,
+    alignment::query_orientation const orientation,
     input::reference_record const& reference,
+    intervals::interval_set& already_verified_intervals,
     alignment::query_alignments& alignments,
-    bool const is_reverse_complement
+    statistics::search_and_alignment_statistics& stats
 ) const {
     // this depends on the implementation of generate_leave_queries returning the
     // leaf queries in the same order as the leaves (which it should always do!)
     auto pex_node = leaves.at(seed_id);
     size_t const seed_query_index_from = pex_node.query_index_from;
 
-    // case for when the whole PEX tree is just a single root
-    // this could be optimized by not aligning again, but instead using the FM-index alignment
-    if (pex_node.is_root()) {
-        [[maybe_unused]] bool const query_found = internal::try_to_align_corresponding_query_span_at_anchor(
-            anchor,
-            pex_node,
-            seed_query_index_from,
-            reference,
-            query,
-            alignments,
-            is_reverse_complement
-        );
+    size_t const no_extra_wiggle_room = 0;
+    auto const root_reference_span_config = internal::compute_reference_span_start_and_length(
+        anchor,
+        root(),
+        seed_query_index_from,
+        reference.rank_sequence.size(),
+        no_extra_wiggle_room
+    );
 
-        assert(query_found);
+    if (already_verified_intervals.contains(root_reference_span_config.as_half_open_interval())) {
+        // we have already verified the interval where the whole query could be found, according to this anchor
+        stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
+        return;
+    }
+
+    // case for when the whole PEX tree is just a single root
+    if (pex_node.is_root()) {
+        [[maybe_unused]] auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
+            pex_node,
+            reference,
+            root_reference_span_config,
+            query,
+            orientation,
+            alignments,
+            stats
+        );
+        assert(outcome == alignment::alignment_outcome::alignment_exists);
+
+        already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
 
         return;
     }
@@ -283,17 +298,28 @@ void pex_tree::hierarchical_verification(
     pex_node = inner_nodes.at(pex_node.parent_id);
 
     while (true) {
-        bool const query_found = internal::try_to_align_corresponding_query_span_at_anchor(
+        size_t const extra_wiggle_room = 5; // TODO: test different values here
+        auto const reference_span_config = internal::compute_reference_span_start_and_length(
             anchor,
             pex_node,
             seed_query_index_from,
-            reference,
-            query,
-            alignments,
-            is_reverse_complement
+            reference.rank_sequence.size(),
+            extra_wiggle_room
         );
 
-        if (!query_found || pex_node.is_root()) {
+        auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
+            pex_node,
+            reference,
+            reference_span_config,
+            query,
+            orientation,
+            alignments,
+            stats
+        );
+
+        already_verified_intervals.insert(reference_span_config.as_half_open_interval());
+
+        if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || pex_node.is_root()) {
             break;
         }
 
@@ -308,21 +334,20 @@ pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
 
 namespace internal {
 
-size_t ceil_div(size_t const a, size_t const b) {
-    return (a % b) ? a / b + 1 : a / b;
+intervals::half_open_interval span_config::as_half_open_interval() const {
+    return intervals::half_open_interval{
+        .start = offset,
+        .end = offset + length
+    };
 }
 
 span_config compute_reference_span_start_and_length(
     search::anchor const& anchor,
     pex_tree::node const& pex_node,
     size_t const leaf_query_index_from,
-    size_t const full_reference_length
+    size_t const full_reference_length,
+    size_t const extra_wiggle_room
 ) {
-    // this extra wiggle room is added around the reference span because it was observed
-    // that it leads no nicer alignments in certain edge cases 
-    // and it likely has no impact on performance
-    size_t constexpr extra_wiggle_room = 1;
-
     int64_t const start_signed = static_cast<int64_t>(anchor.position) - 
         (leaf_query_index_from - pex_node.query_index_from)
         - pex_node.num_errors - extra_wiggle_room;
@@ -338,53 +363,57 @@ span_config compute_reference_span_start_and_length(
     };
 }
 
-bool try_to_align_corresponding_query_span_at_anchor(
-    search::anchor const& anchor,
+alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     pex_tree::node const& pex_node,
-    size_t const seed_query_index_from,
     input::reference_record const& reference,
+    span_config const reference_span_config,
     std::span<const uint8_t> const query,
+    alignment::query_orientation const orientation,
     alignment::query_alignments& alignments,
-    bool const is_reverse_complement
+    statistics::search_and_alignment_statistics& stats
 ) {
-    auto const full_reference_span = std::span<const uint8_t>(reference.rank_sequence);
-
-    auto const reference_span_config = compute_reference_span_start_and_length(
-        anchor,
-        pex_node,
-        seed_query_index_from,
-        full_reference_span.size()
-    );
-
     auto const this_node_query_span = query.subspan(
         pex_node.query_index_from,
         pex_node.length_of_query_span()
     );
 
-    auto const reference_subspan = full_reference_span.subspan(
+    auto const reference_subspan = std::span<const uint8_t>(reference.rank_sequence).subspan(
         reference_span_config.offset,
         reference_span_config.length
     );
 
-    auto alignment_insertion_gatekeeper = alignments.get_insertion_gatekeeper(
-        reference.id,
-        reference_span_config.offset,
-        reference_span_config.length,
-        is_reverse_complement
-    );
+    auto const config = alignment::alignment_config {
+        .reference_span_offset = reference_span_config.offset,
+        .num_allowed_errors = pex_node.num_errors,
+        .orientation = orientation,
+        .mode = pex_node.is_root() ?
+            alignment::alignment_mode::verify_and_return_alignment :
+            alignment::alignment_mode::only_verify_existance
+    };
 
-    bool const query_found = alignment::VerifyingAligner::align_query(
-        // the reversing here is done to allow the DP traceback to start from the start position
-        // of the alignment in the reference. This in turn allows to skip tracebacks for many
-        // alignment candidates that are not useful
-        std::views::reverse(reference_subspan),
-        std::views::reverse(this_node_query_span),
-        pex_node.num_errors,
-        pex_node.is_root(),
-        alignment_insertion_gatekeeper
+    auto const alignment_result = alignment::align(
+        reference_subspan,
+        this_node_query_span,
+        config
     );
+    
+    if (alignment_result.alignment.has_value()) {
+        assert(pex_node.is_root());
+        assert(alignment_result.outcome == alignment::alignment_outcome::alignment_exists);
 
-    return query_found;
+        alignments.insert(
+            std::move(alignment_result.alignment.value()),
+            reference.id
+        );
+    }
+
+    if (pex_node.is_root()) {
+        stats.add_reference_span_size_aligned_root(reference_span_config.length);
+    } else {
+        stats.add_reference_span_size_aligned_inner_node(reference_span_config.length);
+    }
+
+    return alignment_result.outcome;
 }
 
 } // namespace internal
