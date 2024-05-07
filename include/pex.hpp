@@ -49,21 +49,12 @@ public:
 
     std::string dot_statement() const;
 
-    // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
-    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
-
 private:
-    static constexpr size_t null_id = std::numeric_limits<size_t>::max();
-    
-    std::vector<node> inner_nodes;
-    std::vector<node> leaves;
-
-    // this refers to the original version where leaves have 0 errors 
-    size_t const no_error_leaf_query_length;
-    
-    size_t const leaf_max_num_errors;
-
     node const& root() const;
+
+    size_t num_leaves() const;
+
+    void add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const;
 
     void add_nodes(
         size_t const query_index_from,
@@ -72,9 +63,8 @@ private:
         size_t const parent_id
     );
 
-    void add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const;
-
-    size_t num_leaves() const;
+    // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
+    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
 
     void align_query_in_given_orientation(
         std::vector<input::reference_record> const& references,
@@ -95,6 +85,16 @@ private:
         alignment::query_alignments& alignments,
         statistics::search_and_alignment_statistics& stats
     ) const;
+
+    static constexpr size_t null_id = std::numeric_limits<size_t>::max();
+    
+    std::vector<node> inner_nodes;
+    std::vector<node> leaves;
+
+    // this refers to the original version where leaves have 0 errors 
+    size_t const no_error_leaf_query_length;
+    
+    size_t const leaf_max_num_errors;
 };
 
 class pex_tree_cache {
