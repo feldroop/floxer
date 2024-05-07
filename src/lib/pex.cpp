@@ -10,6 +10,31 @@
 
 namespace pex {
 
+size_t pex_tree::node::length_of_query_span() const {
+    return query_index_to - query_index_from + 1;
+}
+
+bool pex_tree::node::is_root() const {
+    return parent_id == null_id;
+}
+
+size_t pex_tree::num_leaves() const {
+    return leaves.size();
+}
+
+pex_tree::node const& pex_tree::root() const {
+    auto const& root = inner_nodes.empty() ? leaves.at(0) : inner_nodes.at(0);
+    assert(root.is_root());
+    return root;
+}
+
+pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
+    auto [iter, _] = trees.try_emplace(config.total_query_length, config);
+    return iter->second;
+}
+
+// ------------------------------ PEX tree building + seeding ------------------------------
+
 pex_tree::pex_tree(pex_tree_config const config) 
     : no_error_leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
     leaf_max_num_errors{config.leaf_max_num_errors} {
@@ -20,140 +45,6 @@ pex_tree::pex_tree(pex_tree_config const config)
         config.query_num_errors,
         null_id
     );
-}
-
-size_t pex_tree::node::length_of_query_span() const {
-    return query_index_to - query_index_from + 1;
-}
-
-bool pex_tree::node::is_root() const {
-    return parent_id == null_id;
-}
-
-std::string pex_tree::node::dot_statement(size_t const id) const {
-    return fmt::format(
-        "{} [label=\"errors: {}\\nlength: {}\\nrange: [{},{}]\"];\n",
-        id,
-        num_errors,
-        length_of_query_span(),
-        query_index_from,
-        query_index_to
-    );
-}
-
-alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
-    std::vector<input::reference_record> const& references,
-    std::span<const uint8_t> const query,
-    search::searcher const& searcher,
-    statistics::search_and_alignment_statistics& stats
-) const {
-    auto alignments = alignment::query_alignments(references.size());
-
-    align_query_in_given_orientation(
-        references,
-        query,
-        alignments,
-        alignment::query_orientation::forward,
-        searcher,
-        stats
-    );
-
-    auto const reverse_complement_query = 
-        ivs::reverse_complement_rank<ivs::d_dna4>(query);
-
-    align_query_in_given_orientation(
-        references,
-        reverse_complement_query,
-        alignments,
-        alignment::query_orientation::reverse_complement,
-        searcher,
-        stats
-    );
-
-    stats.add_num_alignments(alignments.size());
-
-    for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-        for (auto const& alignment : alignments.to_reference(reference_id)) {
-            stats.add_alignment_edit_distance(alignment.num_errors);
-        }
-    }
-
-    return alignments;
-}
-
-std::string pex_tree::dot_statement() const {
-    std::string dot = fmt::format(
-        "graph {{\n"
-        "label = \"PEX tree for query length {}, {} errors and leaf threshold {} ({} leaves)\";\n"
-        "labelloc = \"t\";\n"
-        "node [shape=record];\n",
-        inner_nodes[0].query_index_to + 1,
-        inner_nodes[0].num_errors,
-        leaf_max_num_errors,
-        num_leaves()
-    );
-    
-    size_t id = 0;
-    for (auto const& inner_node : inner_nodes) {
-        add_node_to_dot_statement(inner_node, id, dot);
-        ++id;
-    }
-    for (auto const& leaf_node : leaves) {
-        add_node_to_dot_statement(leaf_node, id, dot);
-        ++id;
-    }
-
-    dot += "}\n";
-
-    return dot;
-}
-
-size_t pex_tree::num_leaves() const {
-    return leaves.size();
-}
-
-void pex_tree::align_query_in_given_orientation(
-    std::vector<input::reference_record> const& references,
-    std::span<const uint8_t> const query,
-    alignment::query_alignments& alignments,
-    alignment::query_orientation const orientation,
-    search::searcher const& searcher,
-    statistics::search_and_alignment_statistics& stats
-) const {
-    auto const seeds = generate_seeds(query);
-    stats.add_statistics_for_seeds(seeds);
-
-    auto const search_result = searcher.search_seeds(seeds);
-    stats.add_statistics_for_search_result(search_result);
-
-    for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
-        auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
-        
-        if (anchors_of_seed.excluded) {
-            continue;
-        }
-        
-        for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            intervals::interval_set already_verified_intervals;
-
-            for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
-                hierarchical_verification(
-                    anchor,
-                    seed_id,
-                    query,
-                    orientation,
-                    references[reference_id],
-                    already_verified_intervals,
-                    alignments,
-                    stats
-                );
-            }
-        }
-    }
-}
-
-pex_tree::node const& pex_tree::root() const {
-    return inner_nodes.empty() ? leaves.at(0) : inner_nodes.at(0);
 }
 
 void pex_tree::add_nodes(
@@ -226,13 +117,6 @@ void pex_tree::add_nodes(
     }
 }
 
-void pex_tree::add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const {
-    dot += curr_node.dot_statement(id);
-    if (!curr_node.is_root()) {
-        dot += fmt::format("{} -- {};\n", id, curr_node.parent_id);
-    }
-}
-
 std::vector<search::seed> pex_tree::generate_seeds(
     std::span<const uint8_t> const query
 ) const {
@@ -245,6 +129,135 @@ std::vector<search::seed> pex_tree::generate_seeds(
     }
 
     return seeds;
+}
+
+// ------------------------------ DOT export ------------------------------
+
+std::string pex_tree::node::dot_statement(size_t const id) const {
+    return fmt::format(
+        "{} [label=\"errors: {}\\nlength: {}\\nrange: [{},{}]\"];\n",
+        id,
+        num_errors,
+        length_of_query_span(),
+        query_index_from,
+        query_index_to
+    );
+}
+
+std::string pex_tree::dot_statement() const {
+    std::string dot = fmt::format(
+        "graph {{\n"
+        "label = \"PEX tree for query length {}, {} errors and leaf threshold {} ({} leaves)\";\n"
+        "labelloc = \"t\";\n"
+        "node [shape=record];\n",
+        inner_nodes[0].query_index_to + 1,
+        inner_nodes[0].num_errors,
+        leaf_max_num_errors,
+        num_leaves()
+    );
+    
+    size_t id = 0;
+    for (auto const& inner_node : inner_nodes) {
+        add_node_to_dot_statement(inner_node, id, dot);
+        ++id;
+    }
+    for (auto const& leaf_node : leaves) {
+        add_node_to_dot_statement(leaf_node, id, dot);
+        ++id;
+    }
+
+    dot += "}\n";
+
+    return dot;
+}
+
+void pex_tree::add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const {
+    dot += curr_node.dot_statement(id);
+    if (!curr_node.is_root()) {
+        dot += fmt::format("{} -- {};\n", id, curr_node.parent_id);
+    }
+}
+
+// ------------------------------ hierarchical verification + alignment ------------------------------
+
+alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
+    std::vector<input::reference_record> const& references,
+    std::span<const uint8_t> const query,
+    search::searcher const& searcher,
+    statistics::search_and_alignment_statistics& stats
+) const {
+    auto alignments = alignment::query_alignments(references.size());
+
+    align_query_in_given_orientation(
+        references,
+        query,
+        alignments,
+        alignment::query_orientation::forward,
+        searcher,
+        stats
+    );
+
+    auto const reverse_complement_query = 
+        ivs::reverse_complement_rank<ivs::d_dna4>(query);
+
+    align_query_in_given_orientation(
+        references,
+        reverse_complement_query,
+        alignments,
+        alignment::query_orientation::reverse_complement,
+        searcher,
+        stats
+    );
+
+    stats.add_num_alignments(alignments.size());
+
+    for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+        for (auto const& alignment : alignments.to_reference(reference_id)) {
+            stats.add_alignment_edit_distance(alignment.num_errors);
+        }
+    }
+
+    return alignments;
+}
+
+void pex_tree::align_query_in_given_orientation(
+    std::vector<input::reference_record> const& references,
+    std::span<const uint8_t> const query,
+    alignment::query_alignments& alignments,
+    alignment::query_orientation const orientation,
+    search::searcher const& searcher,
+    statistics::search_and_alignment_statistics& stats
+) const {
+    auto const seeds = generate_seeds(query);
+    stats.add_statistics_for_seeds(seeds);
+
+    auto const search_result = searcher.search_seeds(seeds);
+    stats.add_statistics_for_search_result(search_result);
+
+    for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
+        auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
+        
+        if (anchors_of_seed.excluded) {
+            continue;
+        }
+        
+        for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
+            intervals::interval_set already_verified_intervals;
+
+            for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
+                hierarchical_verification(
+                    anchor,
+                    seed_id,
+                    query,
+                    orientation,
+                    references[reference_id],
+                    already_verified_intervals,
+                    alignments,
+                    stats
+                );
+            }
+        }
+    }
 }
 
 void pex_tree::hierarchical_verification(
@@ -325,11 +338,6 @@ void pex_tree::hierarchical_verification(
 
         pex_node = inner_nodes.at(pex_node.parent_id);
     }
-}
-
-pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
-    auto [iter, _] = trees.try_emplace(config.total_query_length, config);
-    return iter->second;
 }
 
 namespace internal {
