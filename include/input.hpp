@@ -44,10 +44,6 @@ namespace internal {
 
 std::string extract_record_id(std::string_view const& reference_name);
 
-constexpr std::array<char, 256> invalid_and_degenerate_to_n_conversion_table();
-
-char invalid_and_degenerate_chars_to_n(char const c);
-
 std::vector<uint8_t> chars_to_rank_sequence(std::string_view const chars);
 
 } // namespace internal

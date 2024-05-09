@@ -127,25 +127,6 @@ std::string extract_record_id(std::string_view const& reference_name) {
     return std::string(reference_name.begin(), std::ranges::find(reference_name, ' '));
 }
 
-constexpr std::array<char, 256> invalid_and_degenerate_to_n_conversion_table() {
-    std::array<char, 256> conversion;
-    std::ranges::fill(conversion, 'N');
-
-    // only keep valid DNA chars
-    conversion['a'] = 'a', conversion['A'] = 'A';
-    conversion['c'] = 'c', conversion['C'] = 'C';
-    conversion['g'] = 'g', conversion['G'] = 'G';
-    conversion['t'] = 't', conversion['T'] = 'T';
-
-    return conversion;
-}
-
-char invalid_and_degenerate_chars_to_n(char const c) {
-    static constexpr std::array<char, 256> conversion_table = invalid_and_degenerate_to_n_conversion_table();
-
-    return conversion_table[c];
-}
-
 std::vector<uint8_t> chars_to_rank_sequence(std::string_view const sequence) {
     auto rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(sequence);
 
