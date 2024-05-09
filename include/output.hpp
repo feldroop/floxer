@@ -23,6 +23,7 @@ using alignment_output_fields_t = seqan3::fields<
     seqan3::field::flag,
     seqan3::field::ref_id,
     seqan3::field::ref_offset,
+    seqan3::field::mapq,
     seqan3::field::cigar,
     seqan3::field::seq,
     seqan3::field::qual,

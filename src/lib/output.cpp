@@ -62,6 +62,8 @@ void output_for_query(
     std::vector<input::reference_record> const& references,
     alignment::query_alignments alignments
 ) {
+    static constexpr uint8_t mapq_not_available = 255;
+
     bool primary_alignment_was_written = false;
 
     for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
@@ -93,6 +95,7 @@ void output_for_query(
                 flag, // flag
                 reference.id, // ref_id
                 math::saturate_value_to_int32_max(alignment.start_in_reference), // ref_offset
+                mapq_not_available, // mapq
                 std::move(alignment.cigar), // cigar
                 query_char_sequence, // seq
                 is_primary_alignment ? query.quality : std::string{}, // qual
@@ -107,6 +110,7 @@ void output_for_query(
             seqan3::sam_flag::unmapped, // flag
             std::string{}, // ref_id
             0, // ref_offset
+            mapq_not_available, // mapq
             std::vector<seqan3::cigar>{}, // cigar
             ivs::convert_rank_to_char<ivs::d_dna5>(query.rank_sequence), // seq
             query.quality, // qual
