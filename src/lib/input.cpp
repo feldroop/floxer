@@ -146,15 +146,17 @@ char invalid_and_degenerate_chars_to_n(char const c) {
     return conversion_table[c];
 }
 
-std::vector<uint8_t> chars_to_rank_sequence(std::string_view const chars) {
-    auto no_degenerate_char_sequence_view = chars | std::views::transform(
-        internal::invalid_and_degenerate_chars_to_n
+std::vector<uint8_t> chars_to_rank_sequence(std::string_view const sequence) {
+    auto rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(sequence);
+
+    uint8_t const replacement_rank = ivs::d_dna5::char_to_rank('N');
+    std::ranges::replace_if(
+        rank_sequence,
+        [] (uint8_t const rank) { return !ivs::verify_rank(rank); },
+        replacement_rank
     );
 
-    // this copy is very unfortunate but I don't know how to get a span for ivsigma from a view without copying
-    std::string const sanitized_chars(no_degenerate_char_sequence_view.begin(), no_degenerate_char_sequence_view.end());
-
-    return ivs::convert_char_to_rank<ivs::d_dna5>(sanitized_chars);
+    return rank_sequence;
 }
 
 } // namespace internal
