@@ -45,8 +45,6 @@ public:
 private:
     void given_set_insert(half_open_interval const new_interval, intervals_t& intervals);
 
-    bool contains_outcome(half_open_interval const target_interval, alignment::alignment_outcome const outcome) const;
-
     bool given_set_contains(half_open_interval const target_interval, intervals_t const& intervals) const;
 
     intervals_t intervals_with_alignment{};

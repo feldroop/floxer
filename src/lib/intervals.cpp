@@ -50,9 +50,9 @@ void verified_intervals::insert(half_open_interval const new_interval, alignment
 
 std::optional<alignment::alignment_outcome> verified_intervals::contains(half_open_interval const target_interval) const {
     // it is important that we ask first for the alignment_exists case, because it should override the other case
-    if (contains_outcome(target_interval, alignment::alignment_outcome::alignment_exists)) {
+    if (given_set_contains(target_interval, intervals_with_alignment)) {
         return alignment::alignment_outcome::alignment_exists;
-    } else if (contains_outcome(target_interval, alignment::alignment_outcome::no_adequate_alignment_exists)) {
+    } else if (given_set_contains(target_interval, intervals_without_alignment)) {
         return alignment::alignment_outcome::no_adequate_alignment_exists;
     } else {
         return std::nullopt;
@@ -123,20 +123,6 @@ void verified_intervals::given_set_insert(half_open_interval const new_interval,
     }
 
     intervals.insert(interval_to_insert);
-}
-
-bool verified_intervals::contains_outcome(
-    half_open_interval const target_interval,
-    alignment::alignment_outcome const outcome
-) const {
-    switch (outcome) {
-        case alignment::alignment_outcome::alignment_exists:
-            return given_set_contains(target_interval, intervals_with_alignment);
-        case alignment::alignment_outcome::no_adequate_alignment_exists:
-            return given_set_contains(target_interval, intervals_without_alignment);
-        default:
-            throw std::runtime_error("(should be unreachable) internal bug in interval set");
-    }
 }
 
 bool verified_intervals::given_set_contains(
