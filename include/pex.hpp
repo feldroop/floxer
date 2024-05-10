@@ -9,6 +9,7 @@
 
 #include <limits>
 #include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -81,7 +82,7 @@ private:
         std::span<const uint8_t> const query,
         alignment::query_orientation const orientation,
         input::reference_record const& reference,
-        intervals::interval_set& already_verified_intervals,
+        intervals::verified_intervals& already_verified_intervals,
         alignment::query_alignments& alignments,
         statistics::search_and_alignment_statistics& stats
     ) const;

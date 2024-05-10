@@ -62,81 +62,85 @@ TEST(intervals, half_open_interval) {
     EXPECT_EQ(cases.ivl2.relationship_with(cases.ivl2), interval_relationship::equal);
 }
 
-TEST(intervals, interval_set) {
+TEST(intervals, verified_intervals) {
     using namespace intervals;
     
     interval_test_cases const cases{};
 
-    interval_set ivls{};
+    // in this this, we'll keep the outcome fixed to test the basic logic
+    auto const outcome = alignment::alignment_outcome::alignment_exists;
+    auto const found_outcome = std::make_optional(alignment::alignment_outcome::alignment_exists);
+
+    verified_intervals ivls{};
 
     EXPECT_EQ(ivls.size(), 0);
 
-    ivls.insert(cases.ivl1);
-    ivls.insert(cases.ivl2);
+    ivls.insert(cases.ivl1, outcome);
+    ivls.insert(cases.ivl2, outcome);
 
     EXPECT_EQ(ivls.size(), 2);
 
-    EXPECT_TRUE(ivls.contains(cases.ivl1));
-    EXPECT_TRUE(ivls.contains(cases.ivl2));
+    EXPECT_EQ(ivls.contains(cases.ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.ivl2), found_outcome);
 
     // [ivl1), [ivl2)
-    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.containing_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl2));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_above_ivl2));
-    EXPECT_FALSE(ivls.contains(cases.between_both));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_both));
-    EXPECT_FALSE(ivls.contains(cases.containing_both));
-    EXPECT_FALSE(ivls.contains(cases.below_both));
-    EXPECT_FALSE(ivls.contains(cases.above_both));
+    EXPECT_EQ(ivls.contains(cases.inside_ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl1), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.containing_ivl1), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl2), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_above_ivl2), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.between_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.containing_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.below_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.above_both), std::nullopt);
 
-    ivls.insert(cases.ivl3);
+    ivls.insert(cases.ivl3, outcome);
     EXPECT_EQ(ivls.size(), 2);
 
     // [ivl1+3), [ivl2)
-    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.containing_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl2));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_above_ivl2));
-    EXPECT_FALSE(ivls.contains(cases.between_both));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_both));
-    EXPECT_FALSE(ivls.contains(cases.containing_both));
-    EXPECT_FALSE(ivls.contains(cases.below_both));
-    EXPECT_FALSE(ivls.contains(cases.above_both));
+    EXPECT_EQ(ivls.contains(cases.inside_ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl1), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.containing_ivl1), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl2), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_above_ivl2), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.between_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.containing_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.below_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.above_both), std::nullopt);
 
-    ivls.insert(cases.ivl4);
+    ivls.insert(cases.ivl4, outcome);
     EXPECT_EQ(ivls.size(), 1);
 
     // [ivl1+2+3+4)
-    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl1));
-    EXPECT_FALSE(ivls.contains(cases.containing_ivl1));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2));
-    EXPECT_FALSE(ivls.contains(cases.overlapping_above_ivl2));
-    EXPECT_TRUE(ivls.contains(cases.between_both));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_both));
-    EXPECT_FALSE(ivls.contains(cases.containing_both));
-    EXPECT_FALSE(ivls.contains(cases.below_both));
-    EXPECT_FALSE(ivls.contains(cases.above_both));
+    EXPECT_EQ(ivls.contains(cases.inside_ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl1), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.containing_ivl1), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl2), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_above_ivl2), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.between_both), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_both), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.containing_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.below_both), std::nullopt);
+    EXPECT_EQ(ivls.contains(cases.above_both), std::nullopt);
 
-    ivls.insert(cases.ivl5);
+    ivls.insert(cases.ivl5, outcome);
     EXPECT_EQ(ivls.size(), 1);
 
     // [ivl5)
-    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl1));
-    EXPECT_TRUE(ivls.contains(cases.containing_ivl1));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_above_ivl2));
-    EXPECT_TRUE(ivls.contains(cases.between_both));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_both));
-    EXPECT_TRUE(ivls.contains(cases.containing_both));
-    EXPECT_TRUE(ivls.contains(cases.below_both));
-    EXPECT_TRUE(ivls.contains(cases.above_both));
+    EXPECT_EQ(ivls.contains(cases.inside_ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.containing_ivl1), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_below_ivl2), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_above_ivl2), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.between_both), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.overlapping_both), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.containing_both), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.below_both), found_outcome);
+    EXPECT_EQ(ivls.contains(cases.above_both), found_outcome);
 
     // size should not change when insert repeatedly
-    ivls.insert(cases.ivl5);
+    ivls.insert(cases.ivl5, outcome);
     EXPECT_EQ(ivls.size(), 1);
 }

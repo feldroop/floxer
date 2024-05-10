@@ -242,7 +242,7 @@ void pex_tree::align_query_in_given_orientation(
         }
         
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            intervals::interval_set already_verified_intervals;
+            intervals::verified_intervals already_verified_intervals;
 
             for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
                 hierarchical_verification(
@@ -266,7 +266,7 @@ void pex_tree::hierarchical_verification(
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
     input::reference_record const& reference,
-    intervals::interval_set& already_verified_intervals,
+    intervals::verified_intervals& already_verified_intervals,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 ) const {
@@ -292,7 +292,7 @@ void pex_tree::hierarchical_verification(
 
     // case for when the whole PEX tree is just a single root
     if (pex_node.is_root()) {
-        [[maybe_unused]] auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
+        auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
             pex_node,
             reference,
             root_reference_span_config,
@@ -303,7 +303,7 @@ void pex_tree::hierarchical_verification(
         );
         assert(outcome == alignment::alignment_outcome::alignment_exists);
 
-        already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
+        already_verified_intervals.insert(root_reference_span_config.as_half_open_interval(), outcome);
 
         return;
     }
@@ -319,20 +319,32 @@ void pex_tree::hierarchical_verification(
             reference.rank_sequence.size(),
             extra_wiggle_room
         );
+        auto const interval_to_verify = reference_span_config.as_half_open_interval();
 
-        auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
-            pex_node,
-            reference,
-            reference_span_config,
-            query,
-            orientation,
-            alignments,
-            stats
-        );
+        std::optional<alignment::alignment_outcome> outcome = std::nullopt;
 
-        already_verified_intervals.insert(reference_span_config.as_half_open_interval());
+        // if this is the root, we already checked for a verified interval earlier
+        if (!pex_node.is_root()) {
+            outcome = already_verified_intervals.contains(interval_to_verify);
+        }
 
-        if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || pex_node.is_root()) {
+        if (!outcome.has_value()) {
+            outcome = internal::try_to_align_pex_node_query_with_reference_span(
+                pex_node,
+                reference,
+                reference_span_config,
+                query,
+                orientation,
+                alignments,
+                stats
+            );
+
+            already_verified_intervals.insert(reference_span_config.as_half_open_interval(), outcome.value());
+        } else {
+            stats.add_reference_span_size_avoided_inner_node(reference_span_config.length);
+        }
+
+        if (outcome.value() == alignment::alignment_outcome::no_adequate_alignment_exists || pex_node.is_root()) {
             break;
         }
 

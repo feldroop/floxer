@@ -174,6 +174,10 @@ void search_and_alignment_statistics::add_reference_span_size_aligned_inner_node
     insert_value_to(reference_span_sizes_aligned_inner_nodes_name, value);
 }
 
+void search_and_alignment_statistics::add_reference_span_size_avoided_inner_node(size_t const value) {
+    insert_value_to(reference_span_sizes_avoided_inner_nodes_name, value);
+}
+
 void search_and_alignment_statistics::add_reference_span_size_aligned_root(size_t const value) {
     insert_value_to(reference_span_sizes_aligned_root_name, value);
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <alignment.hpp>
+
 #include <cstddef>
 #include <optional>
 #include <set>
@@ -28,17 +30,27 @@ struct half_open_interval {
 // order intervals by their END position, because it works better with the std::set functions
 auto operator<=>(half_open_interval const& ivl1, half_open_interval const& ivl2);
 
-// important invariant: the intervals stored are disjoint
-class interval_set {
+// important invariants: both of the interval sets store only disjoint intervals
+class verified_intervals {
 public:
-    void insert(half_open_interval const new_interval);
+    using intervals_t = std::set<half_open_interval>;
 
-    bool contains(half_open_interval const target_interval) const;
+    void insert(half_open_interval const new_interval, alignment::alignment_outcome const outcome);
+
+    // std::nullopt if it's not contained
+    std::optional<alignment::alignment_outcome> contains(half_open_interval const target_interval) const;
 
     size_t size() const;
 
 private:
-    std::set<half_open_interval> intervals{};
+    void given_set_insert(half_open_interval const new_interval, intervals_t& intervals);
+
+    bool contains_outcome(half_open_interval const target_interval, alignment::alignment_outcome const outcome) const;
+
+    bool given_set_contains(half_open_interval const target_interval, intervals_t const& intervals) const;
+
+    intervals_t intervals_with_alignment{};
+    intervals_t intervals_without_alignment{};
 };
 
 } // namespace intervals

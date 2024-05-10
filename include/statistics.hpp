@@ -76,8 +76,9 @@ class search_and_alignment_statistics {
     static inline const std::string anchors_per_query_name = "anchors per query (from non-excluded seeds)";
     static inline const std::string excluded_raw_anchors_per_query_name = "excluded (raw) anchors per query";
     static inline const std::string reference_span_sizes_aligned_inner_nodes_name = "reference span sizes aligned (inner nodes)";
+    static inline const std::string reference_span_sizes_avoided_inner_nodes_name = "reference span sizes alignment avoided (inner nodes)";
     static inline const std::string reference_span_sizes_aligned_root_name = "reference span sizes aligned (roots)";
-    static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes with alignment avoided (roots)";
+    static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes alignment avoided (roots)";
     static inline const std::string alignments_per_query_name = "alignments per query";
     static inline const std::string alignments_edit_distance_name = "alignments edit distance";
 
@@ -91,6 +92,7 @@ class search_and_alignment_statistics {
         histogram{large_values_log_scale, anchors_per_query_name},
         histogram{large_values_log_scale, excluded_raw_anchors_per_query_name},
         histogram{large_values_log_scale, reference_span_sizes_aligned_inner_nodes_name},
+        histogram{large_values_log_scale, reference_span_sizes_avoided_inner_nodes_name},
         histogram{large_values_log_scale, reference_span_sizes_aligned_root_name},
         histogram{large_values_log_scale, reference_span_sizes_avoided_root_name},
         histogram{large_values_log_scale, alignments_per_query_name},
@@ -128,6 +130,8 @@ public:
     void add_num_excluded_raw_anchors_per_query(size_t const value);
     
     void add_reference_span_size_aligned_inner_node(size_t const value);
+
+    void add_reference_span_size_avoided_inner_node(size_t const value);
 
     void add_reference_span_size_aligned_root(size_t const value);
 
