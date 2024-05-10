@@ -81,7 +81,9 @@ int main(int argc, char** argv) {
 
         spdlog::stopwatch const build_index_stopwatch;    
 
-        size_t constexpr suffix_array_sampling_rate = 16; // TODO determine good value for this
+        // This sampling rate is a trade-off for high speed. It leads to and index size of 11G
+        // for the human genome, which should be tolerable in most applications
+        size_t constexpr suffix_array_sampling_rate = 4;
         index = fmindex(
             references.records | std::views::transform(&input::reference_record::rank_sequence),
             suffix_array_sampling_rate,
