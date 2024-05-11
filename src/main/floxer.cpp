@@ -177,6 +177,12 @@ int main(int argc, char** argv) {
         try {
             auto const& query = queries.records[query_index];
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
+            
+            // TEMPORARY until the performance has improved
+            if (query.rank_sequence.size() >= 100'000) {
+                continue;
+            }
+
             stats.add_query_length(query.rank_sequence.size());
 
             // two cases that likely don't occur in practice where the error are configured in a way such that the 
