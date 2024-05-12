@@ -277,14 +277,13 @@ int main(int argc, char** argv) {
             output::format_elapsed_time(aligning_stopwatch.elapsed()),
             stats.num_queries()
         );
-        return 0;
+    } else {
+        spdlog::info(
+            "finished aligning successfully in {}",
+            output::format_elapsed_time(aligning_stopwatch.elapsed())
+        );
     }
 
-    spdlog::info(
-        "finished aligning successfully in {}",
-        output::format_elapsed_time(aligning_stopwatch.elapsed())
-    );
-    
     if (cli_input.print_stats()) {
         for (auto const& formatted_statistic : stats.format_statistics()) {
             spdlog::info("{}", formatted_statistic);
