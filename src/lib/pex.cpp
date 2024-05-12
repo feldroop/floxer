@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <ranges>
+#include <stdexcept>
 
 #include <ivsigma/ivsigma.h>
 #include <spdlog/fmt/fmt.h>
@@ -36,15 +37,24 @@ pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
 // ------------------------------ PEX tree building + seeding ------------------------------
 
 pex_tree::pex_tree(pex_tree_config const config) 
-    : no_error_leaf_query_length{config.total_query_length / (config.query_num_errors + 1)},
+    : no_error_seed_length{config.total_query_length / (config.query_num_errors + 1)},
     leaf_max_num_errors{config.leaf_max_num_errors} {
-    // use 1 based indices until final computation to make sure to match pseudocode
-    add_nodes(
-        1,
-        config.total_query_length,
-        config.query_num_errors,
-        null_id
-    );
+    switch (config.build_strategy) {
+        case pex_tree_build_strategy::recursive:
+            // use 1 based indices until final computation to make sure to match pseudocode
+            add_nodes(
+                1,
+                config.total_query_length,
+                config.query_num_errors,
+                null_id
+            );
+            break;
+        case pex_tree_build_strategy::bottom_up:
+            // TODO
+            // break;
+        default:
+            throw std::runtime_error("(should be unreachable) internal bug in the pex tree construction - build strategy");
+    }
 }
 
 void pex_tree::add_nodes(
@@ -68,39 +78,17 @@ void pex_tree::add_nodes(
     } else {
         size_t const curr_node_id = inner_nodes.size();
         inner_nodes.emplace_back(curr_node);
-        size_t const parent_query_span_length = inner_nodes.back().length_of_query_span();
 
-        // the comment below is the implementation according to the book
-        // as of now, I don't know why the split is done like that. It leads to
-        // an uneven splitting with one super large seed at the end.
-        // (maybe there is a bug like a rounding error, 
-        // but I did some of the calculations by hand and it seems correct)
-        // size_t const query_split_index = query_index_from + num_leafs_left * no_error_leaf_query_length;
+        // this way of splitting from the book leads to a large seed at the rightmost leaf of the tree.
+        // the reason is that the total_query_length is not divisible by (query_num_errors + 1) and the floor
+        // of the quotient is chosen for no_error_seed_length. Hence, the whole remainder is covered by
+        // the very righmost leaf.
+        size_t const query_split_index = query_index_from + num_leafs_left * no_error_seed_length;
 
         // simply splitting in half is also not a good option, because the errors for both children are not necessarily the same
 
         size_t const num_errors_for_left_child = (num_leafs_left * num_errors) / (num_errors + 1);
         size_t const num_errors_for_right_child = ((num_errors + 1 - num_leafs_left) * num_errors) / (num_errors + 1);
-        
-        size_t const num_errors_for_children = num_errors_for_left_child + num_errors_for_right_child;
-        
-        double fraction_of_leaf_errors_for_left_child;
-        switch (num_errors_for_children) {
-            case 0:
-                fraction_of_leaf_errors_for_left_child = 0.5;
-                break;
-
-            case 1:
-                fraction_of_leaf_errors_for_left_child = num_errors_for_left_child == 0 ? 1.0 / 3.0 : 2.0 / 3.0;
-                break;
-            
-            default:
-                fraction_of_leaf_errors_for_left_child = num_errors_for_left_child / static_cast<double>(num_errors_for_children);
-        }
-
-        size_t const query_split_index = query_index_from + static_cast<size_t>(std::round(
-            parent_query_span_length * fraction_of_leaf_errors_for_left_child
-        ));
         
         add_nodes(
             query_index_from,

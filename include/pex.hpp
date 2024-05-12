@@ -19,20 +19,20 @@
 
 namespace pex {
 
+enum pex_tree_build_strategy {
+    recursive,
+    bottom_up
+};
+
 struct pex_tree_config {
     size_t const total_query_length;
     size_t const query_num_errors;
     size_t const leaf_max_num_errors;
+    pex_tree_build_strategy const build_strategy;
 };
 
 class pex_tree {
 public:
-    enum build_strategy {
-        recursive_according_to_book,
-        recursive_balanced_splitting,
-        bottom_up
-    };
-
     struct node {
         size_t parent_id;
         size_t query_index_from;
@@ -99,7 +99,7 @@ private:
     std::vector<node> leaves;
 
     // this refers to the original version where leaves have 0 errors 
-    size_t const no_error_leaf_query_length;
+    size_t const no_error_seed_length;
     
     size_t const leaf_max_num_errors;
 };
