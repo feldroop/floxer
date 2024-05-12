@@ -44,6 +44,7 @@ class command_line_input {
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
     cli_option<size_t> max_num_raw_anchors_{ 'm', "max-anchors", 1'000 };
+    cli_option<bool> bottom_up_pex_tree_building_{ 'b', "bottom-up-pex-tree", false };
 
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
@@ -62,6 +63,7 @@ public:
     std::optional<double> query_error_probability() const;
     size_t pex_seed_num_errors() const;
     size_t max_num_raw_anchors() const;
+    bool bottom_up_pex_tree_building() const;
 
     size_t num_threads() const;
     std::optional<size_t> timeout_seconds() const;

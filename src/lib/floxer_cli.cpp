@@ -61,6 +61,10 @@ size_t command_line_input::max_num_raw_anchors() const {
     return max_num_raw_anchors_.value;
 }
 
+bool command_line_input::bottom_up_pex_tree_building() const {
+    return bottom_up_pex_tree_building_.value;
+}
+
 size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
@@ -89,6 +93,7 @@ std::string command_line_input::command_line_call() const {
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
         max_num_raw_anchors_.command_line_call(),
+        bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
         print_stats() ? print_stats_.command_line_call() : ""
@@ -210,6 +215,12 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = max_num_raw_anchors_.short_id,
         .long_id = max_num_raw_anchors_.long_id,
         .description = "Seeds with this number of (raw) anchors are excluded from further steps."
+    });
+
+    parser.add_flag(bottom_up_pex_tree_building_.value, sharg::config{
+        .short_id = bottom_up_pex_tree_building_.short_id,
+        .long_id = bottom_up_pex_tree_building_.long_id,
+        .description = "Build PEX trees using a new bottom up strategy.",
     });
 
     parser.add_option(num_threads_.value, sharg::config{
