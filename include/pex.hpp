@@ -27,6 +27,12 @@ struct pex_tree_config {
 
 class pex_tree {
 public:
+    enum build_strategy {
+        recursive_according_to_book,
+        recursive_balanced_splitting,
+        bottom_up
+    };
+
     struct node {
         size_t parent_id;
         size_t query_index_from;

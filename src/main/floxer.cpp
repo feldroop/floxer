@@ -123,8 +123,8 @@ int main(int argc, char** argv) {
         references.records
     );
 
-    search::search_scheme_cache scheme_cache;
-    pex::pex_tree_cache tree_cache;
+    search::search_scheme_cache search_scheme_cache;
+    pex::pex_tree_cache pex_tree_cache;
     
     // setup for workaround for handling errors in threads
     std::atomic_bool threads_should_stop = false;
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
     #pragma omp parallel for \
         num_threads(cli_input.num_threads()) \
         default(none) \
-        private(tree_cache, scheme_cache) \
+        private(pex_tree_cache, search_scheme_cache) \
         shared(queries, cli_input, references, index, alignment_output, \
             aligning_stopwatch, exceptions, threads_should_stop) \
         schedule(dynamic) \
@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
 
             stats.add_query_length(query.rank_sequence.size());
 
-            // two cases that likely don't occur in practice where the error are configured in a way such that the 
+            // two cases that likely don't occur in practice where the errors are configured in a way such that the 
             // alignment algorithm makes no sense and floxer just flags them as unaligned
             if (
                 query.rank_sequence.size() <= query_num_errors ||
@@ -214,21 +214,21 @@ int main(int argc, char** argv) {
             auto const searcher = search::searcher{
                 .index = index,
                 .num_reference_sequences = references.records.size(),
-                .scheme_cache = scheme_cache,
+                .scheme_cache = search_scheme_cache,
                 .config = search::search_config{
                     .max_num_raw_anchors = cli_input.max_num_raw_anchors()
                 }
             };
 
-            auto const tree_config = pex::pex_tree_config {
+            auto const pex_tree_config = pex::pex_tree_config {
                 .total_query_length = query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
                 .leaf_max_num_errors = cli_input.pex_seed_num_errors()
             };
 
-            auto const& tree = tree_cache.get(tree_config);
+            auto const& pex_tree = pex_tree_cache.get(pex_tree_configs);
 
-            auto alignments = tree.align_forward_and_reverse_complement(
+            auto alignments = pex_tree.align_forward_and_reverse_complement(
                 references.records,
                 query.rank_sequence,
                 searcher,
