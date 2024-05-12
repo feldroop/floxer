@@ -129,7 +129,9 @@ void pex_tree::add_nodes_bottom_up(pex_tree_config const& config) {
     // If we round up in the divison for num_desired_leaves, we actually allow too many errors
     // when setting the number of allowed errors of all leaves to config.leaf_max_num_errors.
     // To avoid this inefficiency, we reduce the number of allowed error in some of the leaves.
-    size_t const num_leaves_with_less_errors = base_leaf_weight - ((config.query_num_errors + 1) % base_leaf_weight);
+    size_t const num_leaves_with_less_errors = ((config.query_num_errors + 1) % base_leaf_weight) > 0 ?
+        base_leaf_weight - ((config.query_num_errors + 1) % base_leaf_weight) :
+        0;
 
     create_leaves(config, num_desired_leaves, num_leaves_with_less_errors);
 
