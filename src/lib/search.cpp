@@ -20,7 +20,7 @@ search_schemes::Scheme const& search_scheme_cache::get(
 
     if (iter == schemes.end()) {
         auto search_scheme = search_schemes::expand(
-            search_schemes::generator::optimum(0, pex_leaf_num_errors), 
+            search_schemes::generator::optimum(0, pex_leaf_num_errors),
             pex_leaf_query_length
         );
 
@@ -35,7 +35,7 @@ bool anchor::is_better_than(anchor const& other) {
     size_t const position_difference = position < other.position ?
         other.position - position : position - other.position;
 
-    return num_errors <= other.num_errors && 
+    return num_errors <= other.num_errors &&
         position_difference <= other.num_errors - num_errors;
 }
 
@@ -74,7 +74,7 @@ search_result searcher::search_seeds(
             index,
             seed_single_span,
             search_scheme,
-            [&fmindex_search_returns, &num_raw_anchors] 
+            [&fmindex_search_returns, &num_raw_anchors]
             ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
                 num_raw_anchors += cursor.count();
                 fmindex_search_returns.emplace_back(internal::fmindex_search_return{

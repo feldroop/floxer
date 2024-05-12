@@ -44,14 +44,14 @@ class command_line_input {
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
     cli_option<size_t> max_num_raw_anchors_{ 'm', "max-anchors", 1'000 };
-    
+
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
     cli_option<bool> print_stats_{ 'a', "print-stats", false };
 
 public:
-    void parse_and_validate(int argc, char ** argv); 
-    
+    void parse_and_validate(int argc, char ** argv);
+
     std::filesystem::path const& reference_path() const;
     std::filesystem::path const& queries_path() const;
     std::filesystem::path const& output_path() const;

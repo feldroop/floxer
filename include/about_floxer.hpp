@@ -14,7 +14,7 @@ static const std::string email = "felix.droop@fu-berlin.de";
 
 static const std::string short_description =
     "A longread aligner using pidgeonhole exact (PEX) seeds and the FM-index.";
-static const std::string long_description = 
+static const std::string long_description =
     "floxer is an exact longread aligner using FM-index search with optimal search schemes, "
     "the PEX (pidgeonhole exact) hierarchical verification scheme and "
     "a highly parallel alignment implementation.";

@@ -87,7 +87,7 @@ CPMDeclarePackage(
     GIT_TAG 5197b1a8e6a1ef9f214f4aa537b0be17cbf91946
     EXCLUDE_FROM_ALL TRUE
     SYSTEM TRUE
-    OPTIONS 
+    OPTIONS
         "INSTALL_GTEST OFF"
         "gtest_force_shared_crt"
 )

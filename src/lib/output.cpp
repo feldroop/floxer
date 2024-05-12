@@ -71,13 +71,13 @@ void output_for_query(
         auto const& reference = references[reference_id];
 
         for (auto& alignment : reference_alignments) {
-            auto flag = alignment.orientation == alignment::query_orientation::reverse_complement ? 
+            auto flag = alignment.orientation == alignment::query_orientation::reverse_complement ?
                 seqan3::sam_flag::on_reverse_strand :
                 seqan3::sam_flag::none;
 
-            bool const is_primary_alignment = !primary_alignment_was_written && 
+            bool const is_primary_alignment = !primary_alignment_was_written &&
                 alignments.best_num_errors().value() == alignment.num_errors;
-            
+
             std::string query_char_sequence{};
             if (is_primary_alignment) {
                 query_char_sequence = ivs::convert_rank_to_char<ivs::d_dna5>(query.rank_sequence);
@@ -99,7 +99,7 @@ void output_for_query(
                 std::move(alignment.cigar), // cigar
                 query_char_sequence, // seq
                 is_primary_alignment ? query.quality : std::string{}, // qual
-                tags // tags contains edit distance tag (NM) 
+                tags // tags contains edit distance tag (NM)
             );
         }
     }
@@ -122,7 +122,7 @@ void output_for_query(
 void initialize_logger(std::optional<std::filesystem::path> const logfile_path) {
     try {
         std::vector<spdlog::sink_ptr> sinks;
-        
+
         auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
         console_sink->set_level(spdlog::level::info);
 
@@ -147,7 +147,7 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path) 
         auto logger = std::make_shared<spdlog::logger>(about_floxer::program_name, begin(sinks), end(sinks));
         logger->set_level(spdlog::level::trace);
         logger->flush_on(spdlog::level::debug);
-        
+
         spdlog::set_default_logger(logger);
     } catch (std::exception const& e) {
         fmt::print(
@@ -184,7 +184,7 @@ std::string format_large_numer(size_t const number) {
     static const size_t block_size = 3;
 
     std::string const raw_number_string = fmt::format("{}", number);
-    
+
     std::string formatted_number_string{};
     size_t i = 0;
     for(auto const digit : std::views::reverse(raw_number_string)) {

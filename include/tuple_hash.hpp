@@ -15,9 +15,9 @@ size_t hash_tuple(Tuple const& tup, std::index_sequence<ids...>) {
     auto const h = [&]<typename T> (T const& elem) {
         return std::hash<T>()(elem);
     };
-    
+
     for (size_t const hash_value : { h(std::get<ids>(tup))... }) {
-        state ^= hash_value * 0x9e3779b9 + (state << 6) + (state >> 1);    
+        state ^= hash_value * 0x9e3779b9 + (state << 6) + (state >> 1);
     }
 
     return state;

@@ -44,11 +44,11 @@ void search_and_alignment_statistics::histogram::merge_with(histogram const& oth
 }
 
 std::string search_and_alignment_statistics::histogram::format_to_string() const {
-    std::string basic_stats = num_values > 0 ? 
+    std::string basic_stats = num_values > 0 ?
         fmt::format(
             "\nmin = {}, mean = {:.2f}, max = {}", min, sum / num_values, max
         ) : "";
-    
+
     return fmt::format(
         "histogram for {} (total: {})\n"
         "threshold:\t{}\tinf\n"
@@ -88,7 +88,7 @@ search_and_alignment_statistics::count_by_name(std::string const& name) const {
     return *iter;
 }
 
-search_and_alignment_statistics::histogram& 
+search_and_alignment_statistics::histogram&
 search_and_alignment_statistics::histogram_by_name(std::string const& name) {
     auto iter = std::ranges::find_if(histograms, [&] (histogram const& histo) {
         return histo.name == name;
@@ -225,7 +225,7 @@ size_t search_and_alignment_statistics::num_queries() const {
 
 std::vector<std::string> search_and_alignment_statistics::format_statistics() const {
     std::vector<std::string> formatted_statistics{};
-    
+
     for (auto const& c : counts) {
         formatted_statistics.emplace_back(c.format_to_string());
     }

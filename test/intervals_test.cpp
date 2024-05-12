@@ -27,14 +27,14 @@ struct interval_test_cases {
     intervals::half_open_interval const between_both{ .start = 11, .end = 15 };
     intervals::half_open_interval const overlapping_both{ .start = 8, .end = 16 };
     intervals::half_open_interval const containing_both{ .start = 3, .end = 30 };
-    
+
     intervals::half_open_interval const below_both{ .start = 0, .end = 2 };
     intervals::half_open_interval const above_both{ .start = 22, .end = 24 };
 };
 
 TEST(intervals, half_open_interval) {
     using namespace intervals;
-    
+
     interval_test_cases const cases{};
 
     EXPECT_EQ(cases.ivl1.relationship_with(cases.inside_ivl1), interval_relationship::contains);
@@ -64,7 +64,7 @@ TEST(intervals, half_open_interval) {
 
 TEST(intervals, verified_intervals) {
     using namespace intervals;
-    
+
     interval_test_cases const cases{};
 
     // in this this, we'll keep the outcome fixed to test the basic logic

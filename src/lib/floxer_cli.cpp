@@ -105,7 +105,7 @@ void command_line_input::validate() const {
     }
 
     if (
-        query_num_errors().has_value() && 
+        query_num_errors().has_value() &&
         query_num_errors().value() < pex_seed_num_errors()
     ) {
         throw std::runtime_error(
@@ -134,7 +134,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     parser.info.date = about_floxer::version_date;
 
     parser.add_option(reference_path_.value, sharg::config{
-        .short_id = reference_path_.short_id, 
+        .short_id = reference_path_.short_id,
         .long_id = reference_path_.long_id,
         .description = "The reference sequences in which floxer will search the queries, i.e. the haystack."
             "Only valid DNA sequences using [AaCcGgTt] characters are allowed.",
@@ -148,8 +148,8 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     });
 
     parser.add_option(queries_path_.value, sharg::config{
-        .short_id = queries_path_.short_id, 
-        .long_id = queries_path_.long_id, 
+        .short_id = queries_path_.short_id,
+        .long_id = queries_path_.long_id,
         .description = "The queries which floxer will search in the reference, i.e. the needles."
             "Queries that contain character other than [AaCcGgTt] are skipped.",
         .required = true,
@@ -157,31 +157,31 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     });
 
     parser.add_option(index_path_.value, sharg::config{
-        .short_id = index_path_.short_id, 
-        .long_id = index_path_.long_id, 
+        .short_id = index_path_.short_id,
+        .long_id = index_path_.long_id,
         .description = "The file where the constructed FM-index will be stored for later use. "
             "If the file already exists, the index will be read "
             "from it instead of newly constructed."
     });
 
     parser.add_option(output_path_.value, sharg::config{
-        .short_id = output_path_.short_id, 
-        .long_id = output_path_.long_id, 
+        .short_id = output_path_.short_id,
+        .long_id = output_path_.long_id,
         .description = "The file where the alignment results will be stored.",
         .required = true,
         .validator = sharg::output_file_validator{ sharg::output_file_open_options::open_or_create, {"bam", "sam"}}
     });
 
     parser.add_option(logfile_path_.value, sharg::config{
-        .short_id = logfile_path_.short_id, 
-        .long_id = logfile_path_.long_id, 
+        .short_id = logfile_path_.short_id,
+        .long_id = logfile_path_.long_id,
         .description = "If a logfile path is given, a rotating logfile will be created "
             "and debug information will be written to it."
     });
 
     parser.add_option(query_num_errors_.value, sharg::config{
-        .short_id = query_num_errors_.short_id, 
-        .long_id = query_num_errors_.long_id, 
+        .short_id = query_num_errors_.short_id,
+        .long_id = query_num_errors_.long_id,
         .description = "The number of errors allowed in each query. This is only used if no error "
             "probability is given. Either this or an error probability must be given.",
         .default_message = "no default",
@@ -189,7 +189,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     });
 
     parser.add_option(query_error_probability_.value, sharg::config{
-        .short_id = query_error_probability_.short_id, 
+        .short_id = query_error_probability_.short_id,
         .long_id = query_error_probability_.long_id,
         .description = "The error probability in the queries, per base. If this is given, it is used "
             "rather than the fixed number of errors. Either this or a fixed number of errors must be "
@@ -199,29 +199,29 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     });
 
     parser.add_option(pex_seed_num_errors_.value, sharg::config{
-        .short_id = pex_seed_num_errors_.short_id, 
-        .long_id = pex_seed_num_errors_.long_id, 
+        .short_id = pex_seed_num_errors_.short_id,
+        .long_id = pex_seed_num_errors_.long_id,
         .description = "The number of errors in the leaves of the PEX tree that are used as seeds. "
             "The sequences will be searched with this parameter using the FM-index.",
         .validator = sharg::arithmetic_range_validator{0, 3}
     });
 
     parser.add_option(max_num_raw_anchors_.value, sharg::config{
-        .short_id = max_num_raw_anchors_.short_id, 
-        .long_id = max_num_raw_anchors_.long_id, 
+        .short_id = max_num_raw_anchors_.short_id,
+        .long_id = max_num_raw_anchors_.long_id,
         .description = "Seeds with this number of (raw) anchors are excluded from further steps."
     });
 
     parser.add_option(num_threads_.value, sharg::config{
-        .short_id = num_threads_.short_id, 
-        .long_id = num_threads_.long_id, 
+        .short_id = num_threads_.short_id,
+        .long_id = num_threads_.long_id,
         .description = "The number of threads to use in the different steps of the program.",
         .validator = sharg::arithmetic_range_validator{1, 4096}
     });
 
     parser.add_option(timeout_seconds_.value, sharg::config{
-        .short_id = timeout_seconds_.short_id, 
-        .long_id = timeout_seconds_.long_id, 
+        .short_id = timeout_seconds_.short_id,
+        .long_id = timeout_seconds_.long_id,
         .description = "If given, no new alignments will be started after this amount "
             "of seconds and the program will shut down once the already running "
             "alignment jobs have been completed. The index building and input reading does "

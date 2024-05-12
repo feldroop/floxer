@@ -126,9 +126,9 @@ public:
     void add_num_raw_anchors_per_excluded_seed(size_t const value);
 
     void add_num_anchors_per_query(size_t const value);
-    
+
     void add_num_excluded_raw_anchors_per_query(size_t const value);
-    
+
     void add_reference_span_size_aligned_inner_node(size_t const value);
 
     void add_reference_span_size_avoided_inner_node(size_t const value);

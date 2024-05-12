@@ -36,7 +36,7 @@ references read_references(std::filesystem::path const& reference_sequence_path)
     spdlog::info("reading reference sequences from {}", reference_sequence_path);
 
     std::vector<reference_record> records{};
-    
+
     size_t internal_id = 0;
     size_t total_length = 0;
 

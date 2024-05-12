@@ -31,7 +31,7 @@ interval_relationship half_open_interval::relationship_with(half_open_interval c
 auto operator<=>(half_open_interval const& interval1, half_open_interval const& interval2) {
     assert(interval1.start < interval1.end);
     assert(interval2.start < interval2.end);
-    
+
     return interval1.end <=> interval2.end;
 }
 
@@ -64,13 +64,13 @@ void verified_intervals::given_set_insert(half_open_interval const new_interval,
         intervals.insert(new_interval);
         return;
     }
-    
+
     std::vector<half_open_interval> intervals_to_remove{};
     half_open_interval interval_to_insert = new_interval;
 
     // first interval that has an end position ABOVE new_interval.end
     auto existing_interval_iter = intervals.upper_bound(new_interval);
-    
+
     if (existing_interval_iter == intervals.end()) {
         // safe because intervals can't be empty
         --existing_interval_iter;

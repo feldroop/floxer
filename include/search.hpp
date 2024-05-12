@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <fmindex.hpp>
 #include <tuple_hash.hpp>
@@ -31,7 +31,7 @@ struct anchor {
 using anchors = std::vector<anchor>;
 
 struct search_config {
-    // if the number of anchors for a seed exceeds this threshold, 
+    // if the number of anchors for a seed exceeds this threshold,
     // no anchors will be reported for that seed
     // current problem: the number of raw anchors is larger than what
     // we actually need, because of the repetitive alignments,
@@ -70,7 +70,7 @@ struct searcher {
 };
 
 class search_scheme_cache {
-public:    
+public:
     search_schemes::Scheme const& get(
         size_t const pex_leaf_query_length,
         size_t const pex_leaf_num_errors

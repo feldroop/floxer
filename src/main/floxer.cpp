@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
             cli_input.num_threads() == 1 ? "" : "s"
         );
 
-        spdlog::stopwatch const build_index_stopwatch;    
+        spdlog::stopwatch const build_index_stopwatch;
 
         // This sampling rate is a trade-off for high speed. It leads to and index size of 11G
         // for the human genome, which should be tolerable in most applications
@@ -125,14 +125,14 @@ int main(int argc, char** argv) {
 
     search::search_scheme_cache search_scheme_cache;
     pex::pex_tree_cache pex_tree_cache;
-    
+
     // setup for workaround for handling errors in threads
     std::atomic_bool threads_should_stop = false;
     std::vector<std::exception_ptr> exceptions{};
 
     statistics::search_and_alignment_statistics stats{};
 
-    spdlog::stopwatch const aligning_stopwatch;  
+    spdlog::stopwatch const aligning_stopwatch;
 
     spdlog::info(
         "aligning {} queries against {} references with {} thread{} "
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
         try {
             auto const& query = queries.records[query_index];
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
-            
+
             // TEMPORARY until the performance has improved
             if (query.rank_sequence.size() >= 100'000) {
                 continue;
@@ -185,14 +185,14 @@ int main(int argc, char** argv) {
 
             stats.add_query_length(query.rank_sequence.size());
 
-            // two cases that likely don't occur in practice where the errors are configured in a way such that the 
+            // two cases that likely don't occur in practice where the errors are configured in a way such that the
             // alignment algorithm makes no sense and floxer just flags them as unaligned
             if (
                 query.rank_sequence.size() <= query_num_errors ||
                 query_num_errors < cli_input.pex_seed_num_errors()
             ) {
                 spdlog::debug(
-                    "({}/{}) skipping query: {} due to bad num_errors configuration", 
+                    "({}/{}) skipping query: {} due to bad num_errors configuration",
                     query_index, queries.records.size(), query.id
                 );
 
@@ -207,8 +207,8 @@ int main(int argc, char** argv) {
                 );
 
                 continue;
-            }            
-            
+            }
+
             spdlog::debug("({}/{}) aligning query: {}", query_index, queries.records.size(), query.id);
 
             auto const searcher = search::searcher{
@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
         } catch (...) {
             spdlog::error("Unknown error occurred\n");
         }
-    } 
+    }
 
     if (!exceptions.empty()) {
         return -1;

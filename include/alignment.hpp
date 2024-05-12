@@ -32,13 +32,13 @@ public:
     query_alignments(size_t const num_references);
 
     void insert(query_alignment const alignment, size_t const reference_id);
-    
+
     alignments_to_reference const& to_reference(size_t const reference_id) const;
 
     alignments_to_reference& to_reference(size_t const reference_id);
-    
+
     std::optional<size_t> best_num_errors() const;
-    
+
     size_t size() const;
 };
 
@@ -54,12 +54,12 @@ struct alignment_config {
 };
 
 enum class alignment_outcome {
-    alignment_exists, no_adequate_alignment_exists 
+    alignment_exists, no_adequate_alignment_exists
 };
 
 struct alignment_result {
     alignment_outcome outcome;
-    std::optional<query_alignment> alignment = std::nullopt; 
+    std::optional<query_alignment> alignment = std::nullopt;
 };
 
 alignment_result align(

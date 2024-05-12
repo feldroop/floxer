@@ -25,7 +25,7 @@ void query_alignments::insert(query_alignment const alignment, size_t const refe
         best_num_errors_.value_or(std::numeric_limits<size_t>::max()),
         alignment.num_errors
     );
-    
+
     alignments_per_reference[reference_id].emplace_back(std::move(alignment));
 }
 
@@ -56,7 +56,7 @@ size_t query_alignments::size() const {
 // this exists to allow seqan3 alignments with raw uint8_t's
 template <seqan3::arithmetic score_type = int8_t>
 class uint8_adaptation_scoring_scheme : public seqan3::scoring_scheme_base<
-    uint8_adaptation_scoring_scheme<score_type>, 
+    uint8_adaptation_scoring_scheme<score_type>,
     uint8_t, score_type
 > {
 private:
@@ -64,7 +64,7 @@ private:
     friend base_t;
 
 public:
-    constexpr uint8_adaptation_scoring_scheme() noexcept 
+    constexpr uint8_adaptation_scoring_scheme() noexcept
         : base_t(seqan3::match_score<score_type>{0}, seqan3::mismatch_score<score_type>{-1}) {};
 };
 
@@ -85,14 +85,14 @@ alignment_result align(
 
     if (config.mode == alignment_mode::only_verify_existance) {
         auto small_output_config = seqan3::align_cfg::output_score{};
-        
+
         auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | small_output_config);
-        
-        return alignment_result { 
+
+        return alignment_result {
             .outcome = alignment_results.begin()->score() >= min_score ?
                 alignment_outcome::alignment_exists :
                 alignment_outcome::no_adequate_alignment_exists
-        }; 
+        };
     }
 
     // when we need to do traceback, the matrix size might be a problem
@@ -108,7 +108,7 @@ alignment_result align(
 
     auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | full_output_config);
     auto const alignment = *alignment_results.begin();
-    
+
     if (alignment.score() < min_score) {
         return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
     }
