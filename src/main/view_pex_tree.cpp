@@ -26,22 +26,24 @@ int main(int argc, char** argv) {
 
     size_t const given_query_num_errors_default = std::numeric_limits<size_t>::max();
     size_t given_query_num_errors = given_query_num_errors_default;
-    
+
     double const query_error_probability_default = NAN;
     double query_error_probability = query_error_probability_default;
-    
+
     size_t leaf_max_num_errors = 2;
 
+    bool use_bottom_up = false;
+
     parser.add_option(total_query_length, sharg::config{
-        .short_id = 'q', 
-        .long_id = "query-length", 
+        .short_id = 'q',
+        .long_id = "query-length",
         .description = "The length of the query for which the PEX tree should be built.",
         .required = true
     });
 
     parser.add_option(given_query_num_errors, sharg::config{
-        .short_id = 'e', 
-        .long_id = "query-errors", 
+        .short_id = 'e',
+        .long_id = "query-errors",
         .description = "The number of errors allowed in each query. This is only used if no error "
             "probability is given. Either this or an error probability must be given.",
         .default_message = "no default",
@@ -49,7 +51,7 @@ int main(int argc, char** argv) {
     });
 
     parser.add_option(query_error_probability, sharg::config{
-        .short_id = 'p', 
+        .short_id = 'p',
         .long_id = "query-error-probability",
         .description = "The error probability in the queries, per base. If this is given, it is used "
             "rather than the fixed number of errors. Either this or a fixed number of errors must be "
@@ -59,11 +61,17 @@ int main(int argc, char** argv) {
     });
 
     parser.add_option(leaf_max_num_errors, sharg::config{
-        .short_id = 's', 
-        .long_id = "seed-errors", 
+        .short_id = 's',
+        .long_id = "seed-errors",
         .description = "The number of errors in the leaves of the PEX tree that are used as seeds. "
             "The sequences will be searched with this parameter using the FM-index.",
         .validator = sharg::arithmetic_range_validator{0, 10}
+    });
+
+    parser.add_flag(use_bottom_up, sharg::config{
+        .short_id = 'b',
+        .long_id = "bottom-up",
+        .description = "Use the new bottom up build strategy for the tree",
     });
 
     parser.parse();
@@ -83,16 +91,18 @@ int main(int argc, char** argv) {
         ) :
         given_query_num_errors;
 
-
     auto const config = pex::pex_tree_config{
         .total_query_length = total_query_length,
         .query_num_errors = query_num_errors,
-        .leaf_max_num_errors = leaf_max_num_errors
+        .leaf_max_num_errors = leaf_max_num_errors,
+        .build_strategy = use_bottom_up ?
+            pex::pex_tree_build_strategy::bottom_up :
+            pex::pex_tree_build_strategy::recursive
     };
 
     auto const tree = pex::pex_tree(config);
 
     fmt::print("{}", tree.dot_statement());
-    
+
     return 0;
 }
