@@ -22,14 +22,19 @@
 namespace input {
 
 size_t query_record::num_errors_from_user_config(cli::command_line_input const& cli_input) const {
-    return cli_input.query_error_probability().has_value() ?
-        // small problem to maybe address in the future
-        // due to double inaccuracy, the std::ceil might add an unecessary +1 here
-        // e.g. 100 * 0.07 becomes 8
-        static_cast<size_t>(
-            std::ceil(rank_sequence.size() * cli_input.query_error_probability().value())
-        ) :
-        cli_input.query_num_errors().value();
+    if (cli_input.query_error_probability().has_value()) {
+        double const num_errors_frac = rank_sequence.size() * cli_input.query_error_probability().value();
+
+        // handle floating point inaccuracy
+        static constexpr double epsilon = 0.000000001;
+        if (std::abs(num_errors_frac - std::round(num_errors_frac)) < epsilon) {
+            return static_cast<size_t>(std::round(num_errors_frac) + epsilon);
+        } else {
+            return static_cast<size_t>(std::ceil(num_errors_frac));
+        }
+    } else {
+        return cli_input.query_num_errors().value();
+    }
 }
 
 references read_references(std::filesystem::path const& reference_sequence_path) {

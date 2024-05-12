@@ -7,6 +7,18 @@
 #include <sharg/all.hpp>
 #include <spdlog/fmt/fmt.h>
 
+size_t floating_point_aware_num_errors(size_t const total_query_length, double const error_probability) {
+    double const num_errors_frac = total_query_length * error_probability;
+
+    // handle floating point inaccuracy
+    static constexpr double epsilon = 0.000000001;
+    if (std::abs(num_errors_frac - std::round(num_errors_frac)) < epsilon) {
+        return static_cast<size_t>(std::round(num_errors_frac) + epsilon);
+    } else {
+        return static_cast<size_t>(std::ceil(num_errors_frac));
+    }
+}
+
 int main(int argc, char** argv) {
     sharg::parser parser{ "view-pex-tree", argc, argv, sharg::update_notifications::off };
 
@@ -86,9 +98,7 @@ int main(int argc, char** argv) {
     }
 
     auto const query_num_errors = !std::isnan(query_error_probability) ?
-        static_cast<size_t>(
-            std::ceil(total_query_length * query_error_probability)
-        ) :
+        floating_point_aware_num_errors(total_query_length, query_error_probability) :
         given_query_num_errors;
 
     auto const config = pex::pex_tree_config{
