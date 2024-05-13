@@ -35,7 +35,14 @@ auto operator<=>(half_open_interval const& interval1, half_open_interval const& 
     return interval1.end <=> interval2.end;
 }
 
+verified_intervals::verified_intervals(use_interval_optimization const activity_status_)
+    : activity_status{activity_status_} {}
+
 void verified_intervals::insert(half_open_interval const new_interval, alignment::alignment_outcome const outcome) {
+    if (activity_status == use_interval_optimization::off) {
+        return;
+    }
+
     switch (outcome) {
         case alignment::alignment_outcome::alignment_exists:
             given_set_insert(new_interval, intervals_with_alignment);
@@ -49,6 +56,10 @@ void verified_intervals::insert(half_open_interval const new_interval, alignment
 }
 
 std::optional<alignment::alignment_outcome> verified_intervals::contains(half_open_interval const target_interval) const {
+    if (activity_status == use_interval_optimization::off) {
+        return std::nullopt;
+    }
+
     // it is important that we ask first for the alignment_exists case, because it should override the other case
     if (given_set_contains(target_interval, intervals_with_alignment)) {
         return alignment::alignment_outcome::alignment_exists;

@@ -58,6 +58,7 @@ public:
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
         search::searcher const& searcher,
+        intervals::use_interval_optimization const use_interval_optimization,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
@@ -99,6 +100,7 @@ private:
         alignment::query_alignments& alignments,
         alignment::query_orientation const orientation,
         search::searcher const& searcher,
+        intervals::use_interval_optimization const use_interval_optimization,
         statistics::search_and_alignment_statistics& stats
     ) const;
 

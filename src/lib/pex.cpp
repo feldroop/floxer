@@ -288,6 +288,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const query,
     search::searcher const& searcher,
+    intervals::use_interval_optimization const use_interval_optimization,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto alignments = alignment::query_alignments(references.size());
@@ -298,6 +299,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         alignments,
         alignment::query_orientation::forward,
         searcher,
+        use_interval_optimization,
         stats
     );
 
@@ -310,6 +312,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         alignments,
         alignment::query_orientation::reverse_complement,
         searcher,
+        use_interval_optimization,
         stats
     );
 
@@ -330,6 +333,7 @@ void pex_tree::align_query_in_given_orientation(
     alignment::query_alignments& alignments,
     alignment::query_orientation const orientation,
     search::searcher const& searcher,
+    intervals::use_interval_optimization const use_interval_optimization,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
@@ -346,7 +350,7 @@ void pex_tree::align_query_in_given_orientation(
         }
 
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            intervals::verified_intervals already_verified_intervals;
+            intervals::verified_intervals already_verified_intervals(use_interval_optimization);
 
             for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
                 hierarchical_verification(
@@ -388,7 +392,7 @@ void pex_tree::hierarchical_verification(
         no_extra_wiggle_room
     );
 
-    if (already_verified_intervals.contains(root_reference_span_config.as_half_open_interval())) {
+    if (already_verified_intervals.contains(root_reference_span_config.as_half_open_interval()).has_value()) {
         // we have already verified the interval where the whole query could be found, according to this anchor
         stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
         return;
@@ -415,7 +419,7 @@ void pex_tree::hierarchical_verification(
     pex_node = inner_nodes.at(pex_node.parent_id);
 
     while (true) {
-        size_t const extra_wiggle_room = 5; // TODO: test different values here
+        size_t const extra_wiggle_room = 5;
         auto const reference_span_config = internal::compute_reference_span_start_and_length(
             anchor,
             pex_node,

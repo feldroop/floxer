@@ -71,7 +71,7 @@ TEST(intervals, verified_intervals) {
     auto const outcome = alignment::alignment_outcome::alignment_exists;
     auto const found_outcome = std::make_optional(alignment::alignment_outcome::alignment_exists);
 
-    verified_intervals ivls{};
+    verified_intervals ivls(intervals::use_interval_optimization::on);
 
     EXPECT_EQ(ivls.size(), 0);
 

@@ -2,6 +2,7 @@
 #include <floxer_cli.hpp>
 #include <fmindex.hpp>
 #include <input.hpp>
+#include <intervals.hpp>
 #include <output.hpp>
 #include <pex.hpp>
 #include <search.hpp>
@@ -230,6 +231,9 @@ int main(int argc, char** argv) {
                 references.records,
                 query.rank_sequence,
                 searcher,
+                cli_input.use_interval_optimization() ?
+                    intervals::use_interval_optimization::on :
+                    intervals::use_interval_optimization::off,
                 stats
             );
 
