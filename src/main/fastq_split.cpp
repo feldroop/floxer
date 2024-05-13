@@ -87,8 +87,6 @@ int main(int argc, char** argv) {
 
     auto const chosen_ids = read_split_id_file(split_ids_path);
 
-    //seqan3::sequen
-
     seqan3::sequence_file_input<longread_input_traits> input{input_path};
     seqan3::sequence_file_output chosen_ids_output{chosen_ids_output_path};
     seqan3::sequence_file_output rest_output{rest_output_path};
