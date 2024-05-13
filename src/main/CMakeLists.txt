@@ -11,7 +11,7 @@ foreach (main_file ${FLOXER_MAIN_SOURCE_FILES})
 
     target_link_libraries (${target_name} PUBLIC "${PROJECT_NAME}_lib")
     if (NOT ${PROJECT_NAME}_NO_OPENMP)
-        target_link_libraries("${PROJECT_NAME}" PRIVATE "-fopenmp")
+        target_link_libraries(${target_name} PRIVATE "-fopenmp")
     endif ()
 
     unset (main_file)
