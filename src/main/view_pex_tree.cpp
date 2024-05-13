@@ -20,7 +20,7 @@ size_t floating_point_aware_num_errors(size_t const total_query_length, double c
 }
 
 int main(int argc, char** argv) {
-    sharg::parser parser{ "view-pex-tree", argc, argv, sharg::update_notifications::off };
+    sharg::parser parser{ "view_pex_tree", argc, argv, sharg::update_notifications::off };
 
     parser.info.author = about_floxer::author;
     parser.info.description = { "Given PEX tree config, print resulting tree to stdout in DOT format." };
@@ -28,11 +28,12 @@ int main(int argc, char** argv) {
     parser.info.url = about_floxer::url;
     parser.info.short_description = "View PEX tree in DOT format";
     parser.info.synopsis = {
-        "./view-pex-tree --query-length 100 --query-errors 7 --seed-errors 2",
-        "./view-pex-tree --query-length 100 --query-error-probability 0.07 --seed-errors 2",
+        "./view_pex_tree --query-length 100 --query-errors 7 --seed-errors 2",
+        "./view_pex_tree --query-length 100 --query-error-probability 0.07 --seed-errors 2",
+        "./view_pex_tree --query-length 100 --query-error-probability 0.07 --seed-errors 2 --bottom-up",
     };
     parser.info.version = "1.0.0";
-    parser.info.date = "27.04.2024";
+    parser.info.date = "13.05.2024";
 
     size_t total_query_length;
 
