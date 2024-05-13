@@ -1,5 +1,6 @@
 #include <intervals.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <stdexcept>
 #include <vector>
@@ -28,11 +29,30 @@ interval_relationship half_open_interval::relationship_with(half_open_interval c
     }
 }
 
-auto operator<=>(half_open_interval const& interval1, half_open_interval const& interval2) {
+half_open_interval half_open_interval::trim_from_both_sides(size_t const amount) const {
+    assert(start < end);
+
+    size_t const new_end = std::max(start + 1, amount > end ? 0 : end - amount);
+    size_t const new_start = std::min(new_end - 1, start + amount);
+
+    return half_open_interval {
+        .start = new_start,
+        .end = new_end
+    };
+}
+
+bool operator==(half_open_interval const& interval1, half_open_interval const& interval2) {
     assert(interval1.start < interval1.end);
     assert(interval2.start < interval2.end);
 
-    return interval1.end <=> interval2.end;
+    return interval1.start == interval2.start && interval1.end == interval2.end;
+}
+
+auto operator<(half_open_interval const& interval1, half_open_interval const& interval2) {
+    assert(interval1.start < interval1.end);
+    assert(interval2.start < interval2.end);
+
+    return interval1.end < interval2.end;
 }
 
 verified_intervals::verified_intervals(use_interval_optimization const activity_status_)

@@ -62,6 +62,28 @@ TEST(intervals, half_open_interval) {
     EXPECT_EQ(cases.ivl2.relationship_with(cases.ivl2), interval_relationship::equal);
 }
 
+TEST(intervals, half_open_intervals_trim) {
+    intervals::half_open_interval const base{ .start = 10, .end = 20 };
+
+    auto const trim0 = base.trim_from_both_sides(0);
+    auto const trim1 = base.trim_from_both_sides(1);
+    auto const trim5 = base.trim_from_both_sides(5);
+    auto const trim10 = base.trim_from_both_sides(10);
+    auto const trim25 = base.trim_from_both_sides(25);
+
+    intervals::half_open_interval const expected_trim0{ .start = 10, .end = 20 };
+    intervals::half_open_interval const expected_trim1{ .start = 11, .end = 19 };
+    intervals::half_open_interval const expected_trim5{ .start = 14, .end = 15 };
+    intervals::half_open_interval const expected_trim10{ .start = 10, .end = 11 };
+    intervals::half_open_interval const expected_trim25 = expected_trim10;
+
+    EXPECT_EQ(trim0, expected_trim0);
+    EXPECT_EQ(trim1, expected_trim1);
+    EXPECT_EQ(trim5, expected_trim5);
+    EXPECT_EQ(trim10, expected_trim10);
+    EXPECT_EQ(trim25, expected_trim25);
+}
+
 TEST(intervals, verified_intervals) {
     using namespace intervals;
 

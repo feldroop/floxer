@@ -25,10 +25,14 @@ struct half_open_interval {
 
     // <this> has returned relationship with <other>
     interval_relationship relationship_with(half_open_interval const other) const;
+
+    half_open_interval trim_from_both_sides(size_t const amount) const;
 };
 
+bool operator==(half_open_interval const& interval1, half_open_interval const& interval2);
+
 // order intervals by their END position, because it works better with the std::set functions
-auto operator<=>(half_open_interval const& ivl1, half_open_interval const& ivl2);
+auto operator<(half_open_interval const& interval1, half_open_interval const& interval2);
 
 enum use_interval_optimization {
     on, off
