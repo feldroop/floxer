@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_set>
 
+#include <seqan3/alphabet/quality/phred94.hpp>
 #include <seqan3/io/sequence_file/all.hpp>
 #include <sharg/all.hpp>
 
@@ -21,6 +22,11 @@ std::unordered_set<std::string> read_split_id_file(std::filesystem::path const& 
 
     return chosen_ids;
 }
+
+struct longread_input_traits : seqan3::sequence_file_input_default_traits_dna {
+    using sequence_alphabet = seqan3::dna15;
+    using quality_alphabet = seqan3::phred94;
+};
 
 int main(int argc, char** argv) {
     sharg::parser parser{ "fastq_split", argc, argv, sharg::update_notifications::off };
@@ -81,7 +87,9 @@ int main(int argc, char** argv) {
 
     auto const chosen_ids = read_split_id_file(split_ids_path);
 
-    seqan3::sequence_file_input input{input_path};
+    //seqan3::sequen
+
+    seqan3::sequence_file_input<longread_input_traits> input{input_path};
     seqan3::sequence_file_output chosen_ids_output{chosen_ids_output_path};
     seqan3::sequence_file_output rest_output{rest_output_path};
 
