@@ -42,6 +42,12 @@ public:
     size_t size() const;
 };
 
+enum class alignment_backend {
+    seqan3, wfa2
+};
+
+void set_alignment_backend_global(alignment_backend const backend);
+
 enum class alignment_mode {
     only_verify_existance, verify_and_return_alignment
 };
@@ -62,10 +68,30 @@ struct alignment_result {
     std::optional<query_alignment> alignment = std::nullopt;
 };
 
-alignment_result align(
-    std::span<const uint8_t> const reference,
-    std::span<const uint8_t> const query,
-    alignment_config const config
-);
+class aligner {
+public:
+    aligner();
+    ~aligner();
+    alignment_result align(
+        std::span<const uint8_t> const reference,
+        std::span<const uint8_t> const query,
+        alignment_config const& config
+    );
+
+private:
+    alignment_result align_seqan3(
+        std::span<const uint8_t> const reference,
+        std::span<const uint8_t> const query,
+        alignment_config const& config
+    );
+
+    alignment_result align_wfa2(
+        std::span<const uint8_t> const reference,
+        std::span<const uint8_t> const query,
+        alignment_config const& config
+    );
+
+    alignment_backend const backend;
+};
 
 } // namespace verification

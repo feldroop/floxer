@@ -46,6 +46,7 @@ class command_line_input {
     cli_option<size_t> max_num_raw_anchors_{ 'm', "max-anchors", 1'000 };
     cli_option<bool> bottom_up_pex_tree_building_{ 'b', "bottom-up-pex-tree", false };
     cli_option<bool> use_interval_optimization_{ 'n', "interval-optimization", false };
+    cli_option<bool> use_wfa2_aligner_backend_{ 'w', "wfa2-aligner", false };
 
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
@@ -66,6 +67,7 @@ public:
     size_t max_num_raw_anchors() const;
     bool bottom_up_pex_tree_building() const;
     bool use_interval_optimization() const;
+    bool use_wfa2_aligner_backend() const;
 
     size_t num_threads() const;
     std::optional<size_t> timeout_seconds() const;

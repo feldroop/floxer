@@ -69,6 +69,10 @@ bool command_line_input::use_interval_optimization() const {
     return use_interval_optimization_.value;
 }
 
+bool command_line_input::use_wfa2_aligner_backend() const {
+    return use_wfa2_aligner_backend_.value;
+}
+
 size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
@@ -99,6 +103,7 @@ std::string command_line_input::command_line_call() const {
         max_num_raw_anchors_.command_line_call(),
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
+        use_wfa2_aligner_backend() ? use_wfa2_aligner_backend_.command_line_call() : "",
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
         print_stats() ? print_stats_.command_line_call() : ""
@@ -232,6 +237,12 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = use_interval_optimization_.short_id,
         .long_id = use_interval_optimization_.long_id,
         .description = "Keep track of already verified intervals to avoid repeating alignment.",
+    });
+
+    parser.add_flag(use_wfa2_aligner_backend_.value, sharg::config{
+        .short_id = use_wfa2_aligner_backend_.short_id,
+        .long_id = use_wfa2_aligner_backend_.long_id,
+        .description = "Use the WFA2 library as backend for the alignments.",
     });
 
     parser.add_option(num_threads_.value, sharg::config{

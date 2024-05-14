@@ -14,6 +14,7 @@
 #include <seqan3/alphabet/nucleotide/dna5.hpp>
 
 #include <spdlog/spdlog.h>
+#include <omp.h>
 
 namespace alignment {
 
@@ -53,6 +54,14 @@ size_t query_alignments::size() const {
     return size;
 }
 
+// this must be global, because the aligner needs a default constructor for OpenMP private use
+// and we wan't a new aligner to be constructed in every thread
+static alignment_backend alignment_backend_global = alignment_backend::seqan3;
+
+void set_alignment_backend_global(alignment_backend const backend) {
+    alignment_backend_global = backend;
+}
+
 // this exists to allow seqan3 alignments with raw uint8_t's
 template <seqan3::arithmetic score_type = int8_t>
 class uint8_adaptation_scoring_scheme : public seqan3::scoring_scheme_base<
@@ -68,10 +77,31 @@ public:
         : base_t(seqan3::match_score<score_type>{0}, seqan3::mismatch_score<score_type>{-1}) {};
 };
 
-alignment_result align(
+aligner::aligner() : backend(alignment_backend_global) {
+    // TODO for wfa2
+}
+
+alignment_result aligner::align(
     std::span<const uint8_t> const reference,
     std::span<const uint8_t> const query,
-    alignment_config const config
+    alignment_config const& config
+) {
+    switch (backend) {
+        case alignment::alignment_backend::seqan3:
+            return align_seqan3(reference, query, config);
+
+        case alignment::alignment_backend::wfa2:
+            return align_wfa2(reference, query, config);
+
+        default:
+            throw std::runtime_error("(should be unreachable) internal bug in alignment backend choice");
+    }
+}
+
+alignment_result aligner::align_seqan3(
+    std::span<const uint8_t> const reference,
+    std::span<const uint8_t> const query,
+    alignment_config const& config
 ) {
     int32_t const min_score = -static_cast<int>(config.num_allowed_errors);
     auto aligner_config = seqan3::align_cfg::method_global{
@@ -125,5 +155,19 @@ alignment_result align(
         }
     };
 }
+
+alignment_result aligner::align_wfa2(
+    std::span<const uint8_t> const reference,
+    std::span<const uint8_t> const query,
+    alignment_config const& config
+) {
+    // TODO
+    return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
+}
+
+aligner::~aligner() {
+    // TODO for wfa2
+}
+
 
 } // namespace alignment
