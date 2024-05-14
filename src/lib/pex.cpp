@@ -487,8 +487,10 @@ span_config compute_reference_span_start_and_length(
     size_t const extra_wiggle_room
 ) {
     int64_t const start_signed = static_cast<int64_t>(anchor.position) -
-        (leaf_query_index_from - pex_node.query_index_from)
-        - pex_node.num_errors - extra_wiggle_room;
+        static_cast<int64_t>(leaf_query_index_from - pex_node.query_index_from) -
+        static_cast<int64_t>(pex_node.num_errors) -
+        static_cast<int64_t>(extra_wiggle_room);
+
     size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
     size_t const reference_span_length = std::min(
         pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,

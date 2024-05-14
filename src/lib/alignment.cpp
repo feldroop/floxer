@@ -12,10 +12,10 @@
 #include <seqan3/alignment/scoring/nucleotide_scoring_scheme.hpp>
 #include <seqan3/alphabet/adaptation/uint.hpp>
 #include <seqan3/alphabet/nucleotide/dna5.hpp>
+#include <seqan3/io/sam_file/detail/cigar.hpp>
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
-
-#include <wavefront/wavefront_align.h>
 
 namespace alignment {
 
@@ -54,6 +54,8 @@ size_t query_alignments::size() const {
 
     return size;
 }
+
+static constexpr uint64_t very_large_memory_usage = 10'000'000'000;
 
 // this must be global, because the aligner needs a default constructor for OpenMP private use
 // and we wan't a new aligner to be constructed in every thread
@@ -104,11 +106,11 @@ void aligner::setup_for_wfa2() {
     attributes_only_score.alignment_form.pattern_begin_free = 0;
     attributes_only_score.alignment_form.pattern_end_free = 0;
 
-    // we have to use this memory mode, because the longread alignment can become quite large
+    // we want to use the ultralow memory mode, because the longread alignment can become quite large
     // according to GitHub comments by the author, it's often just as fast as the other memory modes
-    attributes_only_score.memory_mode = wavefront_memory_t::wavefront_memory_ultralow;
+    // sadly it is not yet available with endsfree config
+    attributes_only_score.memory_mode = wavefront_memory_t::wavefront_memory_low;
 
-    // maybe add some heuristics later?
     attributes_only_score.heuristic.strategy = wf_heuristic_strategy::wf_heuristic_none;
 
     wavefront_aligner_attr_t attributes_full_alignment = attributes_only_score;
@@ -162,11 +164,11 @@ alignment_result aligner::align_seqan3(
         };
     }
 
-    // when we need to do traceback, the matrix size might be a problem
-    size_t const estimated_matrix_size = reference.size() * 2 * config.num_allowed_errors;
-    size_t const very_big_matrix_size = 10'000'000'000;
-    if (estimated_matrix_size > very_big_matrix_size) {
-        spdlog::warn("Large alignment matrix of size {}", estimated_matrix_size);
+    // size_t const estimated_matrix_size = reference.size() * 2 * config.num_allowed_errors;
+    size_t const estimated_matrix_size = reference.size() * reference.size();
+
+    if (estimated_matrix_size > very_large_memory_usage) {
+        spdlog::warn("Large seqan3 alignment matrix of estimated size {}", estimated_matrix_size);
     }
 
     auto full_output_config = seqan3::align_cfg::output_score{}
@@ -198,18 +200,121 @@ alignment_result aligner::align_wfa2(
     std::span<const uint8_t> const query,
     alignment_config const& config
 ) {
-    // TODO
+    auto const reference_ptr = reinterpret_cast<const char*>(reference.data());
+    auto const reference_len = static_cast<int>(reference.size());
 
-    // attributes_only_score.alignment_form.text_begin_free = 0;
-    // attributes_only_score.alignment_form. = 0;
+    auto const query_ptr = reinterpret_cast<const char*>(query.data());
+    auto const query_len = static_cast<int>(query.size());
 
-    return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
+    assert(reference_len >= query_len);
+    int const reference_surplus_size = reference_len - query_len;
+
+    if (config.mode == alignment_mode::only_verify_existance) {
+        wf_aligner_only_score->alignment_form.text_begin_free = reference_surplus_size;
+        wf_aligner_only_score->alignment_form.text_end_free = reference_surplus_size;
+
+        wavefront_align(
+            wf_aligner_only_score,
+            query_ptr,
+            query_len,
+            reference_ptr,
+            reference_len
+        );
+
+        handle_wfa_status(&wf_aligner_only_score->align_status);
+
+        spdlog::info(
+            "Status: {}, Errs: {}, WFA2 score: {}",
+            wf_aligner_full_alignment->align_status.status,
+            config.num_allowed_errors,
+            wf_aligner_only_score->cigar->score
+        );
+
+        return alignment_result {
+            .outcome = wf_aligner_only_score->cigar->score <= static_cast<int>(config.num_allowed_errors) ?
+                alignment_outcome::alignment_exists :
+                alignment_outcome::no_adequate_alignment_exists
+        };
+    }
+
+    wf_aligner_full_alignment->alignment_form.text_begin_free = reference_surplus_size;
+    wf_aligner_full_alignment->alignment_form.text_end_free = reference_surplus_size;
+
+    wavefront_align(
+        wf_aligner_full_alignment,
+        query_ptr,
+        query_len,
+        reference_ptr,
+        reference_len
+    );
+
+    handle_wfa_status(&wf_aligner_full_alignment->align_status);
+
+    int const alignment_length = wf_aligner_full_alignment->cigar->end_offset -
+        wf_aligner_full_alignment->cigar->begin_offset;
+
+    spdlog::info(
+        "Status: {}, Errs: {}, WFA2 score: {}, length: {}",
+        wf_aligner_full_alignment->align_status.status,
+        config.num_allowed_errors,
+        wf_aligner_only_score->cigar->score,
+        alignment_length
+    );
+
+    if (
+        wf_aligner_only_score->cigar->score > static_cast<int>(config.num_allowed_errors) ||
+        alignment_length <= 0
+    ) {
+        return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
+    }
+
+    // resize buffer to an upper bound of the needed size
+    wfa2_cigar_conversion_buffer.resize(2 * alignment_length);
+
+    bool const show_mismatches = true;
+    const int written_size = cigar_sprint_SAM_CIGAR(
+        wfa2_cigar_conversion_buffer.data(),
+        wf_aligner_full_alignment->cigar,
+        show_mismatches
+    );
+
+    // trim to actually written_size
+    wfa2_cigar_conversion_buffer.resize(written_size);
+
+    return alignment_result {
+        .outcome = alignment_outcome::alignment_exists,
+        .alignment = query_alignment {
+            .start_in_reference = config.reference_span_offset +
+                static_cast<size_t>(wf_aligner_full_alignment->cigar->begin_offset),
+            .num_errors = static_cast<size_t>(wf_aligner_only_score->cigar->score),
+            .orientation = config.orientation,
+            .cigar = seqan3::detail::parse_cigar(wfa2_cigar_conversion_buffer)
+        }
+    };
+}
+
+void aligner::handle_wfa_status(const wavefront_align_status_t* const status) {
+    if (status->status < 0) {
+        throw std::runtime_error(fmt::format("WFA2 aligner in error status {}.", status->status));
+    }
+
+    if (status->memory_used > very_large_memory_usage) {
+        spdlog::warn("Large wfa2 memory usage of {}", status->memory_used);
+    }
 }
 
 aligner::~aligner() {
-    wavefront_aligner_delete(wf_aligner_only_score);
-    wavefront_aligner_delete(wf_aligner_full_alignment);
-}
+    switch (backend) {
+        case alignment_backend::wfa2:
+            wavefront_aligner_delete(wf_aligner_only_score);
+            wavefront_aligner_delete(wf_aligner_full_alignment);
+            break;
 
+        case alignment_backend::seqan3:
+            // no clean-up needed for seqan3
+        default:
+            break;
+    }
+}
 
 } // namespace alignment

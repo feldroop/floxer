@@ -3,9 +3,16 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 #include <seqan3/alphabet/cigar/cigar.hpp>
+
+// use the C API and not the C++ bindings of WFA2, because the C++ bindings
+// don't allow retrieving the start offset of the alignment
+extern "C" {
+#include <wavefront/wavefront_align.h>
+}
 
 namespace alignment {
 
@@ -71,7 +78,9 @@ struct alignment_result {
 class aligner {
 public:
     aligner();
+
     ~aligner();
+
     alignment_result align(
         std::span<const uint8_t> const reference,
         std::span<const uint8_t> const query,
@@ -93,11 +102,15 @@ private:
         alignment_config const& config
     );
 
+    void handle_wfa_status(const wavefront_align_status_t* const status);
+
     alignment_backend const backend;
 
     // only for wfa2 backend
     wavefront_aligner_t* wf_aligner_only_score = nullptr;
     wavefront_aligner_t* wf_aligner_full_alignment = nullptr;
+
+    std::string wfa2_cigar_conversion_buffer{};
 };
 
 } // namespace verification
