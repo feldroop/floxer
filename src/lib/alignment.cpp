@@ -14,7 +14,8 @@
 #include <seqan3/alphabet/nucleotide/dna5.hpp>
 
 #include <spdlog/spdlog.h>
-#include <omp.h>
+
+#include <wavefront/wavefront_align.h>
 
 namespace alignment {
 

@@ -71,6 +71,15 @@ CPMDeclarePackage (
 )
 
 CPMDeclarePackage (
+    wfa2
+    NAME wfa2
+    GITHUB_REPOSITORY smarco/WFA2-lib
+    GIT_TAG cf3eb92dd0aa9bf067d5488a606d8c91173e74eb
+    EXCLUDE_FROM_ALL TRUE
+    SYSTEM TRUE
+)
+
+CPMDeclarePackage (
     use_ccache
     NAME use_ccache
     GITHUB_REPOSITORY seqan/cmake-scripts
