@@ -79,7 +79,43 @@ public:
 };
 
 aligner::aligner() : backend(alignment_backend_global) {
-    // TODO for wfa2
+    switch (backend) {
+        case alignment::alignment_backend::seqan3:
+            // no extra setup yet for seqan3 aligner
+            return;
+
+        case alignment::alignment_backend::wfa2:
+            setup_for_wfa2();
+            return;
+
+        default:
+            throw std::runtime_error("(should be unreachable) internal bug in alignment backend choice");
+    }
+}
+
+void aligner::setup_for_wfa2() {
+    wavefront_aligner_attr_t attributes_only_score = wavefront_aligner_attr_default;
+
+    attributes_only_score.distance_metric = distance_metric_t::edit;
+    attributes_only_score.alignment_scope = alignment_scope_t::compute_score;
+
+    // semi-global alignment, text_begin_free and text_end_free will be set for each alignment
+    attributes_only_score.alignment_form.span = alignment_span_t::alignment_endsfree;
+    attributes_only_score.alignment_form.pattern_begin_free = 0;
+    attributes_only_score.alignment_form.pattern_end_free = 0;
+
+    // we have to use this memory mode, because the longread alignment can become quite large
+    // according to GitHub comments by the author, it's often just as fast as the other memory modes
+    attributes_only_score.memory_mode = wavefront_memory_t::wavefront_memory_ultralow;
+
+    // maybe add some heuristics later?
+    attributes_only_score.heuristic.strategy = wf_heuristic_strategy::wf_heuristic_none;
+
+    wavefront_aligner_attr_t attributes_full_alignment = attributes_only_score;
+    attributes_only_score.alignment_scope = alignment_scope_t::compute_alignment;
+
+    wf_aligner_only_score = wavefront_aligner_new(&attributes_only_score);
+    wf_aligner_full_alignment = wavefront_aligner_new(&attributes_full_alignment);
 }
 
 alignment_result aligner::align(
@@ -163,11 +199,16 @@ alignment_result aligner::align_wfa2(
     alignment_config const& config
 ) {
     // TODO
+
+    // attributes_only_score.alignment_form.text_begin_free = 0;
+    // attributes_only_score.alignment_form. = 0;
+
     return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
 }
 
 aligner::~aligner() {
-    // TODO for wfa2
+    wavefront_aligner_delete(wf_aligner_only_score);
+    wavefront_aligner_delete(wf_aligner_full_alignment);
 }
 
 

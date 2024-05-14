@@ -79,6 +79,8 @@ public:
     );
 
 private:
+    void setup_for_wfa2();
+
     alignment_result align_seqan3(
         std::span<const uint8_t> const reference,
         std::span<const uint8_t> const query,
@@ -92,6 +94,10 @@ private:
     );
 
     alignment_backend const backend;
+
+    // only for wfa2 backend
+    wavefront_aligner_t* wf_aligner_only_score = nullptr;
+    wavefront_aligner_t* wf_aligner_full_alignment = nullptr;
 };
 
 } // namespace verification
