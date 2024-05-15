@@ -95,6 +95,20 @@ aligner::aligner() : backend(alignment_backend_global) {
     }
 }
 
+size_t aligner::current_memory_usage() const {
+    switch (backend) {
+        case alignment::alignment_backend::seqan3:
+            return 0;
+
+        case alignment::alignment_backend::wfa2:
+            return static_cast<size_t>(wf_aligner_only_score->align_status.memory_used)
+                + static_cast<size_t>(wf_aligner_full_alignment->align_status.memory_used);
+
+        default:
+            throw std::runtime_error("(should be unreachable) internal bug in alignment backend choice");
+    }
+}
+
 void aligner::setup_for_wfa2() {
     wavefront_aligner_attr_t attributes_only_score = wavefront_aligner_attr_default;
 

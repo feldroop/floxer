@@ -87,6 +87,8 @@ public:
         alignment_config const& config
     );
 
+    size_t current_memory_usage() const;
+
 private:
     void setup_for_wfa2();
 

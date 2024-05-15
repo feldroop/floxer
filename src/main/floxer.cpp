@@ -135,6 +135,7 @@ int main(int argc, char** argv) {
     // when OpenMP is active, this aligner object is never used.
     // instead, every thread default constructs a new aligner (which we want).
     // hence, an idle default constructed aligner should not use too much space
+    // and I think it doesn't (memory usage 0 according to wfa2 align_status API)
     alignment::aligner aligner;
 
     // setup for workaround for handling errors in threads
