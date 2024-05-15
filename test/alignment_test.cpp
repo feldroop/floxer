@@ -34,7 +34,7 @@ TEST(alignment, small_wrapped_wfa2) {
 TEST(alignment, small_direct_wfa2) {
     // "glocal" example from WFA2-lib README
     std::string const reference("ACGACTACTACGAAATTTAAGTATAGGCTACTTTCCGTACGTACGTACGT");
-    std::string const query("AATTTAAGTCTAGGCTACTTTC");
+    std::string const query    (             "AATTTAAGTCTAGGCTACTTTC"               );
 
     auto const reference_ptr = reinterpret_cast<const char*>(reference.data());
     auto const reference_len = static_cast<int>(reference.size());
@@ -42,7 +42,7 @@ TEST(alignment, small_direct_wfa2) {
     auto const query_ptr = reinterpret_cast<const char*>(query.data());
     auto const query_len = static_cast<int>(query.size());
 
-    int const reference_size_surplus = reference_len - reference_len;
+    int const reference_size_surplus = reference_len - query_len;
 
     wavefront_aligner_attr_t attributes = wavefront_aligner_attr_default;
 
@@ -76,9 +76,8 @@ TEST(alignment, small_direct_wfa2) {
     // bool const trimmed = cigar_maxtrim_gap_linear(wf_aligner->cigar, &wf_aligner->penalties.linear_penalties);
     // EXPECT_TRUE(trimmed);
 
-    // TODO what exactly are the offsets?
-    // EXPECT_EQ(wf_aligner->cigar->begin_offset, 13);
-    // EXPECT_EQ(wf_aligner->cigar->end_offset, 35);
+    EXPECT_EQ(wf_aligner->cigar->begin_offset, 13);
+    EXPECT_EQ(wf_aligner->cigar->end_offset, 35);
 
     int const alignment_length = wf_aligner->cigar->end_offset -
         wf_aligner->cigar->begin_offset;
