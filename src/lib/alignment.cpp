@@ -115,10 +115,11 @@ void aligner::setup_for_wfa2() {
     attributes_only_score.distance_metric = distance_metric_t::edit;
     attributes_only_score.alignment_scope = alignment_scope_t::compute_score;
 
-    // semi-global alignment, text_begin_free and text_end_free will be set for each alignment
+    // semi-global alignment, pattern_begin_free and pattern_end_free will be set for each alignment
+    // WFA2 text is the query in SAM format
     attributes_only_score.alignment_form.span = alignment_span_t::alignment_endsfree;
-    attributes_only_score.alignment_form.pattern_begin_free = 0;
-    attributes_only_score.alignment_form.pattern_end_free = 0;
+    attributes_only_score.alignment_form.text_begin_free = 0;
+    attributes_only_score.alignment_form.text_end_free = 0;
 
     // we want to use the ultralow memory mode, because the longread alignment can become quite large
     // according to GitHub comments by the author, it's often just as fast as the other memory modes
@@ -224,8 +225,9 @@ alignment_result aligner::align_wfa2(
     int const reference_surplus_size = reference_len - query_len;
 
     if (config.mode == alignment_mode::only_verify_existance) {
-        wf_aligner_only_score->alignment_form.text_begin_free = reference_surplus_size;
-        wf_aligner_only_score->alignment_form.text_end_free = reference_surplus_size;
+        // WFA2 pattern is the reference in SAM format
+        wf_aligner_only_score->alignment_form.pattern_begin_free = reference_surplus_size;
+        wf_aligner_only_score->alignment_form.pattern_end_free = reference_surplus_size;
 
         wavefront_align(
             wf_aligner_only_score,
@@ -244,15 +246,17 @@ alignment_result aligner::align_wfa2(
         };
     }
 
-    wf_aligner_full_alignment->alignment_form.text_begin_free = reference_surplus_size;
-    wf_aligner_full_alignment->alignment_form.text_end_free = reference_surplus_size;
+    // WFA2 pattern is the reference in SAM format
+    wf_aligner_full_alignment->alignment_form.pattern_begin_free = reference_surplus_size;
+    wf_aligner_full_alignment->alignment_form.pattern_end_free = reference_surplus_size;
 
+    // WFA2 pattern is the reference in SAM format, WFA2 text is the query in SAM format
     wavefront_align(
         wf_aligner_full_alignment,
-        query_ptr,
-        query_len,
         reference_ptr,
-        reference_len
+        reference_len,
+        query_ptr,
+        query_len
     );
 
     handle_wfa_status(&wf_aligner_full_alignment->align_status);

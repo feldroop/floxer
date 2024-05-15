@@ -33,16 +33,16 @@ TEST(alignment, small_wrapped_wfa2) {
 
 TEST(alignment, small_direct_wfa2) {
     // "glocal" example from WFA2-lib README
-    std::string const text("ACGACTACTACGAAATTTAAGTATAGGCTACTTTCCGTACGTACGTACGT");
-    std::string const pattern("AATTTAAGTCTAGGCTACTTTC");
+    std::string const reference("ACGACTACTACGAAATTTAAGTATAGGCTACTTTCCGTACGTACGTACGT");
+    std::string const query("AATTTAAGTCTAGGCTACTTTC");
 
-    auto const text_ptr = reinterpret_cast<const char*>(text.data());
-    auto const text_len = static_cast<int>(text.size());
+    auto const reference_ptr = reinterpret_cast<const char*>(reference.data());
+    auto const reference_len = static_cast<int>(reference.size());
 
-    auto const pattern_ptr = reinterpret_cast<const char*>(pattern.data());
-    auto const pattern_len = static_cast<int>(pattern.size());
+    auto const query_ptr = reinterpret_cast<const char*>(query.data());
+    auto const query_len = static_cast<int>(query.size());
 
-    int const text_surplus_size = text_len - pattern_len;
+    int const reference_size_surplus = reference_len - reference_len;
 
     wavefront_aligner_attr_t attributes = wavefront_aligner_attr_default;
 
@@ -51,32 +51,41 @@ TEST(alignment, small_direct_wfa2) {
     attributes.heuristic.strategy = wf_heuristic_strategy::wf_heuristic_none;
 
     attributes.alignment_form.span = alignment_span_t::alignment_endsfree;
-    attributes.alignment_form.pattern_begin_free = 0;
-    attributes.alignment_form.pattern_end_free = 0;
+    // WFA2 text is the query in SAM format
+    attributes.alignment_form.text_begin_free = 0;
+    attributes.alignment_form.text_end_free = 0;
 
     wavefront_aligner_t* const wf_aligner = wavefront_aligner_new(&attributes);
 
-    wf_aligner->alignment_form.text_begin_free = text_surplus_size;
-    wf_aligner->alignment_form.text_end_free = text_surplus_size;
+    // WFA2 pattern is the reference in SAM format
+    wf_aligner->alignment_form.pattern_begin_free = reference_size_surplus;
+    wf_aligner->alignment_form.pattern_end_free = reference_size_surplus;
 
     wavefront_align(
         wf_aligner,
-        pattern_ptr,
-        pattern_len,
-        text_ptr,
-        text_len
+        reference_ptr,
+        reference_len,
+        query_ptr,
+        query_len
     );
 
     EXPECT_EQ(wf_aligner->align_status.status, 0);
     EXPECT_EQ(wf_aligner->cigar->score, 1);
 
+    // this trims the end insertions but not the ones at the front
+    // bool const trimmed = cigar_maxtrim_gap_linear(wf_aligner->cigar, &wf_aligner->penalties.linear_penalties);
+    // EXPECT_TRUE(trimmed);
+
+    // TODO what exactly are the offsets?
+    // EXPECT_EQ(wf_aligner->cigar->begin_offset, 13);
+    // EXPECT_EQ(wf_aligner->cigar->end_offset, 35);
+
     int const alignment_length = wf_aligner->cigar->end_offset -
         wf_aligner->cigar->begin_offset;
 
-    EXPECT_EQ(alignment_length, 50);
-    // EXPECT_EQ(alignment_length, 22);
+    EXPECT_EQ(alignment_length, 22);
 
-    std::string cigar_buffer(44, '_');
+    std::string cigar_buffer(alignment_length * 2, '\0');
     bool const show_mismatches = true;
     const int written_size = cigar_sprint_SAM_CIGAR(
         cigar_buffer.data(),
@@ -85,8 +94,7 @@ TEST(alignment, small_direct_wfa2) {
     );
     cigar_buffer.resize(written_size);
 
-    std::string expected_cigar("13I9=1X12=15I");
-    //std::string expected_cigar("9=1X12=");
+    std::string expected_cigar("9=1X12=");
 
     EXPECT_EQ(cigar_buffer, expected_cigar);
 
