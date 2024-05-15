@@ -114,7 +114,7 @@ void aligner::setup_for_wfa2() {
     attributes_only_score.heuristic.strategy = wf_heuristic_strategy::wf_heuristic_none;
 
     wavefront_aligner_attr_t attributes_full_alignment = attributes_only_score;
-    attributes_only_score.alignment_scope = alignment_scope_t::compute_alignment;
+    attributes_full_alignment.alignment_scope = alignment_scope_t::compute_alignment;
 
     wf_aligner_only_score = wavefront_aligner_new(&attributes_only_score);
     wf_aligner_full_alignment = wavefront_aligner_new(&attributes_full_alignment);
@@ -223,13 +223,6 @@ alignment_result aligner::align_wfa2(
 
         handle_wfa_status(&wf_aligner_only_score->align_status);
 
-        spdlog::info(
-            "Status: {}, Errs: {}, WFA2 score: {}",
-            wf_aligner_full_alignment->align_status.status,
-            config.num_allowed_errors,
-            wf_aligner_only_score->cigar->score
-        );
-
         return alignment_result {
             .outcome = wf_aligner_only_score->cigar->score <= static_cast<int>(config.num_allowed_errors) ?
                 alignment_outcome::alignment_exists :
@@ -253,16 +246,8 @@ alignment_result aligner::align_wfa2(
     int const alignment_length = wf_aligner_full_alignment->cigar->end_offset -
         wf_aligner_full_alignment->cigar->begin_offset;
 
-    spdlog::info(
-        "Status: {}, Errs: {}, WFA2 score: {}, length: {}",
-        wf_aligner_full_alignment->align_status.status,
-        config.num_allowed_errors,
-        wf_aligner_only_score->cigar->score,
-        alignment_length
-    );
-
     if (
-        wf_aligner_only_score->cigar->score > static_cast<int>(config.num_allowed_errors) ||
+        wf_aligner_full_alignment->cigar->score > static_cast<int>(config.num_allowed_errors) ||
         alignment_length <= 0
     ) {
         return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
@@ -278,7 +263,7 @@ alignment_result aligner::align_wfa2(
         show_mismatches
     );
 
-    // trim to actually written_size
+    // trim to actually written size
     wfa2_cigar_conversion_buffer.resize(written_size);
 
     return alignment_result {
@@ -286,7 +271,7 @@ alignment_result aligner::align_wfa2(
         .alignment = query_alignment {
             .start_in_reference = config.reference_span_offset +
                 static_cast<size_t>(wf_aligner_full_alignment->cigar->begin_offset),
-            .num_errors = static_cast<size_t>(wf_aligner_only_score->cigar->score),
+            .num_errors = static_cast<size_t>(wf_aligner_full_alignment->cigar->score),
             .orientation = config.orientation,
             .cigar = seqan3::detail::parse_cigar(wfa2_cigar_conversion_buffer)
         }
