@@ -176,7 +176,8 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = index_path_.long_id,
         .description = "The file where the constructed FM-index will be stored for later use. "
             "If the file already exists, the index will be read "
-            "from it instead of newly constructed."
+            "from it instead of newly constructed.",
+        .default_message = "no index file"
     });
 
     parser.add_option(output_path_.value, sharg::config{
@@ -191,7 +192,8 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = logfile_path_.short_id,
         .long_id = logfile_path_.long_id,
         .description = "If a logfile path is given, a rotating logfile will be created "
-            "and debug information will be written to it."
+            "and debug information will be written to it.",
+        .default_message = "no logfile"
     });
 
     parser.add_option(query_num_errors_.value, sharg::config{
@@ -218,31 +220,36 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = pex_seed_num_errors_.long_id,
         .description = "The number of errors in the leaves of the PEX tree that are used as seeds. "
             "The sequences will be searched with this parameter using the FM-index.",
+        .advanced = true,
         .validator = sharg::arithmetic_range_validator{0, 3}
     });
 
     parser.add_option(max_num_raw_anchors_.value, sharg::config{
         .short_id = max_num_raw_anchors_.short_id,
         .long_id = max_num_raw_anchors_.long_id,
-        .description = "Seeds with this number of (raw) anchors are excluded from further steps."
+        .description = "Seeds with this number of (raw) anchors are excluded from further steps.",
+        .advanced = true
     });
 
     parser.add_flag(bottom_up_pex_tree_building_.value, sharg::config{
         .short_id = bottom_up_pex_tree_building_.short_id,
         .long_id = bottom_up_pex_tree_building_.long_id,
         .description = "Build PEX trees using a new bottom up strategy.",
+        .advanced = true
     });
 
     parser.add_flag(use_interval_optimization_.value, sharg::config{
         .short_id = use_interval_optimization_.short_id,
         .long_id = use_interval_optimization_.long_id,
         .description = "Keep track of already verified intervals to avoid repeating alignment.",
+        .advanced = true
     });
 
     parser.add_flag(use_wfa2_aligner_backend_.value, sharg::config{
         .short_id = use_wfa2_aligner_backend_.short_id,
         .long_id = use_wfa2_aligner_backend_.long_id,
         .description = "Use the WFA2 library as backend for the alignments.",
+        .advanced = true
     });
 
     parser.add_option(num_threads_.value, sharg::config{
@@ -259,13 +266,15 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
             "of seconds and the program will shut down once the already running "
             "alignment jobs have been completed. The index building and input reading does "
             "not count into this.",
-        .default_message = "no default"
+        .default_message = "no default",
+        .advanced = true
     });
 
     parser.add_flag(print_stats_.value, sharg::config{
         .short_id = print_stats_.short_id,
         .long_id = print_stats_.long_id,
         .description = "Print a number of stats about input, seeding and alignments.",
+        .advanced = true
     });
 
     parser.parse();
