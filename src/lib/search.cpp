@@ -78,7 +78,7 @@ search_result searcher::search_seeds(
             ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
                 num_raw_anchors += cursor.count();
                 fmindex_search_returns.emplace_back(internal::fmindex_search_return{
-                    .cursor = std::move(cursor),
+                    .cursor = cursor,
                     .num_errors = errors
                 });
                 // as a possible hack: could throw here to stop the search as future optimization
