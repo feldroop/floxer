@@ -374,7 +374,7 @@ void pex_tree::align_query_in_given_orientation(
 }
 
 void pex_tree::hierarchical_verification(
-    search::anchor const& anchor,
+    search::anchor_t const& anchor,
     size_t const seed_id,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
@@ -480,7 +480,7 @@ intervals::half_open_interval span_config::as_half_open_interval() const {
 }
 
 span_config compute_reference_span_start_and_length(
-    search::anchor const& anchor,
+    search::anchor_t const& anchor,
     pex_tree::node const& pex_node,
     size_t const leaf_query_index_from,
     size_t const full_reference_length,

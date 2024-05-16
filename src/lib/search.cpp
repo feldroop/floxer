@@ -31,7 +31,7 @@ search_schemes::Scheme const& search_scheme_cache::get(
     return iter->second;
 }
 
-bool anchor::is_better_than(anchor const& other) {
+bool anchor_t::is_better_than(anchor_t const& other) {
     size_t const position_difference = position < other.position ?
         other.position - position : position - other.position;
 
@@ -39,11 +39,11 @@ bool anchor::is_better_than(anchor const& other) {
         position_difference <= other.num_errors - num_errors;
 }
 
-void anchor::mark_for_erasure() {
+void anchor_t::mark_for_erasure() {
     num_errors = internal::erase_marker;
 }
 
-bool anchor::should_be_erased() const {
+bool anchor_t::should_be_erased() const {
     return num_errors == internal::erase_marker;
 }
 
@@ -98,7 +98,10 @@ search_result searcher::search_seeds(
         for (auto const& [cursor, num_errors] : fmindex_search_returns) {
             for (auto const& anchor: cursor) {
                 auto const [reference_id, position] = index.locate(anchor);
-                anchors_by_reference[reference_id].emplace_back(position, num_errors);
+                anchors_by_reference[reference_id].emplace_back(anchor_t {
+                    .position = position,
+                    .num_errors = num_errors
+                }) ;
             }
         }
 
@@ -129,7 +132,7 @@ void erase_useless_anchors(anchors& anchors_of_seed_and_reference) {
         return;
     }
 
-    std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor const& h) { return h.position; });
+    std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor_t const& h) { return h.position; });
 
     for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
         auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
@@ -152,7 +155,7 @@ void erase_useless_anchors(anchors& anchors_of_seed_and_reference) {
         current_anchor_index = other_anchor_index;
     }
 
-    std::erase_if(anchors_of_seed_and_reference, [] (anchor const& a) { return a.should_be_erased(); } );
+    std::erase_if(anchors_of_seed_and_reference, [] (anchor_t const& a) { return a.should_be_erased(); } );
 }
 
 } // namespace internal

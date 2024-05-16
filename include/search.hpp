@@ -17,18 +17,18 @@ struct seed {
     size_t const num_errors;
 };
 
-struct anchor {
+struct anchor_t {
     size_t position;
     size_t num_errors;
 
-    bool is_better_than(anchor const& other);
+    bool is_better_than(anchor_t const& other);
 
     void mark_for_erasure();
 
     bool should_be_erased() const;
 };
 
-using anchors = std::vector<anchor>;
+using anchors = std::vector<anchor_t>;
 
 struct search_config {
     // if the number of anchors for a seed exceeds this threshold,

@@ -107,7 +107,7 @@ private:
     ) const;
 
     void hierarchical_verification(
-        search::anchor const& anchor,
+        search::anchor_t const& anchor,
         size_t const seed_id,
         std::span<const uint8_t> const query,
         alignment::query_orientation const orientation,
@@ -149,7 +149,7 @@ struct span_config {
 };
 
 span_config compute_reference_span_start_and_length(
-    search::anchor const& anchor,
+    search::anchor_t const& anchor,
     pex_tree::node const& pex_node,
     size_t const leaf_query_index_from,
     size_t const full_reference_length,
