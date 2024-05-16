@@ -140,8 +140,8 @@ void erase_useless_anchors(anchors& anchors_of_seed_and_reference) {
 
         while (
             other_anchor_index < anchors_of_seed_and_reference.size() &&
-            current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index]))
-        {
+            current_anchor.is_better_than(anchors_of_seed_and_reference[other_anchor_index])
+        ) {
             anchors_of_seed_and_reference[other_anchor_index].mark_for_erasure();
             ++other_anchor_index;
         }
