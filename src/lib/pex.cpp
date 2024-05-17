@@ -346,6 +346,10 @@ void pex_tree::align_query_in_given_orientation(
     auto const search_result = searcher.search_seeds(seeds);
     stats.add_statistics_for_search_result(search_result);
 
+    std::vector<intervals::verified_intervals> already_verified_intervals_per_reference(
+        references.size(), intervals::verified_intervals(use_interval_optimization)
+    );
+
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
         auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
 
@@ -354,7 +358,6 @@ void pex_tree::align_query_in_given_orientation(
         }
 
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            intervals::verified_intervals already_verified_intervals(use_interval_optimization);
 
             for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
                 hierarchical_verification(
@@ -363,7 +366,7 @@ void pex_tree::align_query_in_given_orientation(
                     query,
                     orientation,
                     references[reference_id],
-                    already_verified_intervals,
+                    already_verified_intervals_per_reference[reference_id],
                     aligner,
                     alignments,
                     stats
