@@ -164,7 +164,11 @@ alignment_result aligner::align_seqan3(
         seqan3::align_cfg::free_end_gaps_sequence1_trailing{true},
         seqan3::align_cfg::free_end_gaps_sequence2_trailing{false}
     }
-    | seqan3::align_cfg::scoring_scheme{uint8_adaptation_scoring_scheme{}}; // gap scheme defaults to edit distance
+    | seqan3::align_cfg::scoring_scheme{uint8_adaptation_scoring_scheme{}}
+    | seqan3::align_cfg::gap_cost_affine{
+        seqan3::align_cfg::open_score{0},
+        seqan3::align_cfg::extension_score{-1}
+    };
     // | seqan3::align_cfg::min_score{min_score};
 
     if (config.mode == alignment_mode::only_verify_existance) {
