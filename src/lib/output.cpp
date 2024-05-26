@@ -32,7 +32,7 @@ void save_index(fmindex const& index, std::filesystem::path const& index_path) {
     } catch (std::exception const& e) {
         spdlog::warn(
             "An error occured while trying to write the index to "
-            "the file {}.\nContinueing without saving the index.\n{}\n",
+            "the file {}.\nContinuing without saving the index.\n{}\n",
             index_path,
             e.what()
         );
