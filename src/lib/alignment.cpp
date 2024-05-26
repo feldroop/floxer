@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <charconv>
 #include <cmath>
 #include <limits>
+#include <system_error>
 #include <utility>
 
 #include <seqan3/alignment/cigar_conversion/cigar_from_alignment.hpp>
@@ -241,7 +243,7 @@ alignment_result aligner::align_wfa2(
             reference_len
         );
 
-        handle_wfa_status(&wf_aligner_only_score->align_status);
+        internal::handle_wfa2_status(&wf_aligner_only_score->align_status);
 
         return alignment_result {
             .outcome = wf_aligner_only_score->cigar->score <= static_cast<int>(config.num_allowed_errors) ?
@@ -263,14 +265,14 @@ alignment_result aligner::align_wfa2(
         query_len
     );
 
-    handle_wfa_status(&wf_aligner_full_alignment->align_status);
+    internal::handle_wfa2_status(&wf_aligner_full_alignment->align_status);
 
     int const alignment_length = wf_aligner_full_alignment->cigar->end_offset -
         wf_aligner_full_alignment->cigar->begin_offset;
 
     if (
         wf_aligner_full_alignment->cigar->score > static_cast<int>(config.num_allowed_errors) ||
-        alignment_length <= 0
+        alignment_length <= 0 // I am unsure whether this case can actually happen
     ) {
         return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
     }
@@ -288,26 +290,19 @@ alignment_result aligner::align_wfa2(
     // trim to actually written size
     wfa2_cigar_conversion_buffer.resize(written_size);
 
+    // wfa2 currently outputs a CIGAR that includes the free end gaps. These have to be trimmed and
+    // the number of trimmed characters at the beginning is the actual offset
+    auto const trim_result = internal::trim_wfa2_cigar(wfa2_cigar_conversion_buffer);
+
     return alignment_result {
         .outcome = alignment_outcome::alignment_exists,
         .alignment = query_alignment {
-            .start_in_reference = config.reference_span_offset +
-                static_cast<size_t>(wf_aligner_full_alignment->cigar->begin_offset),
+            .start_in_reference = config.reference_span_offset + trim_result.num_trimmed_start,
             .num_errors = static_cast<size_t>(wf_aligner_full_alignment->cigar->score),
             .orientation = config.orientation,
-            .cigar = seqan3::detail::parse_cigar(wfa2_cigar_conversion_buffer)
+            .cigar = seqan3::detail::parse_cigar(trim_result.cigar)
         }
     };
-}
-
-void aligner::handle_wfa_status(const wavefront_align_status_t* const status) {
-    if (status->status < 0) {
-        throw std::runtime_error(fmt::format("WFA2 aligner in error status {}.", status->status));
-    }
-
-    if (status->memory_used > very_large_memory_usage) {
-        spdlog::warn("Large wfa2 memory usage of {}", status->memory_used);
-    }
 }
 
 aligner::~aligner() {
@@ -323,5 +318,67 @@ aligner::~aligner() {
             break;
     }
 }
+
+namespace internal {
+
+void handle_wfa2_status(const wavefront_align_status_t* const status) {
+    if (status->status < 0) {
+        throw std::runtime_error(fmt::format("WFA2 aligner in error status {}.", status->status));
+    }
+
+    if (status->memory_used > very_large_memory_usage) {
+        spdlog::warn("Large wfa2 memory usage of {}", status->memory_used);
+    }
+}
+
+cigar_trim_result trim_wfa2_cigar(std::string_view wfa2_cigar) {
+    static constexpr auto digits = "0123456789";
+    static constexpr char sam_reference_deletion_operation = 'D';
+
+    if (wfa2_cigar.empty()) {
+        return cigar_trim_result { .cigar = wfa2_cigar };
+    }
+
+    char const last_operation = wfa2_cigar.back();
+
+    if (last_operation == sam_reference_deletion_operation) {
+        wfa2_cigar.remove_suffix(1);
+        size_t const last_desired_operation_index = wfa2_cigar.find_last_not_of(digits);
+        wfa2_cigar.remove_suffix(wfa2_cigar.size() - (last_desired_operation_index + 1));
+    }
+
+    if (wfa2_cigar.empty()) {
+        return cigar_trim_result { .cigar = wfa2_cigar };
+    }
+
+    size_t const first_operation_index = wfa2_cigar.find_first_not_of(digits);
+    if (first_operation_index >= wfa2_cigar.size()) {
+        throw std::runtime_error("Failed to parse wfa2 CIGAR string for trimming");
+    }
+
+    char const first_operation = wfa2_cigar[first_operation_index];
+
+    size_t num_trimmed_start = 0;
+    if (first_operation == sam_reference_deletion_operation) {
+        auto const [ptr, ec] = std::from_chars(
+            wfa2_cigar.data(),
+            wfa2_cigar.data() + first_operation_index,
+            num_trimmed_start
+        );
+
+        if (ec != std::errc() || ptr != wfa2_cigar.data() + first_operation_index) {
+            throw std::runtime_error("Failed to parse wfa2 CIGAR string for trimming");
+        }
+
+        wfa2_cigar.remove_prefix(first_operation_index + 1);
+    }
+
+    return cigar_trim_result {
+        .cigar = wfa2_cigar,
+        .num_trimmed_start = num_trimmed_start
+    };
+}
+
+} // namespace internal
 
 } // namespace alignment

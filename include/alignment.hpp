@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <seqan3/alphabet/cigar/cigar.hpp>
@@ -104,8 +105,6 @@ private:
         alignment_config const& config
     );
 
-    void handle_wfa_status(const wavefront_align_status_t* const status);
-
     alignment_backend const backend;
 
     // only for wfa2 backend
@@ -114,5 +113,19 @@ private:
 
     std::string wfa2_cigar_conversion_buffer{};
 };
+
+namespace internal {
+
+struct cigar_trim_result {
+    std::string_view const cigar;
+    size_t const num_trimmed_start = 0;
+};
+
+void handle_wfa2_status(const wavefront_align_status_t* const status);
+
+// takes a valid SAM format CIGAR string and trims delete operations form the front and back
+cigar_trim_result trim_wfa2_cigar(std::string_view wfa2_cigar);
+
+} // namespace internal
 
 } // namespace verification

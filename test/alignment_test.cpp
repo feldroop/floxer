@@ -103,13 +103,14 @@ TEST(alignment, small_direct_wfa2) {
     // bool const trimmed = cigar_maxtrim_gap_linear(wf_aligner->cigar, &wf_aligner->penalties.linear_penalties);
     // EXPECT_TRUE(trimmed);
 
-    EXPECT_EQ(wf_aligner->cigar->begin_offset, 13);
-    EXPECT_EQ(wf_aligner->cigar->end_offset, 35);
+    // these seem to be not the offset regarding ends free gaps, but something else
+    // EXPECT_EQ(wf_aligner->cigar->begin_offset, 13);
+    // EXPECT_EQ(wf_aligner->cigar->end_offset, 35);
 
     int const alignment_length = wf_aligner->cigar->end_offset -
         wf_aligner->cigar->begin_offset;
 
-    EXPECT_EQ(alignment_length, 22);
+    EXPECT_GE(alignment_length, 0);
 
     std::string cigar_buffer(alignment_length * 2, '\0');
     bool const show_mismatches = true;
@@ -122,7 +123,24 @@ TEST(alignment, small_direct_wfa2) {
 
     std::string expected_cigar("9=1X12=");
 
-    EXPECT_EQ(cigar_buffer, expected_cigar);
+    // due to the unexpected API behavior above, we need to do the endsfree trimming by ourselves
+    auto const trim_result = alignment::internal::trim_wfa2_cigar(cigar_buffer);
+
+    EXPECT_EQ(trim_result.cigar, expected_cigar);
+    EXPECT_EQ(trim_result.num_trimmed_start, 13);
 
     wavefront_aligner_delete(wf_aligner);
+}
+
+TEST(alignment, trim_wfa2_cigar) {
+    auto const trim_result_basic = alignment::internal::trim_wfa2_cigar("428D8=5I3X6D5X87=72D");
+
+    EXPECT_EQ(trim_result_basic.num_trimmed_start, 428);
+    EXPECT_EQ(trim_result_basic.cigar, "8=5I3X6D5X87=");
+
+    std::string const fine_cigar = "1=2D5I3X6D5X87=";
+    auto const trim_result_nothing_done = alignment::internal::trim_wfa2_cigar(fine_cigar);
+
+    EXPECT_EQ(trim_result_nothing_done.num_trimmed_start, 0);
+    EXPECT_EQ(trim_result_nothing_done.cigar, fine_cigar);
 }
