@@ -8,12 +8,15 @@
 #include <optional>
 #include <random>
 #include <ranges>
+#include <unordered_map>
 
 #include <seqan3/alphabet/nucleotide/dna4.hpp>
+#include <seqan3/io/sam_file/input.hpp>
 #include <seqan3/io/sequence_file/output.hpp>
 
 #include <sharg/all.hpp>
 
+#include <spdlog/fmt/ranges.h>
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
@@ -219,22 +222,11 @@ void create_and_write_reads(
     }
 }
 
-int main(int argc, char** argv) {
-    sharg::parser parser{ "simulate_simple_dataset", argc, argv, sharg::update_notifications::off };
-
-    parser.info.author = about_floxer::author;
+int create_data_set(sharg::parser& parser) {
     parser.info.description = {
-        "Simulates a genome (uniform distribution) "
+        "Simulates a genome (uniform base distribution) "
         "and a set of long reads with the configured amount of edit distance errors."
     };
-    parser.info.email = about_floxer::email;
-    parser.info.url = about_floxer::url;
-    parser.info.short_description = "Simulate a genome and long reads";
-    parser.info.synopsis = {
-        "./simulate_simple_dataset --genome genome.fasta --reads reads.fastq",
-    };
-    parser.info.version = "1.0.0";
-    parser.info.date = "16.05.2024";
 
     std::filesystem::path genome_path;
     std::filesystem::path read_path;
@@ -313,7 +305,6 @@ int main(int argc, char** argv) {
 
     parser.parse();
 
-
     if (chromosome_length <= base_read_length) {
         spdlog::error(
             "Chromomsome length {} must be larger than read length {}",
@@ -341,4 +332,155 @@ int main(int argc, char** argv) {
     );
 
     return 0;
+}
+
+struct alignment_origin {
+    size_t const chromosome_id;
+    size_t const position;
+    size_t const max_num_errors;
+};
+
+alignment_origin parse_query_id(std::string_view id) {
+    std::vector<std::string> parts{};
+    while (!id.empty()) {
+        size_t const next_underscore_index = id.find("_");
+        size_t const next_split_index = next_underscore_index == std::string_view::npos ?
+            id.size() :
+            next_underscore_index;
+
+        parts.emplace_back(id.substr(0, next_split_index));
+        id.remove_prefix(std::min(next_split_index + 1, id.size()));
+    }
+
+    assert(parts[0] == "id");
+    assert(parts[2] == "chromosome");
+    assert(parts[4] == "position");
+    assert(parts[6] == "max");
+    assert(parts[7] == "errors");
+
+    return alignment_origin {
+        .chromosome_id = static_cast<size_t>(std::stoi(parts[3])),
+        .position = static_cast<size_t>(std::stoi(parts[5])),
+        .max_num_errors = static_cast<size_t>(std::stoi(parts[8]))
+    };
+}
+
+size_t parse_chromosome_id(std::string_view chromosome_id) {
+    size_t const next_underscore_index = chromosome_id.find("_");
+    assert(next_underscore_index != std::string_view::npos);
+
+    chromosome_id.remove_prefix(next_underscore_index + 1);
+
+    return static_cast<size_t>(std::stoi(std::string(chromosome_id)));
+}
+
+struct alignment_data {
+    size_t const chromosome_id;
+    size_t const position;
+    size_t const num_errors;
+};
+
+int verify_alignments(sharg::parser& parser) {
+    parser.info.description = {
+        "For a previously simluated data set, verify whether an aligner mapped the reads correctly."
+    };
+
+    std::filesystem::path input_path{};
+
+    parser.add_option(input_path, sharg::config{
+        .short_id = 'a',
+        .long_id = "alignments",
+        .description = "The sam file that should be analyzed.",
+        .required = true,
+        .validator = sharg::input_file_validator{}
+    });
+
+    parser.parse();
+
+    seqan3::sam_file_input input{input_path};
+    std::unordered_map<std::string, std::vector<alignment_data>> alignments_by_query_id{};
+
+    using namespace seqan3::literals;
+    for (auto const& record : input) {
+        alignments_by_query_id[record.id()].push_back(alignment_data {
+            .chromosome_id = parse_chromosome_id(input.header().ref_ids()[record.reference_id().value()]),
+            .position = static_cast<size_t>(record.reference_position().value()),
+            .num_errors = static_cast<size_t>(record.tags().get<"NM"_tag>())
+        });
+    }
+
+    bool all_queries_found_correctly = true;
+
+    for (auto const& [query_id, alignments] : alignments_by_query_id) {
+        auto const origin = parse_query_id(query_id);
+
+        size_t pos_diff = std::numeric_limits<size_t>::max();
+
+        for (auto const& alignment : alignments) {
+            if (origin.chromosome_id != alignment.chromosome_id || alignment.num_errors > origin.max_num_errors) {
+                continue;
+            }
+
+            pos_diff = std::min(
+                std::max(origin.position, alignment.position) - std::min(origin.position, alignment.position),
+                pos_diff
+            );
+
+            if (pos_diff == 0) {
+                break;
+            }
+        }
+
+        if (pos_diff == std::numeric_limits<size_t>::max()) {
+            spdlog::warn(
+                "query id \"{}\": no alignment found with the expected amount of errors on the correct chromosome.",
+                query_id
+            );
+            all_queries_found_correctly = false;
+            continue;
+        }
+
+        if (pos_diff != 0) {
+            spdlog::warn(
+                "query id \"{}\": closest found alignment to actual origin is {} position{} away.",
+                query_id,
+                pos_diff,
+                pos_diff == 1 ? "" : "s"
+            );
+            all_queries_found_correctly = false;
+        }
+    }
+
+    if (all_queries_found_correctly) {
+        spdlog::info("All queries were found correctly.");
+    }
+
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    sharg::parser top_level_parser{ "simulated_dataset", argc, argv, sharg::update_notifications::off, { "create", "verify" } };
+
+    top_level_parser.info.author = about_floxer::author;
+    top_level_parser.info.email = about_floxer::email;
+    top_level_parser.info.url = about_floxer::url;
+    top_level_parser.info.short_description = "Simulate a genome and long reads, then verify whether an aligner mapped the reads correctly.";
+    top_level_parser.info.synopsis = {
+        "./simulate_simple_dataset create --genome genome.fasta --reads reads.fastq",
+        "./simulate_simple_dataset verify --alignments alignments.sam",
+    };
+    top_level_parser.info.version = "1.0.0";
+    top_level_parser.info.date = "31.05.2024";
+
+    top_level_parser.parse();
+    sharg::parser& sub_parser = top_level_parser.get_sub_parser();
+
+    if (sub_parser.info.app_name == std::string_view{"simulated_dataset-create"}) {
+        return create_data_set(sub_parser);
+    } else if (sub_parser.info.app_name == std::string_view{"simulated_dataset-verify"}) {
+        return verify_alignments(sub_parser);
+    } else {
+        spdlog::info("unknown subcommand: {}", sub_parser.info.app_name);
+        return -1;
+    }
 }
