@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
                 e.what()
             );
         } catch (...) {
-            spdlog::error("Unknown error occurred\n");
+            spdlog::error("Unknown error occurred in an aligning thread\n");
         }
     }
 

@@ -67,21 +67,6 @@ void set_alignment_backend_global(alignment_backend const backend) {
     alignment_backend_global = backend;
 }
 
-// this exists to allow seqan3 alignments with raw uint8_t's
-template <seqan3::arithmetic score_type = int8_t>
-class uint8_adaptation_scoring_scheme : public seqan3::scoring_scheme_base<
-    uint8_adaptation_scoring_scheme<score_type>,
-    uint8_t, score_type
-> {
-private:
-    using base_t = seqan3::scoring_scheme_base<uint8_adaptation_scoring_scheme<score_type>, uint8_t, score_type>;
-    friend base_t;
-
-public:
-    constexpr uint8_adaptation_scoring_scheme() noexcept
-        : base_t(seqan3::match_score<score_type>{0}, seqan3::mismatch_score<score_type>{-1}) {};
-};
-
 aligner::aligner() : backend(alignment_backend_global) {
     switch (backend) {
         case alignment::alignment_backend::seqan3:
@@ -166,27 +151,27 @@ alignment_result aligner::align_seqan3(
         seqan3::align_cfg::free_end_gaps_sequence1_trailing{true},
         seqan3::align_cfg::free_end_gaps_sequence2_trailing{false}
     }
-    | seqan3::align_cfg::scoring_scheme{uint8_adaptation_scoring_scheme{}}
-    | seqan3::align_cfg::gap_cost_affine{
-        seqan3::align_cfg::open_score{0},
-        seqan3::align_cfg::extension_score{-1}
-    };
-    // | seqan3::align_cfg::min_score{min_score};
+    | seqan3::align_cfg::edit_scheme
+    | seqan3::align_cfg::min_score{min_score};
 
     if (config.mode == alignment_mode::only_verify_existance) {
         auto small_output_config = seqan3::align_cfg::output_score{};
 
         auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | small_output_config);
+        auto const alignment = *alignment_results.begin();
+
+        // if no alignment could be found, the score is set to this value by the min_score configuration
+        auto const infinite = std::numeric_limits<decltype(alignment.score())>::max();
 
         return alignment_result {
-            .outcome = alignment_results.begin()->score() >= min_score ?
-                alignment_outcome::alignment_exists :
-                alignment_outcome::no_adequate_alignment_exists
+            .outcome = alignment.score() == infinite ?
+                alignment_outcome::no_adequate_alignment_exists :
+                alignment_outcome::alignment_exists
         };
     }
 
-    // size_t const estimated_matrix_size = reference.size() * 2 * config.num_allowed_errors;
-    size_t const estimated_matrix_size = reference.size() * reference.size();
+    size_t const estimated_matrix_size = reference.size() *
+        (2 * config.num_allowed_errors + (reference.size() - query.size())); // <- band size
 
     if (estimated_matrix_size > very_large_memory_usage) {
         spdlog::warn("Large seqan3 alignment matrix of estimated size {}", estimated_matrix_size);
@@ -199,7 +184,10 @@ alignment_result aligner::align_seqan3(
     auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | full_output_config);
     auto const alignment = *alignment_results.begin();
 
-    if (alignment.score() < min_score) {
+    // if no alignment could be found, the score is set to this value by the min_score configuration
+    auto const infinite = std::numeric_limits<decltype(alignment.score())>::max();
+
+    if (alignment.score() == infinite) {
         return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
     }
 
