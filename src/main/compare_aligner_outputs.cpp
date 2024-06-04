@@ -1,18 +1,28 @@
 #include <about_floxer.hpp>
 
 #include <algorithm>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
 #include <seqan3/io/sam_file/input.hpp>
+#include <seqan3/io/sam_file/sam_tag_dictionary.hpp>
 #include <sharg/all.hpp>
 #include <spdlog/spdlog.h>
+
+using namespace seqan3::literals;
+
+// this needs to be added, because the tp tag is used defined by minimap
+template <>
+struct seqan3::sam_tag_type<"tp"_tag> {
+    using type = char;
+};
 
 struct alignment_data_t {
     bool is_unmapped_floxer{true};
     bool is_unmapped_minimap{true};
 
-    bool is_chimeric_minimap{false};
+    bool is_non_linear_minimap{false};
 
     bool mentioned_by_floxer{false};
     bool mentioned_by_minimap{false};
@@ -47,9 +57,18 @@ void read_alignments(
 
         if (static_cast<bool>(record.flag() & seqan3::sam_flag::supplementary_alignment)) {
             if (is_floxer) {
-                spdlog::warn("Unexpected chimeric floxer alignment");
+                spdlog::warn("Unexpected non-linear floxer alignment");
             }
-            alignment_data.is_chimeric_minimap = true;
+            alignment_data.is_non_linear_minimap = true;
+        }
+        if (!is_floxer) {
+            try {
+                if (record.tags().get<"tp"_tag>() == 'I') {
+                    alignment_data.is_non_linear_minimap = true;
+                }
+            } catch (std::out_of_range& exc) {
+                // nothing to be done if the tag is not there
+            }
         }
 
         if (is_floxer) {
@@ -108,14 +127,14 @@ int main(int argc, char** argv) {
     size_t num_unmapped_floxer = 0;
     size_t num_unmapped_minimap = 0;
 
-    size_t num_chimeric_minimap = 0;
+    size_t num_non_linear_minimap = 0;
 
     size_t num_unmapped_both = 0;
     size_t num_minimap_unmapped_floxer_mapped = 0;
     size_t num_floxer_unmapped_minimap_linear_mapped = 0;
-    size_t num_floxer_unmapped_minimap_chimeric_mapped = 0;
+    size_t num_floxer_unmapped_minimap_non_linear_mapped = 0;
     size_t num_mapped_both_minimap_linear = 0;
-    size_t num_mapped_both_minimap_chimeric = 0;
+    size_t num_mapped_both_minimap_non_linear = 0;
 
     for (auto const& [query_id, alignment_data] : alignment_data_by_query_id) {
         if (!alignment_data.mentioned_by_floxer) {
@@ -134,8 +153,8 @@ int main(int argc, char** argv) {
             ++num_unmapped_minimap;
         }
 
-        if (alignment_data.is_chimeric_minimap) {
-            ++num_chimeric_minimap;
+        if (alignment_data.is_non_linear_minimap) {
+            ++num_non_linear_minimap;
         }
 
         if (alignment_data.is_unmapped_floxer && alignment_data.is_unmapped_minimap) {
@@ -147,16 +166,16 @@ int main(int argc, char** argv) {
         }
 
         if (alignment_data.is_unmapped_floxer && !alignment_data.is_unmapped_minimap) {
-            if (alignment_data.is_chimeric_minimap) {
-                ++num_floxer_unmapped_minimap_chimeric_mapped;
+            if (alignment_data.is_non_linear_minimap) {
+                ++num_floxer_unmapped_minimap_non_linear_mapped;
             } else {
                 ++num_floxer_unmapped_minimap_linear_mapped;
             }
         }
 
         if (!alignment_data.is_unmapped_floxer && !alignment_data.is_unmapped_minimap) {
-            if (alignment_data.is_chimeric_minimap) {
-                ++num_mapped_both_minimap_chimeric;
+            if (alignment_data.is_non_linear_minimap) {
+                ++num_mapped_both_minimap_non_linear;
             } else {
                 ++num_mapped_both_minimap_linear;
             }
@@ -169,9 +188,9 @@ int main(int argc, char** argv) {
     spdlog::info("Floxer unmapped queries: {} ({:.2f}%)", num_unmapped_floxer, num_unmapped_floxer / num_queries_d);
     spdlog::info("Minimap unmapped queries: {} ({:.2f}%)", num_unmapped_minimap, num_unmapped_minimap / num_queries_d);
     spdlog::info(
-        "Minimap chimeric mapped queries: {} ({:.2f}%)",
-        num_chimeric_minimap,
-        num_chimeric_minimap / num_queries_d
+        "Minimap non-linear mapped queries: {} ({:.2f}%)",
+        num_non_linear_minimap,
+        num_non_linear_minimap / num_queries_d
     );
     spdlog::info("Both unmapped: {} ({:.2f}%)", num_unmapped_both, num_unmapped_both / num_queries_d);
     spdlog::info(
@@ -185,9 +204,9 @@ int main(int argc, char** argv) {
         num_floxer_unmapped_minimap_linear_mapped / num_queries_d
     );
     spdlog::info(
-        "Floxer unmapped, minimap chimeric mapped: {} ({:.2f}%)",
-        num_floxer_unmapped_minimap_chimeric_mapped,
-        num_floxer_unmapped_minimap_chimeric_mapped / num_queries_d
+        "Floxer unmapped, minimap non-linear mapped: {} ({:.2f}%)",
+        num_floxer_unmapped_minimap_non_linear_mapped,
+        num_floxer_unmapped_minimap_non_linear_mapped / num_queries_d
     );
     spdlog::info(
         "Both mapped, minimap linear: {} ({:.2f}%)",
@@ -195,9 +214,9 @@ int main(int argc, char** argv) {
         num_mapped_both_minimap_linear / num_queries_d
     );
     spdlog::info(
-        "Both mapped, minimap chimeric: {} ({:.2f}%)",
-        num_mapped_both_minimap_chimeric,
-        num_mapped_both_minimap_chimeric / num_queries_d
+        "Both mapped, minimap non-linear: {} ({:.2f}%)",
+        num_mapped_both_minimap_non_linear,
+        num_mapped_both_minimap_non_linear / num_queries_d
     );
 
     return 0;
