@@ -28,6 +28,8 @@ struct alignment_data_t {
     bool mentioned_by_minimap{false};
 };
 
+
+
 void read_alignments(
     std::filesystem::path const& alignment_file_path,
     std::unordered_map<std::string, alignment_data_t>& alignment_data_by_query_id,
@@ -73,13 +75,18 @@ void read_alignments(
             }
         }
 
+        size_t cigar_length = 0;
+        for (auto const& cigar_item : record.cigar_sequence()) {
+            cigar_length += seqan3::get<0>(cigar_item);
+        }
+
         double const error_rate = 0.11; // TODO make CLI parameter
-        size_t const max_num_errors = record.sequence().size() * error_rate;
+        size_t const max_num_errors = cigar_length * error_rate;
         if (record.tags().get<"NM"_tag>() > static_cast<int>(max_num_errors)) {
             if (is_floxer) {
                 spdlog::warn(
                     "Unexpected floxer alignment with large number of errors. Size {}, expected max errors: {}, actual: {}",
-                    record.sequence().size(),
+                    cigar_length,
                     max_num_errors,
                     record.tags().get<"NM"_tag>()
                 );
