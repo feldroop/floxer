@@ -29,12 +29,11 @@ struct alignment_data_t {
     bool mentioned_by_minimap{false};
 };
 
-
-
 void read_alignments(
     std::filesystem::path const& alignment_file_path,
     std::unordered_map<std::string, alignment_data_t>& alignment_data_by_query_id,
-    bool const is_floxer
+    bool const is_floxer,
+    double const error_rate
 ) {
     seqan3::sam_file_input input{alignment_file_path};
 
@@ -76,14 +75,17 @@ void read_alignments(
             }
         }
 
-        using seqan3::get;
         size_t cigar_length = 0;
-        for (auto const cigar_item : record.cigar_sequence()) {
-            cigar_length += get<0>(cigar_item);
+        size_t longest_indel = 0;
+        for (auto const [count, operation] : record.cigar_sequence()) {
+            cigar_length += count;
+
+            if (operation == 'I'_cigar_operation || operation == 'D'_cigar_operation) {
+                longest_indel = std::max(longest_indel, static_cast<size_t>(count));
+            }
         }
 
-        double const error_rate = 0.11; // TODO make CLI parameter
-        size_t const max_num_errors = cigar_length * error_rate;
+        size_t const max_num_errors = cigar_length * error_rate + 1;
         if (record.tags().get<"NM"_tag>() > static_cast<int>(max_num_errors)) {
             if (is_floxer) {
                 spdlog::warn(
@@ -125,6 +127,7 @@ int main(int argc, char** argv) {
 
     std::filesystem::path minimap_input_path{};
     std::filesystem::path floxer_input_path{};
+    double error_rate = 0.1;
 
     parser.add_option(minimap_input_path, sharg::config{
         .short_id = 'r',
@@ -142,12 +145,20 @@ int main(int argc, char** argv) {
         .validator = sharg::input_file_validator{}
     });
 
+    parser.add_option(error_rate, sharg::config{
+        .short_id = 'e',
+        .long_id = "error-rate",
+        .description = "The expected error rate of the aligners (especially floxer).",
+        .required = false,
+        .validator = sharg::arithmetic_range_validator{0.00001, 0.99999}
+    });
+
     parser.parse();
 
     std::unordered_map<std::string, alignment_data_t> alignment_data_by_query_id{};
 
-    read_alignments(minimap_input_path, alignment_data_by_query_id, false);
-    read_alignments(floxer_input_path, alignment_data_by_query_id, true);
+    read_alignments(minimap_input_path, alignment_data_by_query_id, false, error_rate);
+    read_alignments(floxer_input_path, alignment_data_by_query_id, true, error_rate);
 
     size_t const num_queries = alignment_data_by_query_id.size();
 
@@ -211,7 +222,7 @@ int main(int argc, char** argv) {
 
     double const num_queries_d = static_cast<double>(num_queries);
 
-    spdlog::info("Numer of queries: {} ({:.2f}%)", num_queries, num_queries / num_queries_d);
+    spdlog::info("Number of queries: {} ({:.2f}%)", num_queries, num_queries / num_queries_d);
     spdlog::info("Floxer unmapped queries: {} ({:.2f}%)", num_unmapped_floxer, num_unmapped_floxer / num_queries_d);
     spdlog::info("Minimap unmapped queries: {} ({:.2f}%)", num_unmapped_minimap, num_unmapped_minimap / num_queries_d);
     spdlog::info(
