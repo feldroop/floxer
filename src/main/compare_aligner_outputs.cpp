@@ -77,7 +77,12 @@ void read_alignments(
         size_t const max_num_errors = record.sequence().size() * error_rate;
         if (record.tags().get<"NM"_tag>() > static_cast<int>(max_num_errors)) {
             if (is_floxer) {
-                spdlog::warn("Unexpected floxer alignment with large number of errors.");
+                spdlog::warn(
+                    "Unexpected floxer alignment with large number of errors. Size {}, expected max errors: {}, actual: {}",
+                    record.sequence().size(),
+                    max_num_errors,
+                    record.tags().get<"NM"_tag>()
+                );
             } else {
                 // assume this has long indel due to high edit error rate. TODO: look at CIGAR more closely
                 alignment_data.is_non_linear_minimap = true;
