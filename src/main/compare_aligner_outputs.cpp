@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <seqan3/alphabet/cigar/cigar.hpp>
 #include <seqan3/io/sam_file/input.hpp>
 #include <seqan3/io/sam_file/sam_tag_dictionary.hpp>
 #include <sharg/all.hpp>
@@ -75,9 +76,10 @@ void read_alignments(
             }
         }
 
+        using seqan3::get;
         size_t cigar_length = 0;
-        for (auto const& cigar_item : record.cigar_sequence()) {
-            cigar_length += seqan3::get<0>(cigar_item);
+        for (auto const cigar_item : record.cigar_sequence()) {
+            cigar_length += get<0>(cigar_item);
         }
 
         double const error_rate = 0.11; // TODO make CLI parameter
