@@ -75,7 +75,7 @@ void read_alignments(
 
         double const error_rate = 0.11; // TODO make CLI parameter
         size_t const max_num_errors = record.sequence().size() * error_rate;
-        if (record.tags().get<"NM"_tag>() > max_num_errors) {
+        if (record.tags().get<"NM"_tag>() > static_cast<int>(max_num_errors)) {
             if (is_floxer) {
                 spdlog::warn("Unexpected floxer alignment with large number of errors.");
             } else {
