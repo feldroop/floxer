@@ -241,37 +241,37 @@ int main(int argc, char** argv) {
         num_floxer_unmapped_minimap_linear_mapped + num_floxer_unmapped_minimap_non_linear_mapped
     );
 
-    spdlog::info("Number of queries: {} ({:.2f}%)", num_queries, num_queries / num_queries_d);
-    spdlog::info("Floxer unmapped queries: {} ({:.2f}%)", num_unmapped_floxer, num_unmapped_floxer / num_queries_d);
-    spdlog::info("Minimap unmapped queries: {} ({:.2f}%)", num_unmapped_minimap, num_unmapped_minimap / num_queries_d);
+    spdlog::info("Number of queries: {} ({:.2f})", num_queries, num_queries / num_queries_d);
+    spdlog::info("Floxer unmapped queries: {} ({:.2f})", num_unmapped_floxer, num_unmapped_floxer / num_queries_d);
+    spdlog::info("Minimap unmapped queries: {} ({:.2f})", num_unmapped_minimap, num_unmapped_minimap / num_queries_d);
     spdlog::info(
-        "Minimap non-linear mapped queries: {} ({:.2f}%)",
+        "Minimap non-linear mapped queries: {} ({:.2f})",
         num_non_linear_minimap,
         num_non_linear_minimap / num_queries_d
     );
-    spdlog::info("Both unmapped: {} ({:.2f}%)", num_unmapped_both, num_unmapped_both / num_queries_d);
+    spdlog::info("Both unmapped: {} ({:.2f})", num_unmapped_both, num_unmapped_both / num_queries_d);
     spdlog::info(
-        "Floxer mapped, minimap unmapped: {} ({:.2f}%)",
+        "Floxer mapped, minimap unmapped: {} ({:.2f})",
         num_minimap_unmapped_floxer_mapped,
         num_minimap_unmapped_floxer_mapped / num_queries_d
     );
     spdlog::info(
-        "Floxer unmapped, minimap linear mapped: {} ({:.2f}%)",
+        "Floxer unmapped, minimap linear mapped: {} ({:.2f})",
         num_floxer_unmapped_minimap_linear_mapped,
         num_floxer_unmapped_minimap_linear_mapped / num_queries_d
     );
     spdlog::info(
-        "Floxer unmapped, minimap non-linear mapped: {} ({:.2f}%)",
+        "Floxer unmapped, minimap non-linear mapped: {} ({:.2f})",
         num_floxer_unmapped_minimap_non_linear_mapped,
         num_floxer_unmapped_minimap_non_linear_mapped / num_queries_d
     );
     spdlog::info(
-        "Both mapped, minimap linear: {} ({:.2f}%)",
+        "Both mapped, minimap linear: {} ({:.2f})",
         num_mapped_both_minimap_linear,
         num_mapped_both_minimap_linear / num_queries_d
     );
     spdlog::info(
-        "Both mapped, minimap non-linear: {} ({:.2f}%)",
+        "Both mapped, minimap non-linear: {} ({:.2f})",
         num_mapped_both_minimap_non_linear,
         num_mapped_both_minimap_non_linear / num_queries_d
     );
