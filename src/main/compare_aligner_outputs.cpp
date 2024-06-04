@@ -67,6 +67,7 @@ void read_alignments(
             // is chimeric
             alignment_data.is_non_linear_minimap = true;
         }
+
         if (!is_floxer) {
             try {
                 if (record.tags().get<"tp"_tag>() == 'I') {
@@ -101,7 +102,6 @@ void read_alignments(
                     record.tags().get<"NM"_tag>()
                 );
             } else {
-                // assume this has long indel due to high edit error rate. TODO: look at CIGAR more closely
                 alignment_data.is_non_linear_minimap = true;
             }
         }
@@ -184,7 +184,6 @@ int main(int argc, char** argv) {
     size_t floxer_longest_indel_sum = 0;
 
     size_t floxer_unmapped_minimap_mapped_minimap_longest_indel_sum = 0;
-    size_t floxer_unmapped_minimap_mapped_floxer_longest_indel_sum = 0;
 
     for (auto const& [query_id, alignment_data] : alignment_data_by_query_id) {
         if (!alignment_data.mentioned_by_floxer) {
@@ -216,7 +215,6 @@ int main(int argc, char** argv) {
         }
 
         if (alignment_data.is_unmapped_floxer && !alignment_data.is_unmapped_minimap) {
-            floxer_unmapped_minimap_mapped_floxer_longest_indel_sum += alignment_data.floxer_longest_indel;
             floxer_unmapped_minimap_mapped_minimap_longest_indel_sum += alignment_data.minimap_longest_indel;
 
             if (alignment_data.is_non_linear_minimap) {
@@ -280,12 +278,8 @@ int main(int argc, char** argv) {
     spdlog::info("floxer average longest indel: {:.2f}", floxer_longest_indel_sum / num_queries_d);
     spdlog::info("minimap average longest indel: {:.2f}", minimap_longest_indel_sum / num_queries_d);
     spdlog::info(
-        "floxer average longest indel (floxer unmapped, minimap mapped): {:.2f}",
-        floxer_longest_indel_sum / num_floxer_unmapped_minimap_mapped_d
-    );
-    spdlog::info(
         "minimap average longest indel (floxer unmapped, minimap mapped): {:.2f}",
-        minimap_longest_indel_sum / num_floxer_unmapped_minimap_mapped_d
+        floxer_unmapped_minimap_mapped_minimap_longest_indel_sum / num_floxer_unmapped_minimap_mapped_d
     );
 
     return 0;
