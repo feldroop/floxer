@@ -27,6 +27,9 @@ struct alignment_data_t {
 
     bool mentioned_by_floxer{false};
     bool mentioned_by_minimap{false};
+
+    size_t minimap_longest_indel{0};
+    size_t floxer_longest_indel{0};
 };
 
 void read_alignments(
@@ -76,12 +79,15 @@ void read_alignments(
         }
 
         size_t cigar_length = 0;
-        size_t longest_indel = 0;
         for (auto const [count, operation] : record.cigar_sequence()) {
             cigar_length += count;
 
             if (operation == 'I'_cigar_operation || operation == 'D'_cigar_operation) {
-                longest_indel = std::max(longest_indel, static_cast<size_t>(count));
+                if (is_floxer) {
+                    alignment_data.floxer_longest_indel = std::max(alignment_data.floxer_longest_indel, static_cast<size_t>(count));
+                } else {
+                    alignment_data.minimap_longest_indel = std::max(alignment_data.minimap_longest_indel, static_cast<size_t>(count));
+                }
             }
         }
 
@@ -174,6 +180,12 @@ int main(int argc, char** argv) {
     size_t num_mapped_both_minimap_linear = 0;
     size_t num_mapped_both_minimap_non_linear = 0;
 
+    size_t minimap_longest_indel_sum = 0;
+    size_t floxer_longest_indel_sum = 0;
+
+    size_t floxer_unmapped_minimap_mapped_minimap_longest_indel_sum = 0;
+    size_t floxer_unmapped_minimap_mapped_floxer_longest_indel_sum = 0;
+
     for (auto const& [query_id, alignment_data] : alignment_data_by_query_id) {
         if (!alignment_data.mentioned_by_floxer) {
             spdlog::warn("Query {} not mentioned by floxer", query_id);
@@ -204,6 +216,9 @@ int main(int argc, char** argv) {
         }
 
         if (alignment_data.is_unmapped_floxer && !alignment_data.is_unmapped_minimap) {
+            floxer_unmapped_minimap_mapped_floxer_longest_indel_sum += alignment_data.floxer_longest_indel;
+            floxer_unmapped_minimap_mapped_minimap_longest_indel_sum += alignment_data.minimap_longest_indel;
+
             if (alignment_data.is_non_linear_minimap) {
                 ++num_floxer_unmapped_minimap_non_linear_mapped;
             } else {
@@ -218,9 +233,15 @@ int main(int argc, char** argv) {
                 ++num_mapped_both_minimap_linear;
             }
         }
+
+        minimap_longest_indel_sum += alignment_data.minimap_longest_indel;
+        floxer_longest_indel_sum  += alignment_data.floxer_longest_indel;
     }
 
     double const num_queries_d = static_cast<double>(num_queries);
+    double const num_floxer_unmapped_minimap_mapped_d = static_cast<double>(
+        num_floxer_unmapped_minimap_linear_mapped + num_floxer_unmapped_minimap_non_linear_mapped
+    );
 
     spdlog::info("Number of queries: {} ({:.2f}%)", num_queries, num_queries / num_queries_d);
     spdlog::info("Floxer unmapped queries: {} ({:.2f}%)", num_unmapped_floxer, num_unmapped_floxer / num_queries_d);
@@ -255,6 +276,16 @@ int main(int argc, char** argv) {
         "Both mapped, minimap non-linear: {} ({:.2f}%)",
         num_mapped_both_minimap_non_linear,
         num_mapped_both_minimap_non_linear / num_queries_d
+    );
+    spdlog::info("floxer average longest indel: {:.2f}", floxer_longest_indel_sum / num_queries_d);
+    spdlog::info("minimap average longest indel: {:.2f}", minimap_longest_indel_sum / num_queries_d);
+    spdlog::info(
+        "floxer average longest indel (floxer unmapped, minimap mapped): {:.2f}",
+        floxer_longest_indel_sum / num_floxer_unmapped_minimap_mapped_d
+    );
+    spdlog::info(
+        "minimap average longest indel (floxer unmapped, minimap mapped): {:.2f}",
+        minimap_longest_indel_sum / num_floxer_unmapped_minimap_mapped_d
     );
 
     return 0;
