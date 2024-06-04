@@ -59,15 +59,28 @@ void read_alignments(
             if (is_floxer) {
                 spdlog::warn("Unexpected non-linear floxer alignment");
             }
+            // is chimeric
             alignment_data.is_non_linear_minimap = true;
         }
         if (!is_floxer) {
             try {
                 if (record.tags().get<"tp"_tag>() == 'I') {
+                    // is inversion
                     alignment_data.is_non_linear_minimap = true;
                 }
             } catch (std::out_of_range& exc) {
                 // nothing to be done if the tag is not there
+            }
+        }
+
+        double const error_rate = 0.11; // TODO make CLI parameter
+        size_t const max_num_errors = record.sequence().size() * error_rate;
+        if (record.tags().get<"NM"_tag>() > max_num_errors) {
+            if (is_floxer) {
+                spdlog::warn("Unexpected floxer alignment with large number of errors.");
+            } else {
+                // assume this has long indel due to high edit error rate. TODO: look at CIGAR more closely
+                alignment_data.is_non_linear_minimap = true;
             }
         }
 
