@@ -127,17 +127,6 @@ int main(int argc, char** argv) {
     pex::pex_tree_cache pex_tree_cache;
     search::search_scheme_cache search_scheme_cache;
 
-    alignment::set_alignment_backend_global(
-        cli_input.use_wfa2_aligner_backend() ?
-            alignment::alignment_backend::wfa2 :
-            alignment::alignment_backend::seqan3
-    );
-    // when OpenMP is active, this aligner object is never used.
-    // instead, every thread default constructs a new aligner (which we want).
-    // hence, an idle default constructed aligner should not use too much space
-    // and I think it doesn't (memory usage 0 according to wfa2 align_status API)
-    alignment::aligner aligner;
-
     // setup for workaround for handling errors in threads
     std::atomic_bool threads_should_stop = false;
     std::vector<std::exception_ptr> exceptions{};
@@ -168,7 +157,7 @@ int main(int argc, char** argv) {
     #pragma omp parallel for \
         num_threads(cli_input.num_threads()) \
         default(none) \
-        private(pex_tree_cache, search_scheme_cache, aligner) \
+        private(pex_tree_cache, search_scheme_cache) \
         shared(queries, cli_input, references, index, alignment_output, \
             aligning_stopwatch, exceptions, threads_should_stop) \
         schedule(dynamic) \
@@ -245,7 +234,6 @@ int main(int argc, char** argv) {
                 cli_input.use_interval_optimization() ?
                     intervals::use_interval_optimization::on :
                     intervals::use_interval_optimization::off,
-                aligner,
                 stats
             );
 

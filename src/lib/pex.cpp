@@ -289,7 +289,6 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
     std::span<const uint8_t> const query,
     search::searcher const& searcher,
     intervals::use_interval_optimization const use_interval_optimization,
-    alignment::aligner& aligner,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto alignments = alignment::query_alignments(references.size());
@@ -301,7 +300,6 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         alignment::query_orientation::forward,
         searcher,
         use_interval_optimization,
-        aligner,
         stats
     );
 
@@ -315,7 +313,6 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         alignment::query_orientation::reverse_complement,
         searcher,
         use_interval_optimization,
-        aligner,
         stats
     );
 
@@ -337,7 +334,6 @@ void pex_tree::align_query_in_given_orientation(
     alignment::query_orientation const orientation,
     search::searcher const& searcher,
     intervals::use_interval_optimization const use_interval_optimization,
-    alignment::aligner& aligner,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
@@ -367,7 +363,6 @@ void pex_tree::align_query_in_given_orientation(
                     orientation,
                     references[reference_id],
                     already_verified_intervals_per_reference[reference_id],
-                    aligner,
                     alignments,
                     stats
                 );
@@ -383,7 +378,6 @@ void pex_tree::hierarchical_verification(
     alignment::query_orientation const orientation,
     input::reference_record const& reference,
     intervals::verified_intervals& already_verified_intervals,
-    alignment::aligner& aligner,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 ) const {
@@ -417,7 +411,6 @@ void pex_tree::hierarchical_verification(
             root_reference_span_config,
             query,
             orientation,
-            aligner,
             alignments,
             stats
         );
@@ -455,7 +448,6 @@ void pex_tree::hierarchical_verification(
                 reference_span_config,
                 query,
                 orientation,
-                aligner,
                 alignments,
                 stats
             );
@@ -512,7 +504,6 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    alignment::aligner& aligner,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 ) {
@@ -535,7 +526,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
             alignment::alignment_mode::only_verify_existance
     };
 
-    auto const alignment_result = aligner.align(
+    auto const alignment_result = alignment::align(
         reference_subspan,
         this_node_query_span,
         config

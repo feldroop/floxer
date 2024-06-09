@@ -59,7 +59,6 @@ public:
         std::span<const uint8_t> const query,
         search::searcher const& searcher,
         intervals::use_interval_optimization const use_interval_optimization,
-        alignment::aligner& aligner,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
@@ -102,7 +101,6 @@ private:
         alignment::query_orientation const orientation,
         search::searcher const& searcher,
         intervals::use_interval_optimization const use_interval_optimization,
-        alignment::aligner& aligner,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
@@ -113,7 +111,6 @@ private:
         alignment::query_orientation const orientation,
         input::reference_record const& reference,
         intervals::verified_intervals& already_verified_intervals,
-        alignment::aligner& aligner,
         alignment::query_alignments& alignments,
         statistics::search_and_alignment_statistics& stats
     ) const;
@@ -162,7 +159,6 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    alignment::aligner& aligner,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 );

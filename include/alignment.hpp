@@ -9,12 +9,6 @@
 
 #include <seqan3/alphabet/cigar/cigar.hpp>
 
-// use the C API and not the C++ bindings of WFA2, because the C++ bindings
-// don't allow retrieving the start offset of the alignment
-extern "C" {
-#include <wavefront/wavefront_align.h>
-}
-
 namespace alignment {
 
 enum class query_orientation {
@@ -50,12 +44,6 @@ public:
     size_t size() const;
 };
 
-enum class alignment_backend {
-    seqan3, wfa2
-};
-
-void set_alignment_backend_global(alignment_backend const backend);
-
 enum class alignment_mode {
     only_verify_existance, verify_and_return_alignment
 };
@@ -76,56 +64,10 @@ struct alignment_result {
     std::optional<query_alignment> alignment = std::nullopt;
 };
 
-class aligner {
-public:
-    aligner();
-
-    ~aligner();
-
-    alignment_result align(
-        std::span<const uint8_t> const reference,
-        std::span<const uint8_t> const query,
-        alignment_config const& config
-    );
-
-    size_t current_memory_usage() const;
-
-private:
-    void setup_for_wfa2();
-
-    alignment_result align_seqan3(
-        std::span<const uint8_t> const reference,
-        std::span<const uint8_t> const query,
-        alignment_config const& config
-    );
-
-    alignment_result align_wfa2(
-        std::span<const uint8_t> const reference,
-        std::span<const uint8_t> const query,
-        alignment_config const& config
-    );
-
-    alignment_backend const backend;
-
-    // only for wfa2 backend
-    wavefront_aligner_t* wf_aligner_only_score = nullptr;
-    wavefront_aligner_t* wf_aligner_full_alignment = nullptr;
-
-    std::string wfa2_cigar_conversion_buffer{};
-};
-
-namespace internal {
-
-struct cigar_trim_result {
-    std::string_view const cigar;
-    size_t const num_trimmed_start = 0;
-};
-
-void handle_wfa2_status(const wavefront_align_status_t* const status);
-
-// takes a valid SAM format CIGAR string and trims delete operations form the front and back
-cigar_trim_result trim_wfa2_cigar(std::string_view wfa2_cigar);
-
-} // namespace internal
+alignment_result align(
+    std::span<const uint8_t> const reference,
+    std::span<const uint8_t> const query,
+    alignment_config const& config
+);
 
 } // namespace verification
