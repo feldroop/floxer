@@ -1,7 +1,5 @@
 #pragma once
 
-#include <alignment.hpp>
-
 #include <cstddef>
 #include <optional>
 #include <set>
@@ -38,29 +36,23 @@ enum use_interval_optimization {
     on, off
 };
 
-// important invariants: both of the interval sets store only disjoint intervals
+// important invariants: this set stores only disjoint intervals
 class verified_intervals {
 public:
     verified_intervals(use_interval_optimization const activity_status);
 
     using intervals_t = std::set<half_open_interval>;
 
-    void insert(half_open_interval const new_interval, alignment::alignment_outcome const outcome);
+    void insert(half_open_interval const new_interval);
 
-    // std::nullopt if it's not contained
-    std::optional<alignment::alignment_outcome> contains(half_open_interval const target_interval) const;
+    bool contains(half_open_interval const target_interval) const;
 
     size_t size() const;
 
 private:
-    void given_set_insert(half_open_interval const new_interval, intervals_t& intervals);
-
-    bool given_set_contains(half_open_interval const target_interval, intervals_t const& intervals) const;
-
     use_interval_optimization const activity_status;
 
-    intervals_t intervals_with_alignment{};
-    intervals_t intervals_without_alignment{};
+    std::set<half_open_interval> intervals{};
 };
 
 } // namespace intervals

@@ -58,39 +58,7 @@ auto operator<(half_open_interval const& interval1, half_open_interval const& in
 verified_intervals::verified_intervals(use_interval_optimization const activity_status_)
     : activity_status{activity_status_} {}
 
-void verified_intervals::insert(half_open_interval const new_interval, alignment::alignment_outcome const outcome) {
-    if (activity_status == use_interval_optimization::off) {
-        return;
-    }
-
-    switch (outcome) {
-        case alignment::alignment_outcome::alignment_exists:
-            given_set_insert(new_interval, intervals_with_alignment);
-            return;
-        case alignment::alignment_outcome::no_adequate_alignment_exists:
-            given_set_insert(new_interval, intervals_without_alignment);
-            return;
-        default:
-            throw std::runtime_error("(should be unreachable) internal bug in interval set");
-    }
-}
-
-std::optional<alignment::alignment_outcome> verified_intervals::contains(half_open_interval const target_interval) const {
-    if (activity_status == use_interval_optimization::off) {
-        return std::nullopt;
-    }
-
-    // it is important that we ask first for the alignment_exists case, because it should override the other case
-    if (given_set_contains(target_interval, intervals_with_alignment)) {
-        return alignment::alignment_outcome::alignment_exists;
-    } else if (given_set_contains(target_interval, intervals_without_alignment)) {
-        return alignment::alignment_outcome::no_adequate_alignment_exists;
-    } else {
-        return std::nullopt;
-    }
-}
-
-void verified_intervals::given_set_insert(half_open_interval const new_interval, verified_intervals::intervals_t& intervals) {
+void verified_intervals::insert(half_open_interval const new_interval) {
     if (intervals.empty()) {
         intervals.insert(new_interval);
         return;
@@ -156,9 +124,8 @@ void verified_intervals::given_set_insert(half_open_interval const new_interval,
     intervals.insert(interval_to_insert);
 }
 
-bool verified_intervals::given_set_contains(
-    half_open_interval const target_interval,
-    verified_intervals::intervals_t const& intervals
+bool verified_intervals::contains(
+    half_open_interval const target_interval
 ) const {
     // first interval that has an end position NOT BELOW target_interval.end
     auto const existing_interval_iter = intervals.lower_bound(target_interval);
@@ -174,7 +141,7 @@ bool verified_intervals::given_set_contains(
 }
 
 size_t verified_intervals::size() const {
-    return intervals_with_alignment.size() + intervals_without_alignment.size();
+    return intervals.size();
 }
 
 } // namespace intervals
