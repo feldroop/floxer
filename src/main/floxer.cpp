@@ -179,6 +179,14 @@ int main(int argc, char** argv) {
             auto const& query = queries.records[query_index];
             size_t const query_num_errors = query.num_errors_from_user_config(cli_input);
 
+            if (query.rank_sequence.size() > 100'000) {
+                spdlog::debug(
+                    "({}/{}) skipping too large query: {}",
+                    query_index, queries.records.size(), query.id
+                );
+                continue;
+            }
+
             stats.add_query_length(query.rank_sequence.size());
 
             // two cases that likely don't occur in practice where the errors are configured in a way such that the
