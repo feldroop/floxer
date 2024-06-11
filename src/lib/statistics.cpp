@@ -158,6 +158,10 @@ void search_and_alignment_statistics::add_num_anchors_per_seed(size_t const valu
     insert_value_to(anchors_per_seed_name, value);
 }
 
+void search_and_alignment_statistics::add_num_kept_anchors_per_partly_excluded_seed(size_t const value) {
+    insert_value_to(kept_anchors_per_partly_excluded_seed_name, value);
+}
+
 void search_and_alignment_statistics::add_num_raw_anchors_per_excluded_seed(size_t const value) {
     insert_value_to(raw_anchors_per_excluded_seed_name, value);
 }
@@ -202,13 +206,24 @@ void search_and_alignment_statistics::add_statistics_for_search_result(
     bool all_excluded = true;
 
     for (auto const& anchors_of_seed : search_result.anchors_by_seed) {
-        if (anchors_of_seed.excluded) {
-            add_num_raw_anchors_per_excluded_seed(anchors_of_seed.num_anchors);
-            num_excluded_anchors_of_whole_query += anchors_of_seed.num_anchors;
-        } else {
-            add_num_anchors_per_seed(anchors_of_seed.num_anchors);
-            num_anchors_of_whole_query += anchors_of_seed.num_anchors;
-            all_excluded = false;
+        switch (anchors_of_seed.status) {
+            case search::seed_status::fully_excluded :
+                add_num_raw_anchors_per_excluded_seed(anchors_of_seed.num_excluded_raw_anchors);
+                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
+                break;
+            case search::seed_status::partly_excluded :
+                add_num_kept_anchors_per_partly_excluded_seed(anchors_of_seed.num_kept_useful_anchors);
+                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
+                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
+                all_excluded = false;
+                break;
+            case search::seed_status::not_excluded :
+                add_num_anchors_per_seed(anchors_of_seed.num_kept_useful_anchors);
+                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
+                all_excluded = false;
+                break;
+            default:
+                throw std::runtime_error("(should be unreachable) internal bug in statistics gathering");
         }
     }
 

@@ -51,7 +51,7 @@ search_result searcher::search_seeds(
     std::vector<seed> const& seeds
 ) const {
     std::vector<search_result::anchors_of_seed> anchors_by_seed{};
-    size_t num_excluded_seeds = 0;
+    size_t num_fully_excluded_seeds = 0;
 
     auto const seeds_span = std::span(seeds);
 
@@ -66,42 +66,62 @@ search_result searcher::search_seeds(
         auto const seed_single_span = seeds_span.subspan(seed_id, 1)
             | std::views::transform(&search::seed::sequence);
 
-        size_t num_raw_anchors = 0;
-        std::vector<internal::fmindex_search_return> fmindex_search_returns{};
+        cursors_t cursors(config);
 
-        // if the preorder function inside fmindex search occurs in any profile, we can optimize it away
         fmindex_collection::search_ng21::search(
             index,
             seed_single_span,
             search_scheme,
-            [&fmindex_search_returns, &num_raw_anchors]
+            [&cursors]
             ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
-                num_raw_anchors += cursor.count();
-                fmindex_search_returns.emplace_back(internal::fmindex_search_return{
-                    .cursor = cursor,
-                    .num_errors = errors
-                });
-                // as a possible hack: could throw here to stop the search as future optimization
+                cursors.total_num_raw_anchors += cursor.count();
+
+                auto& cursors_with_given_num_errors = cursors.cursors_by_num_errors.at(errors);
+                cursors_with_given_num_errors.total_num_raw_anchors += cursor.count();
+                cursors_with_given_num_errors.cursors.emplace_back(cursor);
             }
         );
 
-        if (num_raw_anchors >= config.max_num_raw_anchors) {
+        size_t num_errors_threshold = 0; // exclude anchors with this number of errors and higher
+        size_t num_raw_anchors_below_threshold = 0;
+
+        while (num_errors_threshold <= config.max_num_errors) {
+            num_raw_anchors_below_threshold += cursors.cursors_by_num_errors.at(num_errors_threshold).total_num_raw_anchors;
+
+            if (num_raw_anchors_below_threshold >= config.max_num_raw_anchors) {
+                break;
+            }
+
+            ++num_errors_threshold;
+        }
+
+        if (num_errors_threshold == 0) {
             anchors_by_seed.emplace_back(search_result::anchors_of_seed {
-                .excluded = true,
-                .num_anchors = num_raw_anchors,
+                .status = seed_status::fully_excluded,
+                .num_kept_useful_anchors = 0,
+                .num_excluded_raw_anchors = cursors.total_num_raw_anchors,
                 .anchors_by_reference = std::vector<anchors>{}
             });
+
+            ++num_fully_excluded_seeds;
             continue;
         }
 
+        size_t num_kept_raw_anchors = 0;
+
         std::vector<anchors> anchors_by_reference(num_reference_sequences);
-        for (auto const& [cursor, num_errors] : fmindex_search_returns) {
-            for (auto const& anchor: cursor) {
-                auto const [reference_id, position] = index.locate(anchor);
-                anchors_by_reference[reference_id].emplace_back(anchor_t {
-                    .position = position,
-                    .num_errors = num_errors
-                }) ;
+        for (size_t num_errors = 0; num_errors < num_errors_threshold; ++num_errors) {
+            auto& cursors_with_given_num_errors = cursors.cursors_by_num_errors.at(num_errors);
+            num_kept_raw_anchors += cursors_with_given_num_errors.total_num_raw_anchors;
+
+            for (auto& cursor : cursors_with_given_num_errors.cursors) {
+                for (auto const& anchor: cursor) {
+                    auto const [reference_id, position] = index.locate(anchor);
+                    anchors_by_reference[reference_id].emplace_back(anchor_t {
+                        .position = position,
+                        .num_errors = num_errors
+                    });
+                }
             }
         }
 
@@ -111,18 +131,24 @@ search_result searcher::search_seeds(
             num_useful_anchors += anchors_of_seed_and_reference.size();
         }
 
+        size_t const num_excluded_raw_anchors = cursors.total_num_raw_anchors - num_kept_raw_anchors;
+
         anchors_by_seed.emplace_back(search_result::anchors_of_seed{
-            .excluded = false,
-            .num_anchors = num_useful_anchors,
+            .status = num_excluded_raw_anchors == 0 ? seed_status::not_excluded : seed_status::partly_excluded,
+            .num_kept_useful_anchors = num_useful_anchors,
+            .num_excluded_raw_anchors = num_excluded_raw_anchors,
             .anchors_by_reference = std::move(anchors_by_reference)
         });
     }
 
     return search_result {
         .anchors_by_seed = std::move(anchors_by_seed),
-        .num_excluded_seeds = num_excluded_seeds
+        .num_fully_excluded_seeds = num_fully_excluded_seeds
     };
 }
+
+cursors_t::cursors_t(search_config const& config) :
+    cursors_by_num_errors(config.max_num_errors) {}
 
 namespace internal {
 

@@ -37,22 +37,26 @@ struct search_config {
     // we actually need, because of the repetitive alignments,
     // so currently this is difficult to set right
     size_t const max_num_raw_anchors;
+
+    size_t const max_num_errors;
 };
 
+enum class seed_status {
+    fully_excluded, partly_excluded, not_excluded
+};
 
 struct search_result {
     struct anchors_of_seed {
-        bool const excluded;
-        // if excluded is true, this is the number of raw anchors
-        // otherwise it is the number of useful anchors
-        size_t const num_anchors;
+        seed_status const status;
+        size_t const num_kept_useful_anchors;
+        size_t const num_excluded_raw_anchors;
 
-        // empty if excluded
+        // empty if fully excluded
         std::vector<anchors> const anchors_by_reference;
     };
 
     std::vector<anchors_of_seed> const anchors_by_seed{};
-    size_t const num_excluded_seeds;
+    size_t const num_fully_excluded_seeds;
 };
 
 class search_scheme_cache;
@@ -80,16 +84,23 @@ private:
     std::unordered_map<std::tuple<size_t, size_t>, search_schemes::Scheme> schemes;
 };
 
+struct cursors_t {
+    struct cursors_with_given_num_errors_t {
+        std::vector<fmindex_cursor> cursors;
+        size_t total_num_raw_anchors{};
+    };
+
+    cursors_t(search_config const& config);
+
+    std::vector<cursors_with_given_num_errors_t> cursors_by_num_errors;
+    size_t total_num_raw_anchors{};
+};
+
 namespace internal {
 
 static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
 
 void erase_useless_anchors(anchors& anchors_of_seed_and_reference);
-
-struct fmindex_search_return {
-    fmindex_cursor const cursor;
-    size_t const num_errors;
-};
 
 } // namespace internal
 

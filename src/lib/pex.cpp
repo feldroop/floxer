@@ -349,7 +349,7 @@ void pex_tree::align_query_in_given_orientation(
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
         auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
 
-        if (anchors_of_seed.excluded) {
+        if (anchors_of_seed.status == search::seed_status::fully_excluded) {
             continue;
         }
 

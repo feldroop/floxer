@@ -220,7 +220,8 @@ int main(int argc, char** argv) {
                 .num_reference_sequences = references.records.size(),
                 .scheme_cache = search_scheme_cache,
                 .config = search::search_config{
-                    .max_num_raw_anchors = cli_input.max_num_raw_anchors()
+                    .max_num_raw_anchors = cli_input.max_num_raw_anchors(),
+                    .max_num_errors = cli_input.pex_seed_num_errors()
                 }
             };
 
