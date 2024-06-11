@@ -87,10 +87,13 @@ alignment_result align(
         };
     }
 
+    if (reference.size() <= query.size()) {
+        spdlog::warn("Reference of size {} is smaller than query of size {}. Offset: {}", reference.size(), query.size(), config.reference_span_offset);
+    }
+
     // TODO: this seems to be not corrrect, the actual memory usage is much smaller
     size_t const estimated_matrix_size = reference.size() *
         (2 * config.num_allowed_errors + (reference.size() - query.size())); // <- band size
-
     if (estimated_matrix_size > very_large_memory_usage) {
         spdlog::warn("Large seqan3 alignment matrix of estimated size {}", estimated_matrix_size);
     }
