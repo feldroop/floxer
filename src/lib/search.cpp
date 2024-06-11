@@ -148,7 +148,7 @@ search_result searcher::search_seeds(
 }
 
 cursors_t::cursors_t(search_config const& config) :
-    cursors_by_num_errors(config.max_num_errors) {}
+    cursors_by_num_errors(config.max_num_errors + 1) {}
 
 namespace internal {
 
