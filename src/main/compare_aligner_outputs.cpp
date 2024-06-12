@@ -81,7 +81,21 @@ void read_alignments(
 
         size_t cigar_length = 0;
         for (auto const [count, operation] : record.cigar_sequence()) {
-            cigar_length += count;
+            if (
+                operation == 'I'_cigar_operation || operation == 'M'_cigar_operation ||
+                operation == '='_cigar_operation || operation == 'X'_cigar_operation
+            ) {
+                cigar_length += count;
+            } else if (operation == 'D'_cigar_operation) {
+                cigar_length -= count;
+            } else {
+                spdlog::warn(
+                    "Unexpected cigar character in {} alignment of query {}: {}",
+                    is_floxer ? "floxer" : "minimap",
+                    record.id(),
+                    operation.to_char()
+                );
+            }
 
             if (operation == 'I'_cigar_operation || operation == 'D'_cigar_operation) {
                 if (is_floxer) {
