@@ -75,7 +75,7 @@ void read_alignments(
             if (alignment_data.sequence.has_value()) {
                 if (
                     alignment_data.sequence.value() != record.sequence() &&
-                    alignment_data.sequence.value() != (record.sequence() | std::views::reverse | seqan3::views::complement)
+                    !std::ranges::equal(alignment_data.sequence.value(), (record.sequence() | std::views::reverse | seqan3::views::complement))
                 ) {
                     spdlog::warn(
                         "Observed different sequences for query {}. New one is by {}. Old length: {}, new length: {}",
