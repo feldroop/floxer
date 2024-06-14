@@ -73,7 +73,11 @@ void read_alignments(
             if (alignment_data.sequence.has_value()) {
                 if (alignment_data.sequence.value() != record.sequence()) {
                     spdlog::warn(
-                        "Observed different sequences for query {}.", record.id()
+                        "Observed different sequences for query {}. New one is by {}. Old length: {}, new length: {}",
+                        record.id(),
+                        is_floxer ? "floxer" : "minimap",
+                        record.sequence().size(),
+                        alignment_data.sequence.value().size()
                     );
                 }
             } else {
