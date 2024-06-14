@@ -79,6 +79,17 @@ void read_alignments(
                         record.sequence().size(),
                         alignment_data.sequence.value().size()
                     );
+
+                    size_t const min_length = std::min(record.sequence().size(), alignment_data.sequence.value().size());
+                    for (size_t i = 0; i < min_length; ++i) {
+                        if (record.sequence()[i] != alignment_data.sequence.value()[i]) {
+                            for (size_t j = i; j < std::min(min_length, i+8); ++j) {
+                                seqan3::debug_stream << record.sequence()[j] << alignment_data.sequence.value()[j] << '|';
+                            }
+                            seqan3::debug_stream << '\n';
+                            break;
+                        }
+                    }
                 }
             } else {
                 alignment_data.sequence = record.sequence();
