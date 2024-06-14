@@ -128,10 +128,11 @@ void read_alignments(
                 cigar_length += count;
             } else if (operation != 'D'_cigar_operation) {
                 spdlog::warn(
-                    "Unexpected cigar character in {} alignment of query {}: {}",
+                    "Unexpected cigar character in {} alignment of query {}: {}, count {}",
                     is_floxer ? "floxer" : "minimap",
                     record.id(),
-                    operation.to_char()
+                    operation.to_char(),
+                    count
                 );
 
                 // this is unexpected, but does consume query
