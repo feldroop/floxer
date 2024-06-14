@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <optional>
+#include <ranges>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
+#include <seqan3/alphabet/views/complement.hpp>
 #include <seqan3/alphabet/cigar/cigar.hpp>
 #include <seqan3/core/debug_stream.hpp>
 #include <seqan3/io/sam_file/input.hpp>
@@ -71,25 +73,17 @@ void read_alignments(
 
         if (!record.sequence().empty()) {
             if (alignment_data.sequence.has_value()) {
-                if (alignment_data.sequence.value() != record.sequence()) {
+                if (
+                    alignment_data.sequence.value() != record.sequence() &&
+                    alignment_data.sequence.value() != (record.sequence() | std::views::reverse | seqan3::views::complement)
+                ) {
                     spdlog::warn(
                         "Observed different sequences for query {}. New one is by {}. Old length: {}, new length: {}",
                         record.id(),
                         is_floxer ? "floxer" : "minimap",
-                        record.sequence().size(),
-                        alignment_data.sequence.value().size()
+                        alignment_data.sequence.value().size(),
+                        record.sequence().size()
                     );
-
-                    size_t const min_length = std::min(record.sequence().size(), alignment_data.sequence.value().size());
-                    for (size_t i = 0; i < min_length; ++i) {
-                        if (record.sequence()[i] != alignment_data.sequence.value()[i]) {
-                            for (size_t j = i; j < std::min(min_length, i+8); ++j) {
-                                seqan3::debug_stream << record.sequence()[j] << alignment_data.sequence.value()[j] << '|';
-                            }
-                            seqan3::debug_stream << '\n';
-                            break;
-                        }
-                    }
                 }
             } else {
                 alignment_data.sequence = record.sequence();
