@@ -1,13 +1,16 @@
 #include <about_floxer.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
 #include <seqan3/alphabet/cigar/cigar.hpp>
+#include <seqan3/core/debug_stream.hpp>
 #include <seqan3/io/sam_file/input.hpp>
 #include <seqan3/io/sam_file/sam_tag_dictionary.hpp>
+
 #include <sharg/all.hpp>
 #include <spdlog/spdlog.h>
 
@@ -20,10 +23,14 @@ struct seqan3::sam_tag_type<"tp"_tag> {
 };
 
 struct alignment_data_t {
+    std::optional<seqan3::dna5_vector> sequence = std::nullopt;
+    std::optional<size_t> cigar_length = std::nullopt;
+
     bool is_unmapped_floxer{true};
     bool is_unmapped_minimap{true};
 
-    bool is_non_linear_minimap{false};
+    bool has_high_edit_distance_minimap{false};
+    bool is_chimeric_or_inversion_minimap{false};
 
     bool mentioned_by_floxer{false};
     bool mentioned_by_minimap{false};
@@ -31,6 +38,18 @@ struct alignment_data_t {
     size_t minimap_longest_indel{0};
     size_t floxer_longest_indel{0};
 };
+
+size_t get_max_num_errors(size_t const sequence_length, double const error_rate) {
+    double const num_errors_frac = sequence_length * error_rate;
+
+    // handle floating point inaccuracy
+    static constexpr double epsilon = 0.000000001;
+    if (std::abs(num_errors_frac - std::round(num_errors_frac)) < epsilon) {
+        return static_cast<size_t>(std::round(num_errors_frac) + epsilon);
+    } else {
+        return static_cast<size_t>(std::ceil(num_errors_frac));
+    }
+}
 
 void read_alignments(
     std::filesystem::path const& alignment_file_path,
@@ -50,6 +69,18 @@ void read_alignments(
 
         auto& alignment_data = iter->second;
 
+        if (!record.sequence().empty()) {
+            if (alignment_data.sequence.has_value()) {
+                if (alignment_data.sequence.value() != record.sequence()) {
+                    spdlog::warn(
+                        "Observed different sequences for query {}.", record.id()
+                    );
+                }
+            } else {
+                alignment_data.sequence = record.sequence();
+            }
+        }
+
         if (is_floxer) {
             alignment_data.mentioned_by_floxer = true;
         } else {
@@ -65,14 +96,14 @@ void read_alignments(
                 spdlog::warn("Unexpected non-linear floxer alignment");
             }
             // is chimeric
-            alignment_data.is_non_linear_minimap = true;
+            alignment_data.is_chimeric_or_inversion_minimap = true;
         }
 
         if (!is_floxer) {
             try {
                 if (record.tags().get<"tp"_tag>() == 'I') {
                     // is inversion
-                    alignment_data.is_non_linear_minimap = true;
+                    alignment_data.is_chimeric_or_inversion_minimap = true;
                 }
             } catch (std::out_of_range& exc) {
                 // nothing to be done if the tag is not there
@@ -86,15 +117,18 @@ void read_alignments(
                 operation == '='_cigar_operation || operation == 'X'_cigar_operation
             ) {
                 cigar_length += count;
-            } else if (operation == 'D'_cigar_operation) {
-                cigar_length -= count;
-            } else {
+            } else if (operation != 'D'_cigar_operation) {
                 spdlog::warn(
                     "Unexpected cigar character in {} alignment of query {}: {}",
                     is_floxer ? "floxer" : "minimap",
                     record.id(),
                     operation.to_char()
                 );
+
+                // this is unexpected, but does consume query
+                if (operation == 'S'_cigar_operation) {
+                    cigar_length += count;
+                }
             }
 
             if (operation == 'I'_cigar_operation || operation == 'D'_cigar_operation) {
@@ -106,7 +140,21 @@ void read_alignments(
             }
         }
 
-        size_t const max_num_errors = cigar_length * error_rate + 1;
+        if (alignment_data.cigar_length.has_value()) {
+            if (!alignment_data.is_chimeric_or_inversion_minimap) {
+                if (cigar_length != alignment_data.cigar_length.value()) {
+                    spdlog::warn(
+                        "For query {}: {} alignment has different cigar length than previous one.",
+                        record.id(),
+                        is_floxer ? "floxer" : "minimap"
+                    );
+                }
+            }
+        } else {
+            alignment_data.cigar_length = cigar_length;
+        }
+
+        size_t const max_num_errors = get_max_num_errors(cigar_length, error_rate);
         if (record.tags().get<"NM"_tag>() > static_cast<int>(max_num_errors)) {
             if (is_floxer) {
                 spdlog::warn(
@@ -116,7 +164,7 @@ void read_alignments(
                     record.tags().get<"NM"_tag>()
                 );
             } else {
-                alignment_data.is_non_linear_minimap = true;
+                alignment_data.has_high_edit_distance_minimap = true;
             }
         }
 
@@ -186,11 +234,15 @@ int main(int argc, char** argv) {
     size_t num_unmapped_minimap = 0;
 
     size_t num_non_linear_minimap = 0;
+    size_t num_chimeric_minimap = 0;
+    size_t num_high_edit_distance_minimap = 0;
 
     size_t num_unmapped_both = 0;
     size_t num_minimap_unmapped_floxer_mapped = 0;
     size_t num_floxer_unmapped_minimap_linear_mapped = 0;
     size_t num_floxer_unmapped_minimap_non_linear_mapped = 0;
+    size_t num_floxer_unmapped_minimap_chimeric_mapped = 0;
+    size_t num_floxer_unmapped_minimap_high_edit_distance_mapped = 0;
     size_t num_mapped_both_minimap_linear = 0;
     size_t num_mapped_both_minimap_non_linear = 0;
 
@@ -208,6 +260,18 @@ int main(int argc, char** argv) {
             spdlog::warn("Query {} not mentioned by minimap", query_id);
         }
 
+        if (
+            (!alignment_data.is_unmapped_floxer || !alignment_data.is_unmapped_minimap) &&
+            alignment_data.sequence.value().size() != alignment_data.cigar_length.value()
+        ) {
+            spdlog::warn(
+                "Query {} differing cigar length ({}) and sequence size ({})",
+                query_id,
+                alignment_data.cigar_length.value(),
+                alignment_data.sequence.value().size()
+            );
+        }
+
         if (alignment_data.is_unmapped_floxer) {
             ++num_unmapped_floxer;
         }
@@ -216,8 +280,12 @@ int main(int argc, char** argv) {
             ++num_unmapped_minimap;
         }
 
-        if (alignment_data.is_non_linear_minimap) {
-            ++num_non_linear_minimap;
+        if (alignment_data.is_chimeric_or_inversion_minimap) {
+            ++num_chimeric_minimap;
+        }
+
+        if (alignment_data.has_high_edit_distance_minimap) {
+            ++num_high_edit_distance_minimap;
         }
 
         if (alignment_data.is_unmapped_floxer && alignment_data.is_unmapped_minimap) {
@@ -231,15 +299,19 @@ int main(int argc, char** argv) {
         if (alignment_data.is_unmapped_floxer && !alignment_data.is_unmapped_minimap) {
             floxer_unmapped_minimap_mapped_minimap_longest_indel_sum += alignment_data.minimap_longest_indel;
 
-            if (alignment_data.is_non_linear_minimap) {
+            if (alignment_data.is_chimeric_or_inversion_minimap) {
                 ++num_floxer_unmapped_minimap_non_linear_mapped;
+                ++num_floxer_unmapped_minimap_chimeric_mapped;
+            } else if (alignment_data.has_high_edit_distance_minimap) {
+                ++num_floxer_unmapped_minimap_non_linear_mapped;
+                ++num_floxer_unmapped_minimap_high_edit_distance_mapped;
             } else {
                 ++num_floxer_unmapped_minimap_linear_mapped;
             }
         }
 
         if (!alignment_data.is_unmapped_floxer && !alignment_data.is_unmapped_minimap) {
-            if (alignment_data.is_non_linear_minimap) {
+            if (alignment_data.is_chimeric_or_inversion_minimap || alignment_data.has_high_edit_distance_minimap) {
                 ++num_mapped_both_minimap_non_linear;
             } else {
                 ++num_mapped_both_minimap_linear;
@@ -263,6 +335,16 @@ int main(int argc, char** argv) {
         num_non_linear_minimap,
         num_non_linear_minimap / num_queries_d
     );
+    spdlog::info(
+        "Minimap chimeric or inversion mapped queries: {} ({:.2f})",
+        num_chimeric_minimap,
+        num_chimeric_minimap / num_queries_d
+    );
+    spdlog::info(
+        "Minimap high edit distance mapped queries: {} ({:.2f})",
+        num_high_edit_distance_minimap,
+        num_high_edit_distance_minimap / num_queries_d
+    );
     spdlog::info("Both unmapped: {} ({:.2f})", num_unmapped_both, num_unmapped_both / num_queries_d);
     spdlog::info(
         "Floxer mapped, minimap unmapped: {} ({:.2f})",
@@ -278,6 +360,16 @@ int main(int argc, char** argv) {
         "Floxer unmapped, minimap non-linear mapped: {} ({:.2f})",
         num_floxer_unmapped_minimap_non_linear_mapped,
         num_floxer_unmapped_minimap_non_linear_mapped / num_queries_d
+    );
+    spdlog::info(
+        "Floxer unmapped, minimap chimeric or inversion mapped: {} ({:.2f})",
+        num_floxer_unmapped_minimap_chimeric_mapped,
+        num_floxer_unmapped_minimap_chimeric_mapped / num_queries_d
+    );
+    spdlog::info(
+        "Floxer unmapped, minimap high edit distance mapped: {} ({:.2f})",
+        num_floxer_unmapped_minimap_high_edit_distance_mapped,
+        num_floxer_unmapped_minimap_high_edit_distance_mapped / num_queries_d
     );
     spdlog::info(
         "Both mapped, minimap linear: {} ({:.2f})",
