@@ -84,10 +84,11 @@ struct alignment_data_for_query_t {
 
     std::vector<alignment_record_t> supplementary_alignments{};
 
+    // secondary alignments could actually also be representative of secondary chimeric alignment (and thus not really linear)
     std::vector<alignment_record_t> secondary_linear_alignments{};
     std::vector<alignment_record_t> secondary_linear_high_edit_distance_alignments{};
     std::vector<alignment_record_t> secondary_inverted_alignments{};
-    // std::vector<alignment_record_t> secondary_supplementary_alignments{};
+    std::vector<alignment_record_t> secondary_supplementary_alignments{};
 
     size_t longest_indel{0};
 
@@ -131,11 +132,11 @@ struct alignment_data_for_query_t {
             }
         });
 
-        if (
-            !supplementary_alignments.empty() &&
-            (!secondary_linear_alignments.empty() || !secondary_linear_high_edit_distance_alignments.empty())
-        ) {
-            spdlog::warn("Unexpected {} chimeric alignment with secondary alignments of query {}.", aligner_name, query_id);
+        if (!secondary_supplementary_alignments.empty() && !is_multiple_mapping()) {
+            spdlog::warn(
+                "Unexpected {} secondary supplementary alignment without multiple mapping for query {}.",
+                aligner_name, query_id
+            );
         }
     }
 
@@ -170,7 +171,7 @@ struct alignment_data_for_query_t {
             );
     }
 
-    bool is_chimeric() const {
+    bool is_primary_chimeric() const {
         return !supplementary_alignments.empty();
     }
 
@@ -401,7 +402,7 @@ void read_alignments(
 
         if (static_cast<bool>(record.flag() & seqan3::sam_flag::supplementary_alignment)) {
             if (static_cast<bool>(record.flag() & seqan3::sam_flag::secondary_alignment)) {
-                spdlog::warn("Unexpected secondary and supplementary {} alignment", is_floxer ? "floxer" : "minimap");
+                alignment_data.secondary_supplementary_alignments.emplace_back(extracted_record);
             }
 
             alignment_data.supplementary_alignments.emplace_back(extracted_record);
@@ -495,7 +496,7 @@ template<typename V>
 concept alignment_data_view = std::ranges::view<V> &&
     std::same_as<std::ranges::range_value_t<V>, alignment_data_for_query_t>;
 
-void print_alignment_characteristics(
+void print_alignment_statistics(
     std::string_view const title,
     size_t const num_queries,
     double const floxer_allowed_error_rate,
@@ -515,7 +516,7 @@ void print_alignment_characteristics(
     size_t num_subset_queries = 0;
 
     for (auto const& alignment_data : alignments) {
-        if (alignment_data.is_chimeric()) {
+        if (alignment_data.is_primary_chimeric()) {
             ++num_chimeric;
         }
 
@@ -622,7 +623,7 @@ int main(int argc, char** argv) {
 
     size_t const num_queries = query_data_by_query_id.size();
 
-    print_alignment_characteristics(
+    print_alignment_statistics(
         "floxer mapped (floxer)",
         num_queries,
         error_rate,
@@ -633,7 +634,7 @@ int main(int argc, char** argv) {
             }) |
             std::views::transform(&query_data_t::floxer_alignments)
     );
-    print_alignment_characteristics(
+    print_alignment_statistics(
         "minimap mapped (minimap)",
         num_queries,
         error_rate,
@@ -644,7 +645,7 @@ int main(int argc, char** argv) {
             }) |
             std::views::transform(&query_data_t::minimap_alignments)
     );
-    print_alignment_characteristics(
+    print_alignment_statistics(
         "both mapped (minimap)",
         num_queries,
         error_rate,
@@ -655,7 +656,7 @@ int main(int argc, char** argv) {
             }) |
             std::views::transform(&query_data_t::minimap_alignments)
     );
-    print_alignment_characteristics(
+    print_alignment_statistics(
         "floxer unmapped, minimap mapped (minimap)",
         num_queries,
         error_rate,
