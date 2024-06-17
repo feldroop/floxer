@@ -180,6 +180,12 @@ struct alignment_data_for_query_t {
         }
     }
 
+    std::optional<double> primary_error_rate() const {
+        return primary_alignment.has_value() ?
+            std::make_optional(primary_alignment.value().edit_distance_error_rate) :
+            std::nullopt;
+    }
+
     bool is_multiple_mapping() const {
         return is_mapped &&
             (
@@ -539,23 +545,27 @@ void print_alignment_statistics(
 ) {
     spdlog::info("---------- {} alignment statistics ----------", title);
 
-    size_t num_chimeric = 0;
+    size_t num_primary_chimeric = 0;
     size_t num_primary_basic = 0;
     size_t num_primary_linear_clipped = 0;
     size_t num_primary_high_edit_distance = 0;
     size_t num_primary_inversion = 0;
+
     size_t num_multiple_mapping = 0;
     size_t num_primary_not_basic_and_secondary_basic = 0;
+
     size_t longest_indel_sum = 0;
+    double primary_basic_error_rate_sum = 0.0;
 
     size_t num_subset_queries = 0;
 
     for (auto const& alignment_data : alignments) {
         if (alignment_data.is_primary_chimeric()) {
-            ++num_chimeric;
+            ++num_primary_chimeric;
         }
 
         if (alignment_data.has_primary_basic(floxer_allowed_error_rate)) {
+            primary_basic_error_rate_sum += alignment_data.primary_error_rate().value();
             ++num_primary_basic;
         }
 
@@ -584,9 +594,9 @@ void print_alignment_statistics(
     }
 
     spdlog::info("Number of queries in subset: {}", num_subset_queries);
-    print_value("Primary chimeric", num_chimeric, num_subset_queries, num_queries);
+    print_value("Primary chimeric", num_primary_chimeric, num_subset_queries, num_queries);
     print_value("Primary linear not significantly clipped (basic)", num_primary_basic, num_subset_queries, num_queries);
-    print_value("Primary lineaer clipped", num_primary_linear_clipped, num_subset_queries, num_queries);
+    print_value("Primary linear clipped", num_primary_linear_clipped, num_subset_queries, num_queries);
     print_value("Primary high edit distance", num_primary_high_edit_distance, num_subset_queries, num_queries);
     print_value("Primary inversion", num_primary_inversion, num_subset_queries, num_queries);
     print_value("Multiple mapping", num_multiple_mapping, num_subset_queries, num_queries);
@@ -597,6 +607,10 @@ void print_alignment_statistics(
         num_queries
     );
     spdlog::info("average longest indel: {:.2f}", longest_indel_sum / static_cast<double>(num_subset_queries));
+    spdlog::info(
+        "average error rate of primary basic alignments: {:.2f}",
+        primary_basic_error_rate_sum / static_cast<double>(num_subset_queries)
+    );
 }
 
 int main(int argc, char** argv) {
