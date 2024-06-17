@@ -706,17 +706,6 @@ int main(int argc, char** argv) {
             std::views::transform(&query_data_t::minimap_alignments)
     );
     print_alignment_statistics(
-        "both mapped (floxer)",
-        num_queries,
-        error_rate,
-        query_data_by_query_id |
-            std::views::values |
-            std::views::filter([] (query_data_t const& query_data) {
-                return query_data.is_mapped_both();
-            }) |
-            std::views::transform(&query_data_t::floxer_alignments)
-    );
-    print_alignment_statistics(
         "floxer unmapped, minimap mapped (minimap)",
         num_queries,
         error_rate,
