@@ -76,11 +76,12 @@ struct alignment_record_t {
     }
 
     bool is_significantly_clipped(double const floxer_allowed_error_rate) const {
-        size_t const errors_left = get_max_edit_distance(
+        int64_t const errors_left = get_max_edit_distance(
             num_unclipped_query_bases_consumed_by_cigar,
             floxer_allowed_error_rate
-        ) - edit_distance;
-        return static_cast<size_t>(num_clipped_bases() * 0.75) > errors_left;
+        ) - static_cast<int64_t>(edit_distance);
+        return !is_high_edit_distance(floxer_allowed_error_rate) &&
+            static_cast<int64_t>(num_clipped_bases() * 0.75) > errors_left;
     }
 
     bool is_high_edit_distance(double const floxer_allowed_error_rate) const {
