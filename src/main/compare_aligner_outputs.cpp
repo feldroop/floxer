@@ -82,15 +82,17 @@ struct alignment_data_for_query_t {
 
     std::optional<alignment_record_t> primary_alignment{};
 
-    std::vector<alignment_record_t> linear_alignments{};
-    std::vector<alignment_record_t> linear_high_edit_distance_alignments{};
     std::vector<alignment_record_t> supplementary_alignments{};
-    std::vector<alignment_record_t> inverted_alignments{};
+
+    std::vector<alignment_record_t> secondary_linear_alignments{};
+    std::vector<alignment_record_t> secondary_linear_high_edit_distance_alignments{};
+    std::vector<alignment_record_t> secondary_inverted_alignments{};
+    // std::vector<alignment_record_t> secondary_supplementary_alignments{};
 
     size_t longest_indel{0};
 
     void check_floxer_expectations() const {
-        for ([[maybe_unused]] auto const& record : linear_high_edit_distance_alignments) {
+        for ([[maybe_unused]] auto const& record : secondary_linear_high_edit_distance_alignments) {
             spdlog::warn("Unexpected high edit distance alignment in floxer.");
         }
 
@@ -98,7 +100,7 @@ struct alignment_data_for_query_t {
             spdlog::warn("Unexpected supplementary alignment in floxer.");
         }
 
-        for ([[maybe_unused]] auto const& record : inverted_alignments) {
+        for ([[maybe_unused]] auto const& record : secondary_inverted_alignments) {
             spdlog::warn("Unexpected inverted alignment in floxer.");
         }
     }
@@ -131,7 +133,7 @@ struct alignment_data_for_query_t {
 
         if (
             !supplementary_alignments.empty() &&
-            (!linear_alignments.empty() || !linear_high_edit_distance_alignments.empty())
+            (!secondary_linear_alignments.empty() || !secondary_linear_high_edit_distance_alignments.empty())
         ) {
             spdlog::warn("Unexpected {} chimeric alignment with secondary alignments of query {}.", aligner_name, query_id);
         }
@@ -142,11 +144,11 @@ struct alignment_data_for_query_t {
             f(primary_alignment.value());
         }
 
-        for (auto const& record : linear_alignments) {
+        for (auto const& record : secondary_linear_alignments) {
             f(record);
         }
 
-        for (auto const& record : linear_high_edit_distance_alignments) {
+        for (auto const& record : secondary_linear_high_edit_distance_alignments) {
             f(record);
         }
 
@@ -154,7 +156,7 @@ struct alignment_data_for_query_t {
             f(record);
         }
 
-        for (auto const& record : inverted_alignments) {
+        for (auto const& record : secondary_inverted_alignments) {
             f(record);
         }
     }
@@ -162,9 +164,9 @@ struct alignment_data_for_query_t {
     bool is_multiple_mapping() const {
         return is_mapped &&
             (
-                !linear_alignments.empty() ||
-                !linear_high_edit_distance_alignments.empty() ||
-                !inverted_alignments.empty()
+                !secondary_linear_alignments.empty() ||
+                !secondary_linear_high_edit_distance_alignments.empty() ||
+                !secondary_inverted_alignments.empty()
             );
     }
 
@@ -195,7 +197,7 @@ struct alignment_data_for_query_t {
             return false;
         }
 
-        for (auto const& alignment_record : linear_alignments) {
+        for (auto const& alignment_record : secondary_linear_alignments) {
             if (!alignment_record.is_clipped()) {
                 return true;
             }
@@ -398,7 +400,7 @@ void read_alignments(
         }
 
         if (static_cast<bool>(record.flag() & seqan3::sam_flag::supplementary_alignment)) {
-            if (static_cast<bool>(record.flag() & seqan3::sam_flag::supplementary_alignment)) {
+            if (static_cast<bool>(record.flag() & seqan3::sam_flag::secondary_alignment)) {
                 spdlog::warn("Unexpected secondary and supplementary {} alignment", is_floxer ? "floxer" : "minimap");
             }
 
@@ -407,14 +409,14 @@ void read_alignments(
         }
 
         if (is_inversion) {
-            alignment_data.inverted_alignments.emplace_back(extracted_record);
+            alignment_data.secondary_inverted_alignments.emplace_back(extracted_record);
             continue;
         }
 
         if (extracted_record.is_high_edit_distance(floxer_allowed_error_rate)) {
-            alignment_data.linear_high_edit_distance_alignments.emplace_back(extracted_record);
+            alignment_data.secondary_linear_high_edit_distance_alignments.emplace_back(extracted_record);
         } else {
-            alignment_data.linear_alignments.emplace_back(extracted_record);
+            alignment_data.secondary_linear_alignments.emplace_back(extracted_record);
         }
     }
 }
@@ -432,7 +434,7 @@ void print_value(
     double const num_queries
 ) {
     spdlog::info(
-        "{}: {} | {:.1f} | {:.1f}",
+        "{}: {} | {:.1f}% | {:.1f}%",
         predicate_name,
         num_queries_matching_predicate,
         (num_queries_matching_predicate / num_subset_queries) * 100.0,
