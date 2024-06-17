@@ -41,6 +41,7 @@ size_t get_max_edit_distance(size_t const sequence_length, double const error_ra
 
 struct alignment_record_t {
     size_t const num_query_bases_consumed_by_cigar;
+    size_t const num_unclipped_query_bases_consumed_by_cigar;
     size_t const num_reference_bases_consumed_by_cigar;
 
     size_t const num_soft_clipped_bases;
@@ -70,6 +71,18 @@ struct alignment_record_t {
         return is_soft_clipped() || is_hard_clipped();
     }
 
+    size_t num_clipped_bases() const {
+        return num_soft_clipped_bases + num_hard_clipped_bases;
+    }
+
+    bool is_significantly_clipped(double const floxer_allowed_error_rate) const {
+        size_t const errors_left = get_max_edit_distance(
+            num_unclipped_query_bases_consumed_by_cigar,
+            floxer_allowed_error_rate
+        ) - edit_distance;
+        return static_cast<size_t>(num_clipped_bases() * 0.75) > errors_left;
+    }
+
     bool is_high_edit_distance(double const floxer_allowed_error_rate) const {
         size_t const max_edit_distance = get_max_edit_distance(query_length_without_clipped_bases, floxer_allowed_error_rate);
         return edit_distance > max_edit_distance;
@@ -93,16 +106,20 @@ struct alignment_data_for_query_t {
     size_t longest_indel{0};
 
     void check_floxer_expectations() const {
-        for ([[maybe_unused]] auto const& record : secondary_linear_high_edit_distance_alignments) {
+        if (!secondary_linear_high_edit_distance_alignments.empty()) {
             spdlog::warn("Unexpected high edit distance alignment in floxer.");
         }
 
-        for ([[maybe_unused]] auto const record : supplementary_alignments) {
-            spdlog::warn("Unexpected supplementary alignment in floxer.");
+        if (!supplementary_alignments.empty()) {
+            spdlog::warn("Unexpected primary supplementary alignment in floxer.");
         }
 
-        for ([[maybe_unused]] auto const& record : secondary_inverted_alignments) {
+        if (!secondary_inverted_alignments.empty()) {
             spdlog::warn("Unexpected inverted alignment in floxer.");
+        }
+
+        if (!secondary_supplementary_alignments.empty()) {
+            spdlog::warn("Unexpected secondary supplementary alignment in floxer.");
         }
     }
 
@@ -179,27 +196,41 @@ struct alignment_data_for_query_t {
         return is_mapped && primary_alignment.value().is_inversion;
     }
 
+    bool has_primary_linear() const {
+        return is_mapped && !is_primary_chimeric() && !has_primary_inversion();
+    }
+
     bool has_primary_high_edit_distance(double const floxer_allowed_error_rate) const {
-        return is_mapped && primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate);
+        return has_primary_linear() &&
+            primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate);
     }
 
-    bool has_primary_linear_clipped(double const floxer_allowed_error_rate) const {
-        return is_mapped && !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate) &&
-            primary_alignment.value().is_clipped();
+    bool has_primary_linear_significantly_clipped(double const floxer_allowed_error_rate) const {
+        return has_primary_linear() &&
+            !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate) &&
+            primary_alignment.value().is_significantly_clipped(floxer_allowed_error_rate);
     }
 
-    bool has_primary_linear_unclipped(double const floxer_allowed_error_rate) const {
-        return is_mapped && !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate) &&
-            !primary_alignment.value().is_clipped();
+     // basic = linear, not high edit distance, not signficantly clipped
+    bool has_primary_basic(double const floxer_allowed_error_rate) const {
+        return has_primary_linear() &&
+            !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate) &&
+            !primary_alignment.value().is_significantly_clipped(floxer_allowed_error_rate);
     }
-
-    bool has_primary_not_linear_unclipped_and_secondary_linear_unclipped(double const floxer_allowed_error_rate) const {
-        if (has_primary_linear_unclipped(floxer_allowed_error_rate) || !is_multiple_mapping()) {
+    bool has_primary_not_basic_and_secondary_basic(double const floxer_allowed_error_rate) const {
+        if (
+            has_primary_basic(floxer_allowed_error_rate) ||
+            !is_multiple_mapping() ||
+            !secondary_supplementary_alignments.empty()
+        ) {
             return false;
         }
 
         for (auto const& alignment_record : secondary_linear_alignments) {
-            if (!alignment_record.is_clipped()) {
+            if (
+                !alignment_record.is_high_edit_distance(floxer_allowed_error_rate) &&
+                !alignment_record.is_significantly_clipped(floxer_allowed_error_rate)
+            ) {
                 return true;
             }
         }
@@ -294,16 +325,17 @@ void read_alignments(
 
         size_t num_query_bases_consumed_by_cigar = 0;
         size_t num_reference_bases_consumed_by_cigar = 0;
+        size_t num_unclipped_query_bases_consumed_by_cigar = 0;
         size_t num_soft_clipped_bases = 0;
         size_t num_hard_clipped_bases = 0;
 
         for (auto const [count, operation] : record.cigar_sequence()) {
             if (
                 operation == 'I'_cigar_operation || operation == 'M'_cigar_operation ||
-                operation == '='_cigar_operation || operation == 'X'_cigar_operation ||
-                operation == 'S'_cigar_operation
+                operation == '='_cigar_operation || operation == 'X'_cigar_operation
             ) {
                 num_query_bases_consumed_by_cigar += count;
+                num_unclipped_query_bases_consumed_by_cigar += count;
             }
 
             if (
@@ -314,6 +346,7 @@ void read_alignments(
             }
 
             if (operation == 'S'_cigar_operation) {
+                num_query_bases_consumed_by_cigar += count;
                 num_soft_clipped_bases += count;
             }
 
@@ -374,6 +407,7 @@ void read_alignments(
 
         auto const extracted_record = alignment_record_t {
             .num_query_bases_consumed_by_cigar = num_query_bases_consumed_by_cigar,
+            .num_unclipped_query_bases_consumed_by_cigar = num_unclipped_query_bases_consumed_by_cigar,
             .num_reference_bases_consumed_by_cigar = num_reference_bases_consumed_by_cigar,
 
             .num_soft_clipped_bases = num_soft_clipped_bases,
@@ -505,12 +539,12 @@ void print_alignment_statistics(
     spdlog::info("---------- {} alignment statistics ----------", title);
 
     size_t num_chimeric = 0;
-    size_t num_primary_linear_unclipped = 0;
+    size_t num_primary_basic = 0;
     size_t num_primary_linear_clipped = 0;
     size_t num_primary_high_edit_distance = 0;
     size_t num_primary_inversion = 0;
     size_t num_multiple_mapping = 0;
-    size_t num_primary_not_linear_unclipped_and_secondary_linear_unclipped = 0;
+    size_t num_primary_not_basic_and_secondary_basic = 0;
     size_t longest_indel_sum = 0;
 
     size_t num_subset_queries = 0;
@@ -520,11 +554,11 @@ void print_alignment_statistics(
             ++num_chimeric;
         }
 
-        if (alignment_data.has_primary_linear_unclipped(floxer_allowed_error_rate)) {
-            ++num_primary_linear_unclipped;
+        if (alignment_data.has_primary_basic(floxer_allowed_error_rate)) {
+            ++num_primary_basic;
         }
 
-        if (alignment_data.has_primary_linear_clipped(floxer_allowed_error_rate)) {
+        if (alignment_data.has_primary_linear_significantly_clipped(floxer_allowed_error_rate)) {
             ++num_primary_linear_clipped;
         }
 
@@ -540,8 +574,8 @@ void print_alignment_statistics(
             ++num_multiple_mapping;
         }
 
-        if (alignment_data.has_primary_not_linear_unclipped_and_secondary_linear_unclipped(floxer_allowed_error_rate)) {
-            ++num_primary_not_linear_unclipped_and_secondary_linear_unclipped;
+        if (alignment_data.has_primary_not_basic_and_secondary_basic(floxer_allowed_error_rate)) {
+            ++num_primary_not_basic_and_secondary_basic;
         }
 
         longest_indel_sum += alignment_data.longest_indel;
@@ -550,14 +584,14 @@ void print_alignment_statistics(
 
     spdlog::info("Number of queries in subset: {}", num_subset_queries);
     print_value("Primary chimeric", num_chimeric, num_subset_queries, num_queries);
-    print_value("Primary linear unclipped", num_primary_linear_unclipped, num_subset_queries, num_queries);
+    print_value("Primary linear not significantly clipped (basic)", num_primary_basic, num_subset_queries, num_queries);
     print_value("Primary lineaer clipped", num_primary_linear_clipped, num_subset_queries, num_queries);
     print_value("Primary high edit distance", num_primary_high_edit_distance, num_subset_queries, num_queries);
     print_value("Primary inversion", num_primary_inversion, num_subset_queries, num_queries);
     print_value("Multiple mapping", num_multiple_mapping, num_subset_queries, num_queries);
     print_value(
-        "Primary not linear unclipped, secondary linear unclipped",
-        num_primary_not_linear_unclipped_and_secondary_linear_unclipped,
+        "Primary not basic, secondary basic",
+        num_primary_not_basic_and_secondary_basic,
         num_subset_queries,
         num_queries
     );
