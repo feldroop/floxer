@@ -608,7 +608,7 @@ void print_alignment_statistics(
     );
     spdlog::info("average longest indel: {:.2f}", longest_indel_sum / static_cast<double>(num_subset_queries));
     spdlog::info(
-        "average error rate of primary basic alignments: {:.2f}",
+        "average error rate of primary basic alignments: {:.4f}",
         primary_basic_error_rate_sum / static_cast<double>(num_primary_basic)
     );
 }
