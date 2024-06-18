@@ -112,6 +112,13 @@ search_result searcher::search_seeds(
                 });
                 break;
 
+            case anchor_group_order_t::hybrid:
+                std::ranges::sort(anchor_groups, [] (anchor_group const& group1, anchor_group const& group2) {
+                    return (group1.num_errors + 1) * group1.cursor.count() <
+                        (group2.num_errors + 1) * group2.cursor.count();
+                });
+                break;
+
             default:
                 throw std::runtime_error("(Should be unreachable) internal bug in anchor group order config.");
         }
