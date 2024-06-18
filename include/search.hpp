@@ -3,6 +3,7 @@
 #include <fmindex.hpp>
 #include <tuple_hash.hpp>
 
+#include <string_view>
 #include <span>
 #include <tuple>
 #include <unordered_map>
@@ -30,6 +31,12 @@ struct anchor_t {
 
 using anchors = std::vector<anchor_t>;
 
+enum class anchor_group_order_t {
+    num_errors_first, count_first, hybrid
+};
+
+anchor_group_order_t anchor_group_order_from_string(std::string_view const s);
+
 struct search_config {
     // if the number of anchors for a seed exceeds this threshold,
     // no anchors will be reported for that seed
@@ -38,7 +45,7 @@ struct search_config {
     // so currently this is difficult to set right
     size_t const max_num_raw_anchors;
 
-    size_t const max_num_errors;
+    anchor_group_order_t const anchor_group_order;
 };
 
 enum class seed_status {
@@ -84,19 +91,12 @@ private:
     std::unordered_map<std::tuple<size_t, size_t>, search_schemes::Scheme> schemes;
 };
 
-struct cursors_t {
-    struct cursors_with_given_num_errors_t {
-        std::vector<fmindex_cursor> cursors;
-        size_t total_num_raw_anchors{};
-    };
-
-    cursors_t(search_config const& config);
-
-    std::vector<cursors_with_given_num_errors_t> cursors_by_num_errors;
-    size_t total_num_raw_anchors{};
-};
-
 namespace internal {
+
+struct anchor_group {
+    fmindex_cursor cursor;
+    size_t num_errors;
+};
 
 static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
 

@@ -61,16 +61,16 @@ size_t command_line_input::max_num_raw_anchors() const {
     return max_num_raw_anchors_.value;
 }
 
+std::string command_line_input::anchor_group_order() const {
+    return anchor_group_order_.value;
+}
+
 bool command_line_input::bottom_up_pex_tree_building() const {
     return bottom_up_pex_tree_building_.value;
 }
 
 bool command_line_input::use_interval_optimization() const {
     return use_interval_optimization_.value;
-}
-
-bool command_line_input::use_wfa2_aligner_backend() const {
-    return use_wfa2_aligner_backend_.value;
 }
 
 size_t command_line_input::num_threads() const {
@@ -101,9 +101,9 @@ std::string command_line_input::command_line_call() const {
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
         max_num_raw_anchors_.command_line_call(),
+        anchor_group_order_.command_line_call(),
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
-        use_wfa2_aligner_backend() ? use_wfa2_aligner_backend_.command_line_call() : "",
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
         print_stats() ? print_stats_.command_line_call() : ""
@@ -231,6 +231,15 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .advanced = true
     });
 
+    parser.add_option(anchor_group_order_.value, sharg::config{
+        .short_id = anchor_group_order_.short_id,
+        .long_id = anchor_group_order_.long_id,
+        .description = "The way in which anchor groups returned from the FM Index search are ordered. "
+            "The first anchor groups in the ordering are more likely to be included for verification.",
+        .advanced = true,
+        .validator = sharg::value_list_validator{ std::vector{ "errors_first", "count_first", "hybrid" } }
+    });
+
     parser.add_flag(bottom_up_pex_tree_building_.value, sharg::config{
         .short_id = bottom_up_pex_tree_building_.short_id,
         .long_id = bottom_up_pex_tree_building_.long_id,
@@ -242,13 +251,6 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = use_interval_optimization_.short_id,
         .long_id = use_interval_optimization_.long_id,
         .description = "Keep track of already verified intervals to avoid repeating alignment.",
-        .advanced = true
-    });
-
-    parser.add_flag(use_wfa2_aligner_backend_.value, sharg::config{
-        .short_id = use_wfa2_aligner_backend_.short_id,
-        .long_id = use_wfa2_aligner_backend_.long_id,
-        .description = "Use the WFA2 library as backend for the alignments.",
         .advanced = true
     });
 
