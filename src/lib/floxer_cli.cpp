@@ -57,8 +57,12 @@ size_t command_line_input::pex_seed_num_errors() const {
     return pex_seed_num_errors_.value;
 }
 
-size_t command_line_input::max_num_raw_anchors() const {
-    return max_num_raw_anchors_.value;
+size_t command_line_input::max_num_located_anchors() const {
+    return max_num_located_anchors_.value;
+}
+
+size_t command_line_input::max_num_kept_anchors() const {
+    return max_num_kept_anchors_.value;
 }
 
 std::string command_line_input::anchor_group_order() const {
@@ -100,7 +104,8 @@ std::string command_line_input::command_line_call() const {
         query_num_errors().has_value() ? query_num_errors_.command_line_call() : "",
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
-        max_num_raw_anchors_.command_line_call(),
+        max_num_located_anchors_.command_line_call(),
+        max_num_kept_anchors_.command_line_call(),
         anchor_group_order_.command_line_call(),
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
@@ -224,10 +229,18 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .validator = sharg::arithmetic_range_validator{0, 3}
     });
 
-    parser.add_option(max_num_raw_anchors_.value, sharg::config{
-        .short_id = max_num_raw_anchors_.short_id,
-        .long_id = max_num_raw_anchors_.long_id,
-        .description = "Seeds with this number of (raw) anchors are excluded from further steps.",
+    parser.add_option(max_num_located_anchors_.value, sharg::config{
+        .short_id = max_num_located_anchors_.short_id,
+        .long_id = max_num_located_anchors_.long_id,
+        .description = "The maximum number of anchors that are located by the FM index.",
+        .advanced = true
+    });
+
+    parser.add_option(max_num_kept_anchors_.value, sharg::config{
+        .short_id = max_num_kept_anchors_.short_id,
+        .long_id = max_num_kept_anchors_.long_id,
+        .description = "The maximum number of anchors that are kept for verification."
+            " The others are filtered out using a scoring heuristic.",
         .advanced = true
     });
 

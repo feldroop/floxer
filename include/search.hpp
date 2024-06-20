@@ -21,6 +21,8 @@ struct seed {
 struct anchor_t {
     size_t position;
     size_t num_errors;
+    size_t group_count;
+    std::optional<double> score = std::nullopt;
 
     bool is_better_than(anchor_t const& other);
 
@@ -38,12 +40,8 @@ enum class anchor_group_order_t {
 anchor_group_order_t anchor_group_order_from_string(std::string_view const s);
 
 struct search_config {
-    // if the number of anchors for a seed exceeds this threshold,
-    // no anchors will be reported for that seed
-    // current problem: the number of raw anchors is larger than what
-    // we actually need, because of the repetitive alignments,
-    // so currently this is difficult to set right
-    size_t const max_num_raw_anchors;
+    size_t const max_num_located_raw_anchors;
+    size_t const max_num_kept_anchors;
 
     anchor_group_order_t const anchor_group_order;
 };
@@ -100,7 +98,11 @@ struct anchor_group {
 
 static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
 
-void erase_useless_anchors(anchors& anchors_of_seed_and_reference);
+// returns the number of kept anchors, sorts anchors by position
+size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference);
+
+// returns the number of kept anchors, expects input anchors to be sorted by position
+size_t erase_low_scoring_anchors(std::vector<anchors>& anchors_by_reference, size_t const max_num_kept_anchors);
 
 } // namespace internal
 
