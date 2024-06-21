@@ -43,7 +43,7 @@ class command_line_input {
     cli_option<size_t> query_num_errors_{ 'e', "query-errors", std::numeric_limits<size_t>::max() };
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
-    cli_option<size_t> max_num_located_anchors_{ 'm', "max-located-anchors", 10'000 };
+    cli_option<size_t> max_num_located_anchors_{ 'm', "max-located-anchors", 100 };
     cli_option<size_t> max_num_kept_anchors_{ 'k', "max-kept-anchors", 100 };
     cli_option<std::string> anchor_group_order_{ 'g', "anchor-group-order", "hybrid" };
     cli_option<bool> bottom_up_pex_tree_building_{ 'b', "bottom-up-pex-tree", false };

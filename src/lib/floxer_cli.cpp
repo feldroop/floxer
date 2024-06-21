@@ -232,7 +232,9 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     parser.add_option(max_num_located_anchors_.value, sharg::config{
         .short_id = max_num_located_anchors_.short_id,
         .long_id = max_num_located_anchors_.long_id,
-        .description = "The maximum number of anchors that are located by the FM index.",
+        .description = "The maximum number of anchors that are located by the FM index. "
+            "This should be increased only carfully, as it is detremental for performance and "
+            "might not improve accuracy.",
         .advanced = true
     });
 
@@ -240,7 +242,9 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = max_num_kept_anchors_.short_id,
         .long_id = max_num_kept_anchors_.long_id,
         .description = "The maximum number of anchors that are kept for verification."
-            " The others are filtered out using a scoring heuristic.",
+            " The surplus of located anchors are filtered out using a scoring heuristic. "
+            "This should be increased only carfully, as it is detremental for performance and "
+            "might not improve accuracy.",
         .advanced = true
     });
 
