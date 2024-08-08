@@ -34,8 +34,8 @@ search_schemes::Scheme const& search_scheme_cache::get(
 }
 
 bool anchor_t::is_better_than(anchor_t const& other) {
-    size_t const position_difference = position < other.position ?
-        other.position - position : position - other.position;
+    size_t const position_difference = reference_position < other.reference_position ?
+        other.reference_position - reference_position : reference_position - other.reference_position;
 
     return num_errors <= other.num_errors &&
         position_difference <= other.num_errors - num_errors;
@@ -138,8 +138,10 @@ search_result searcher::search_seeds(
             for (auto const& anchor: cursor) {
                 auto const [reference_id, position] = index.locate(anchor);
                 anchors_by_reference[reference_id].emplace_back(anchor_t {
-                    .position = position,
+                    .reference_position = position,
                     .num_errors = anchor_groups[i].num_errors,
+                    .query_position = seed.query_position,
+                    .length = seed.sequence.size(),
                     .group_count = group_count
                 });
             }
@@ -190,7 +192,7 @@ size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference) {
             continue;
         }
 
-        std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor_t const& h) { return h.position; });
+        std::ranges::sort(anchors_of_seed_and_reference, {}, [] (anchor_t const& h) { return h.reference_position; });
 
         for (size_t current_anchor_index = 0; current_anchor_index < anchors_of_seed_and_reference.size() - 1;) {
             auto & current_anchor = anchors_of_seed_and_reference[current_anchor_index];
@@ -230,11 +232,11 @@ size_t erase_low_scoring_anchors(std::vector<anchors>& anchors_by_reference, siz
 
             size_t const difference_to_left = i == 0 ?
                 std::numeric_limits<size_t>::max() :
-                anchor.position - anchors_of_seed_and_reference[i - 1].position;
+                anchor.reference_position - anchors_of_seed_and_reference[i - 1].reference_position;
 
             size_t const difference_to_right = i == num_anchors_of_reference - 1 ?
                 std::numeric_limits<size_t>::max() :
-                anchors_of_seed_and_reference[i + 1].position - anchor.position;
+                anchors_of_seed_and_reference[i + 1].reference_position - anchor.reference_position;
 
             double const difference_to_nearest_neighbor = std::min(difference_to_left, difference_to_right);
 

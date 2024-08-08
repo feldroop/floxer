@@ -16,11 +16,15 @@ namespace search {
 struct seed {
     std::span<const uint8_t> const sequence;
     size_t const num_errors;
+    size_t const query_position;
 };
 
 struct anchor_t {
-    size_t position;
+    size_t reference_position;
     size_t num_errors;
+    size_t query_position;
+    size_t length;
+
     size_t group_count;
     std::optional<double> score = std::nullopt;
 

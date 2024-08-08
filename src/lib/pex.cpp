@@ -229,7 +229,11 @@ std::vector<search::seed> pex_tree::generate_seeds(
 
     for (auto const& leaf : leaves) {
         auto const seed_span = query.subspan(leaf.query_index_from, leaf.length_of_query_span());
-        seeds.emplace_back(seed_span, leaf.num_errors);
+        seeds.emplace_back(search::seed {
+            .sequence = seed_span,
+            .num_errors = leaf.num_errors,
+            .query_position = leaf.query_index_from
+        });
     }
 
     return seeds;
@@ -471,7 +475,7 @@ span_config compute_reference_span_start_and_length(
     size_t const full_reference_length,
     size_t const extra_wiggle_room
 ) {
-    int64_t const start_signed = static_cast<int64_t>(anchor.position) -
+    int64_t const start_signed = static_cast<int64_t>(anchor.reference_position) -
         static_cast<int64_t>(leaf_query_index_from - pex_node.query_index_from) -
         static_cast<int64_t>(pex_node.num_errors) -
         static_cast<int64_t>(extra_wiggle_room);
