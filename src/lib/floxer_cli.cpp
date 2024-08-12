@@ -77,6 +77,10 @@ bool command_line_input::use_interval_optimization() const {
     return use_interval_optimization_.value;
 }
 
+bool command_line_input::direct_full_verification() const {
+    return direct_full_verification_.value;
+}
+
 size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
@@ -109,6 +113,7 @@ std::string command_line_input::command_line_call() const {
         anchor_group_order_.command_line_call(),
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
+        direct_full_verification() ? direct_full_verification_.command_line_call() : "",
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
         print_stats() ? print_stats_.command_line_call() : ""
@@ -268,6 +273,13 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = use_interval_optimization_.short_id,
         .long_id = use_interval_optimization_.long_id,
         .description = "Keep track of already verified intervals to avoid repeating alignment.",
+        .advanced = true
+    });
+
+    parser.add_flag(direct_full_verification_.value, sharg::config{
+        .short_id = direct_full_verification_.short_id,
+        .long_id = direct_full_verification_.long_id,
+        .description = "Instead of PEX hierarchical verification, directly verify the whole query for every anchor.",
         .advanced = true
     });
 

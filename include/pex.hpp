@@ -31,6 +31,16 @@ struct pex_tree_config {
     pex_tree_build_strategy const build_strategy;
 };
 
+enum class verification_kind_t {
+    direct_full, hierarchical
+};
+
+struct pex_alignment_config {
+    search::searcher const& searcher;
+    intervals::use_interval_optimization const use_interval_optimization;
+    verification_kind_t const verification_kind;
+};
+
 // based on chapter 6.5.1 from the book "Flexible Pattern Matching in Strings" by Navarro and Raffinot
 // DOI: https://doi.org/10.1017/CBO9781316135228
 class pex_tree {
@@ -54,18 +64,20 @@ public:
 
     pex_tree(pex_tree_config const config);
 
+    node const& root() const;
+
+    // throws std::runtime_error if root is given
+    node const& get_parent_of_child(node const& child) const;
+
     alignment::query_alignments align_forward_and_reverse_complement(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
-        search::searcher const& searcher,
-        intervals::use_interval_optimization const use_interval_optimization,
+        pex_alignment_config const config,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
     std::string dot_statement() const;
-
 private:
-    node const& root() const;
 
     size_t num_leaves() const;
 
@@ -99,19 +111,7 @@ private:
         std::span<const uint8_t> const query,
         alignment::query_alignments& alignments,
         alignment::query_orientation const orientation,
-        search::searcher const& searcher,
-        intervals::use_interval_optimization const use_interval_optimization,
-        statistics::search_and_alignment_statistics& stats
-    ) const;
-
-    void hierarchical_verification(
-        search::anchor_t const& anchor,
-        size_t const seed_id,
-        std::span<const uint8_t> const query,
-        alignment::query_orientation const orientation,
-        input::reference_record const& reference,
-        intervals::verified_intervals& already_verified_intervals,
-        alignment::query_alignments& alignments,
+        pex_alignment_config const config,
         statistics::search_and_alignment_statistics& stats
     ) const;
 
@@ -135,34 +135,5 @@ private:
     // of errors per query is a function of only the query length
     std::unordered_map<size_t, pex_tree> trees;
 };
-
-namespace internal {
-
-struct span_config {
-    size_t const offset{};
-    size_t const length{};
-
-    intervals::half_open_interval as_half_open_interval() const;
-};
-
-span_config compute_reference_span_start_and_length(
-    search::anchor_t const& anchor,
-    pex_tree::node const& pex_node,
-    size_t const leaf_query_index_from,
-    size_t const full_reference_length,
-    size_t const extra_wiggle_room
-);
-
-alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
-    pex_tree::node const& pex_node,
-    input::reference_record const& reference,
-    span_config const reference_span_config,
-    std::span<const uint8_t> const query,
-    alignment::query_orientation const orientation,
-    alignment::query_alignments& alignments,
-    statistics::search_and_alignment_statistics& stats
-);
-
-} // namespace internal
 
 } // namespace pex

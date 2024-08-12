@@ -215,17 +215,6 @@ int main(int argc, char** argv) {
 
             spdlog::debug("({}/{}) aligning query: {}", query_index, queries.records.size(), query.id);
 
-            auto const searcher = search::searcher{
-                .index = index,
-                .num_reference_sequences = references.records.size(),
-                .scheme_cache = search_scheme_cache,
-                .config = search::search_config{
-                    .max_num_located_raw_anchors = cli_input.max_num_located_anchors(),
-                    .max_num_kept_anchors = cli_input.max_num_kept_anchors(),
-                    .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order())
-                }
-            };
-
             auto const pex_tree_config = pex::pex_tree_config {
                 .total_query_length = query.rank_sequence.size(),
                 .query_num_errors = query_num_errors,
@@ -237,13 +226,31 @@ int main(int argc, char** argv) {
 
             auto const& pex_tree = pex_tree_cache.get(pex_tree_config);
 
+            auto const searcher = search::searcher{
+                .index = index,
+                .num_reference_sequences = references.records.size(),
+                .scheme_cache = search_scheme_cache,
+                .config = search::search_config{
+                    .max_num_located_raw_anchors = cli_input.max_num_located_anchors(),
+                    .max_num_kept_anchors = cli_input.max_num_kept_anchors(),
+                    .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order())
+                }
+            };
+
+            auto const pex_alignment_config = pex::pex_alignment_config {
+                .searcher = searcher,
+                .use_interval_optimization = cli_input.use_interval_optimization() ?
+                    intervals::use_interval_optimization::on :
+                    intervals::use_interval_optimization::off,
+                .verification_kind = cli_input.direct_full_verification() ?
+                    pex::verification_kind_t::direct_full :
+                    pex::verification_kind_t::hierarchical
+            };
+
             auto alignments = pex_tree.align_forward_and_reverse_complement(
                 references.records,
                 query.rank_sequence,
-                searcher,
-                cli_input.use_interval_optimization() ?
-                    intervals::use_interval_optimization::on :
-                    intervals::use_interval_optimization::off,
+                pex_alignment_config,
                 stats
             );
 

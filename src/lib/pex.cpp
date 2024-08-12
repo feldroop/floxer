@@ -1,5 +1,6 @@
 #include <math.hpp>
 #include <pex.hpp>
+#include <verification.hpp>
 
 #include <cassert>
 #include <ranges>
@@ -27,6 +28,14 @@ pex_tree::node const& pex_tree::root() const {
     auto const& root = inner_nodes.empty() ? leaves.at(0) : inner_nodes.at(0);
     assert(root.is_root());
     return root;
+}
+
+pex_tree::node const& pex_tree::get_parent_of_child(pex_tree::node const& child) const {
+    if (child.is_root()) {
+        throw std::runtime_error("tried to get parent of PEX tree root");
+    }
+
+    return inner_nodes.at(child.parent_id);
 }
 
 pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
@@ -291,8 +300,7 @@ void pex_tree::add_node_to_dot_statement(node const& curr_node, size_t const id,
 alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
     std::vector<input::reference_record> const& references,
     std::span<const uint8_t> const query,
-    search::searcher const& searcher,
-    intervals::use_interval_optimization const use_interval_optimization,
+    pex_alignment_config const config,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto alignments = alignment::query_alignments(references.size());
@@ -302,8 +310,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         query,
         alignments,
         alignment::query_orientation::forward,
-        searcher,
-        use_interval_optimization,
+        config,
         stats
     );
 
@@ -315,8 +322,7 @@ alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
         reverse_complement_query,
         alignments,
         alignment::query_orientation::reverse_complement,
-        searcher,
-        use_interval_optimization,
+        config,
         stats
     );
 
@@ -336,18 +342,17 @@ void pex_tree::align_query_in_given_orientation(
     std::span<const uint8_t> const query,
     alignment::query_alignments& alignments,
     alignment::query_orientation const orientation,
-    search::searcher const& searcher,
-    intervals::use_interval_optimization const use_interval_optimization,
+    pex_alignment_config const config,
     statistics::search_and_alignment_statistics& stats
 ) const {
     auto const seeds = generate_seeds(query);
     stats.add_statistics_for_seeds(seeds);
 
-    auto const search_result = searcher.search_seeds(seeds);
+    auto const search_result = config.searcher.search_seeds(seeds);
     stats.add_statistics_for_search_result(search_result);
 
     std::vector<intervals::verified_intervals> already_verified_intervals_per_reference(
-        references.size(), intervals::verified_intervals(use_interval_optimization)
+        references.size(), intervals::verified_intervals(config.use_interval_optimization)
     );
 
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
@@ -358,193 +363,27 @@ void pex_tree::align_query_in_given_orientation(
         }
 
         for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-
             for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
-                hierarchical_verification(
-                    anchor,
-                    seed_id,
-                    query,
-                    orientation,
-                    references[reference_id],
-                    already_verified_intervals_per_reference[reference_id],
-                    alignments,
-                    stats
-                );
+                // this depends on the implementation of generate_leave_queries returning the
+                // leaf queries in the same order as the leaves (which it should always do!)
+                auto pex_node = leaves.at(seed_id);
+
+                verification::query_verifier verifier {
+                    .pex_tree = *this,
+                    .anchor = anchor,
+                    .pex_node = pex_node,
+                    .query = query,
+                    .orientation = orientation,
+                    .reference = references[reference_id],
+                    .already_verified_intervals = already_verified_intervals_per_reference[reference_id],
+                    .alignments = alignments,
+                    .stats = stats
+                };
+
+                verifier.verify(config.verification_kind);
             }
         }
     }
 }
-
-void pex_tree::hierarchical_verification(
-    search::anchor_t const& anchor,
-    size_t const seed_id,
-    std::span<const uint8_t> const query,
-    alignment::query_orientation const orientation,
-    input::reference_record const& reference,
-    intervals::verified_intervals& already_verified_intervals,
-    alignment::query_alignments& alignments,
-    statistics::search_and_alignment_statistics& stats
-) const {
-    // this depends on the implementation of generate_leave_queries returning the
-    // leaf queries in the same order as the leaves (which it should always do!)
-    auto pex_node = leaves.at(seed_id);
-    size_t const seed_query_index_from = pex_node.query_index_from;
-
-    size_t constexpr extra_wiggle_room = 5;
-    auto const root_reference_span_config = internal::compute_reference_span_start_and_length(
-        anchor,
-        root(),
-        seed_query_index_from,
-        reference.rank_sequence.size(),
-        extra_wiggle_room
-    );
-    auto const root_interval_to_verify_without_wiggle_room = root_reference_span_config
-        .as_half_open_interval()
-        .trim_from_both_sides(extra_wiggle_room);
-
-    if (already_verified_intervals.contains(root_interval_to_verify_without_wiggle_room)) {
-        // we have already verified the interval where the whole query could be found according to this anchor
-        stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
-        return;
-    }
-
-    // case for when the whole PEX tree is just a single root
-    if (pex_node.is_root()) {
-        [[maybe_unused]] auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
-            pex_node,
-            reference,
-            root_reference_span_config,
-            query,
-            orientation,
-            alignments,
-            stats
-        );
-        assert(outcome == alignment::alignment_outcome::alignment_exists);
-
-        already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
-
-        return;
-    }
-
-    pex_node = inner_nodes.at(pex_node.parent_id);
-
-    while (true) {
-        auto const reference_span_config = internal::compute_reference_span_start_and_length(
-            anchor,
-            pex_node,
-            seed_query_index_from,
-            reference.rank_sequence.size(),
-            extra_wiggle_room
-        );
-
-        auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
-            pex_node,
-            reference,
-            reference_span_config,
-            query,
-            orientation,
-            alignments,
-            stats
-        );
-
-        if (pex_node.is_root()) {
-            already_verified_intervals.insert(reference_span_config.as_half_open_interval());
-        }
-
-        if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || pex_node.is_root()) {
-            break;
-        }
-
-        pex_node = inner_nodes.at(pex_node.parent_id);
-    }
-}
-
-namespace internal {
-
-intervals::half_open_interval span_config::as_half_open_interval() const {
-    return intervals::half_open_interval{
-        .start = offset,
-        .end = offset + length
-    };
-}
-
-span_config compute_reference_span_start_and_length(
-    search::anchor_t const& anchor,
-    pex_tree::node const& pex_node,
-    size_t const leaf_query_index_from,
-    size_t const full_reference_length,
-    size_t const extra_wiggle_room
-) {
-    int64_t const start_signed = static_cast<int64_t>(anchor.reference_position) -
-        static_cast<int64_t>(leaf_query_index_from - pex_node.query_index_from) -
-        static_cast<int64_t>(pex_node.num_errors) -
-        static_cast<int64_t>(extra_wiggle_room);
-
-    size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
-    size_t const reference_span_length = std::min(
-        pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
-        full_reference_length - reference_span_start
-    );
-
-    return span_config{
-        .offset = reference_span_start,
-        .length = reference_span_length
-    };
-}
-
-alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
-    pex_tree::node const& pex_node,
-    input::reference_record const& reference,
-    span_config const reference_span_config,
-    std::span<const uint8_t> const query,
-    alignment::query_orientation const orientation,
-    alignment::query_alignments& alignments,
-    statistics::search_and_alignment_statistics& stats
-) {
-    auto const this_node_query_span = query.subspan(
-        pex_node.query_index_from,
-        pex_node.length_of_query_span()
-    );
-
-    auto const reference_subspan = std::span<const uint8_t>(reference.rank_sequence).subspan(
-        reference_span_config.offset,
-        reference_span_config.length
-    );
-
-    auto const config = alignment::alignment_config {
-        .reference_span_offset = reference_span_config.offset,
-        .num_allowed_errors = pex_node.num_errors,
-        .orientation = orientation,
-        .mode = pex_node.is_root() ?
-            alignment::alignment_mode::verify_and_return_alignment :
-            alignment::alignment_mode::only_verify_existance
-    };
-
-    auto const alignment_result = alignment::align(
-        reference_subspan,
-        this_node_query_span,
-        config
-    );
-
-    if (alignment_result.alignment.has_value()) {
-        assert(pex_node.is_root());
-        assert(alignment_result.outcome == alignment::alignment_outcome::alignment_exists);
-
-        alignments.insert(
-            std::move(alignment_result.alignment.value()),
-            reference.internal_id
-        );
-    }
-
-    if (pex_node.is_root()) {
-        stats.add_reference_span_size_aligned_root(reference_span_config.length);
-    } else {
-        stats.add_reference_span_size_aligned_inner_node(reference_span_config.length);
-    }
-
-    return alignment_result.outcome;
-}
-
-} // namespace internal
 
 } // namespace pex
