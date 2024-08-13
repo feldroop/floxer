@@ -376,6 +376,7 @@ void pex_tree::align_query_in_given_orientation(
                     .orientation = orientation,
                     .reference = references[reference_id],
                     .already_verified_intervals = already_verified_intervals_per_reference[reference_id],
+                    .extra_verification_ratio = config.extra_verification_ratio,
                     .alignments = alignments,
                     .stats = stats
                 };

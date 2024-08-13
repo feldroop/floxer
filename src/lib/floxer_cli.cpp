@@ -77,6 +77,10 @@ bool command_line_input::use_interval_optimization() const {
     return use_interval_optimization_.value;
 }
 
+double command_line_input::extra_verification_ratio() const {
+    return extra_verification_ratio_.value;
+}
+
 bool command_line_input::direct_full_verification() const {
     return direct_full_verification_.value;
 }
@@ -100,20 +104,26 @@ bool command_line_input::print_stats() const {
 std::string command_line_input::command_line_call() const {
     std::vector<std::string> individual_calls{
         "floxer",
+
         reference_path_.command_line_call(),
         queries_path_.command_line_call(),
         index_path().has_value() ? index_path_.command_line_call() : "",
         output_path_.command_line_call(),
         logfile_path().has_value() ? logfile_path_.command_line_call() : "",
+
         query_num_errors().has_value() ? query_num_errors_.command_line_call() : "",
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
+
         max_num_located_anchors_.command_line_call(),
         max_num_kept_anchors_.command_line_call(),
         anchor_group_order_.command_line_call(),
+
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
+        extra_verification_ratio_.command_line_call(),
         direct_full_verification() ? direct_full_verification_.command_line_call() : "",
+
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
         print_stats() ? print_stats_.command_line_call() : ""
@@ -273,6 +283,16 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = use_interval_optimization_.short_id,
         .long_id = use_interval_optimization_.long_id,
         .description = "Keep track of already verified intervals to avoid repeating alignment.",
+        .advanced = true
+    });
+
+    parser.add_option(extra_verification_ratio_.value, sharg::config{
+        .short_id = extra_verification_ratio_.short_id,
+        .long_id = extra_verification_ratio_.long_id,
+        .description = "How much additional sequence should be verified at the ends of the verification intervals. "
+            "This parameter describes the ratio between the original verification intervals "
+            "and the additional sequence. Larger values prevent the repeated verification "
+            "of mostly overlapping intervals arising from slightly shifted anchors.",
         .advanced = true
     });
 

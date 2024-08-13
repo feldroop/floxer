@@ -36,6 +36,7 @@ public:
     alignment::query_orientation const orientation;
     input::reference_record const& reference;
     intervals::verified_intervals& already_verified_intervals;
+    double const extra_verification_ratio;
     alignment::query_alignments& alignments;
     statistics::search_and_alignment_statistics& stats;
 };
@@ -46,6 +47,8 @@ struct span_config {
     size_t const offset{};
     size_t const length{};
 
+    size_t const applied_extra_verification_length_per_side;
+
     intervals::half_open_interval as_half_open_interval() const;
 };
 
@@ -54,7 +57,7 @@ span_config compute_reference_span_start_and_length(
     pex::pex_tree::node const& pex_node,
     size_t const leaf_query_index_from,
     size_t const full_reference_length,
-    size_t const extra_wiggle_room
+    double const extra_verification_ratio
 );
 
 alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(

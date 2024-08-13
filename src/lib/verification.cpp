@@ -19,16 +19,12 @@ void query_verifier::verify(pex::verification_kind_t const kind) {
     }
 }
 
-// TODO
-size_t constexpr extra_wiggle_room = 5;
-
 void query_verifier::direct_full_verification() {
-    auto const root_reference_span_config = compute_root_reference_span_config();
-
     if (root_was_already_verified()) {
         return;
     }
 
+    auto const root_reference_span_config = compute_root_reference_span_config();
     [[maybe_unused]] auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
         pex_tree.root(),
         reference,
@@ -43,24 +39,11 @@ void query_verifier::direct_full_verification() {
 }
 
 void query_verifier::hierarchical_verification() {
-    size_t const seed_query_index_from = pex_node.query_index_from;
-
-    auto const root_reference_span_config = internal::compute_reference_span_start_and_length(
-        anchor,
-        pex_tree.root(),
-        seed_query_index_from,
-        reference.rank_sequence.size(),
-        extra_wiggle_room
-    );
-    auto const root_interval_to_verify_without_wiggle_room = root_reference_span_config
-        .as_half_open_interval()
-        .trim_from_both_sides(extra_wiggle_room);
-
-    if (already_verified_intervals.contains(root_interval_to_verify_without_wiggle_room)) {
-        // we have already verified the interval where the whole query could be found according to this anchor
-        stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
+    if (root_was_already_verified()) {
         return;
     }
+
+    auto const root_reference_span_config = compute_root_reference_span_config();
 
     // case for when the whole PEX tree is just a single root
     if (pex_node.is_root()) {
@@ -80,6 +63,7 @@ void query_verifier::hierarchical_verification() {
         return;
     }
 
+    size_t const seed_query_index_from = pex_node.query_index_from;
     pex_node = pex_tree.get_parent_of_child(pex_node);
 
     while (true) {
@@ -88,7 +72,7 @@ void query_verifier::hierarchical_verification() {
             pex_node,
             seed_query_index_from,
             reference.rank_sequence.size(),
-            extra_wiggle_room
+            extra_verification_ratio
         );
 
         auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
@@ -116,11 +100,11 @@ void query_verifier::hierarchical_verification() {
 bool query_verifier::root_was_already_verified() const {
     auto const root_reference_span_config = compute_root_reference_span_config();
 
-    auto const root_interval_to_verify_without_wiggle_room = root_reference_span_config
+    auto const root_interval_to_verify_without_extra_length = root_reference_span_config
         .as_half_open_interval()
-        .trim_from_both_sides(extra_wiggle_room);
+        .trim_from_both_sides(root_reference_span_config.applied_extra_verification_length_per_side);
 
-    if (already_verified_intervals.contains(root_interval_to_verify_without_wiggle_room)) {
+    if (already_verified_intervals.contains(root_interval_to_verify_without_extra_length)) {
         // we have already verified the interval where the whole query could be found according to this anchor
         stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
 
@@ -136,7 +120,7 @@ internal::span_config query_verifier::compute_root_reference_span_config() const
         pex_tree.root(),
         pex_node.query_index_from,
         reference.rank_sequence.size(),
-        extra_wiggle_room
+        extra_verification_ratio
     );
 }
 
@@ -154,22 +138,27 @@ span_config compute_reference_span_start_and_length(
     pex::pex_tree::node const& pex_node,
     size_t const leaf_query_index_from,
     size_t const full_reference_length,
-    size_t const extra_wiggle_room
+    double const extra_verification_ratio
 ) {
+    size_t const verification_interval_base_length = pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1;
+    size_t const extra_verification_length = std::ceil(verification_interval_base_length * extra_verification_ratio)
+        + std::numeric_limits<double>::epsilon();
+
     int64_t const start_signed = static_cast<int64_t>(anchor.reference_position) -
         static_cast<int64_t>(leaf_query_index_from - pex_node.query_index_from) -
         static_cast<int64_t>(pex_node.num_errors) -
-        static_cast<int64_t>(extra_wiggle_room);
+        static_cast<int64_t>(extra_verification_length);
 
     size_t const reference_span_start = start_signed >= 0 ? start_signed : 0;
     size_t const reference_span_length = std::min(
-        pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1 + 2 * extra_wiggle_room,
+        verification_interval_base_length + 2 * extra_verification_length,
         full_reference_length - reference_span_start
     );
 
     return span_config {
         .offset = reference_span_start,
-        .length = reference_span_length
+        .length = reference_span_length,
+        .applied_extra_verification_length_per_side = extra_verification_length
     };
 }
 

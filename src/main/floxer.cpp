@@ -244,7 +244,8 @@ int main(int argc, char** argv) {
                     intervals::use_interval_optimization::off,
                 .verification_kind = cli_input.direct_full_verification() ?
                     pex::verification_kind_t::direct_full :
-                    pex::verification_kind_t::hierarchical
+                    pex::verification_kind_t::hierarchical,
+                .extra_verification_ratio = cli_input.extra_verification_ratio()
             };
 
             auto alignments = pex_tree.align_forward_and_reverse_complement(
