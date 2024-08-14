@@ -9,6 +9,7 @@
 
 #include <fmindex-collection/search/SearchNg21.h>
 #include <search_schemes/generator/optimum.h>
+#include <search_schemes/generator/h2.h>
 #include <search_schemes/expand.h>
 
 namespace search {
@@ -22,7 +23,9 @@ search_schemes::Scheme const& search_scheme_cache::get(
 
     if (iter == schemes.end()) {
         auto search_scheme = search_schemes::expand(
-            search_schemes::generator::optimum(0, pex_leaf_num_errors),
+            (pex_leaf_num_errors <= 3) ?
+                search_schemes::generator::optimum(0, pex_leaf_num_errors) :
+                search_schemes::generator::h2(pex_leaf_num_errors + 2, 0, pex_leaf_num_errors),
             pex_leaf_query_length
         );
 
