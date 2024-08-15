@@ -25,6 +25,8 @@ search_schemes::Scheme const& search_scheme_cache::get(
         auto search_scheme = search_schemes::expand(
             (pex_leaf_num_errors <= 3) ?
                 search_schemes::generator::optimum(0, pex_leaf_num_errors) :
+                // h2 = heuristic 2, the best heuristic search scheme generator,
+                // because the optima are not known for more than 3 errors
                 search_schemes::generator::h2(pex_leaf_num_errors + 2, 0, pex_leaf_num_errors),
             pex_leaf_query_length
         );
