@@ -39,6 +39,7 @@ public:
 
     alignments_to_reference& to_reference(size_t const reference_id);
 
+    // returns the lowest number of errors among all alignments stored
     std::optional<size_t> best_num_errors() const;
 
     size_t size() const;

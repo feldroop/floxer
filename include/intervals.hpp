@@ -45,6 +45,8 @@ public:
 
     void insert(half_open_interval const new_interval);
 
+    // true if an interval in this set FULLY contains the target interval or contains an equal interval,
+    // overlaps do not count
     bool contains(half_open_interval const target_interval) const;
 
     size_t size() const;

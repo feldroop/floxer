@@ -11,6 +11,10 @@
 
 namespace cli {
 
+// the reasons for this whole wrapper class around the sharg parser are the following:
+// - isolating sharg into one compile unit to not always recompile it
+// - providing a clean interface for the application, because sharg does not support std::optional
+// - simplify export of given command line parameters (command_line_call function)
 class command_line_input {
     template<typename T>
     struct cli_option {

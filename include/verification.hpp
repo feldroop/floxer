@@ -15,6 +15,9 @@ struct span_config;
 
 }
 
+// this struct collects the arguments needed to verify the existance of a match between
+// the query and a specific region of the reference, determined by an anchor and the
+// corresponding node of a PEX tree
 struct query_verifier {
     // should only be called once on each instance
     void verify(pex::verification_kind_t const kind);

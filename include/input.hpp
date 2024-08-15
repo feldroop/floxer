@@ -21,6 +21,9 @@ struct query_record {
     std::vector<uint8_t> const rank_sequence;
     std::string const quality;
 
+    // the number of errors allowed for this queries alignment (edit distance)
+    // it was either directly given by the user, or is calculated using the given
+    // error probability
     size_t num_errors_from_user_config(cli::command_line_input const& cli_input) const;
 };
 
@@ -42,8 +45,12 @@ fmindex load_index(std::filesystem::path const& _index_path);
 
 namespace internal {
 
-std::string extract_record_id(std::string_view const& reference_name);
+// it is assumed that the record id is the start of the tag until the first space
+std::string extract_record_id(std::string_view const& record_tag);
 
+// convert ASCII DNA chars to a rank sequence of ints from 0 to 5.
+// all invalid chars become 5 and sentinel '$' becomes 0.
+// this means that this program currently can't accurately handle IUPAC degenerate chars
 std::vector<uint8_t> chars_to_rank_sequence(std::string_view const chars);
 
 } // namespace internal
