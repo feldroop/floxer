@@ -19,6 +19,7 @@ struct seed {
     size_t const query_position;
 };
 
+// group count and score are not compared
 bool operator==(seed const& lhs, seed const& rhs);
 
 struct anchor_t {
@@ -37,6 +38,8 @@ struct anchor_t {
     bool should_be_erased() const;
 };
 
+bool operator==(anchor_t const& lhs, anchor_t const& rhs);
+
 using anchors = std::vector<anchor_t>;
 
 enum class anchor_group_order_t {
@@ -46,9 +49,7 @@ enum class anchor_group_order_t {
 anchor_group_order_t anchor_group_order_from_string(std::string_view const s);
 
 struct search_config {
-    size_t const max_num_located_raw_anchors;
-    size_t const max_num_kept_anchors;
-
+    size_t const max_num_anchors;
     anchor_group_order_t const anchor_group_order;
 };
 
@@ -106,9 +107,6 @@ static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max()
 
 // returns the number of kept anchors, sorts anchors by position
 size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference);
-
-// returns the number of kept anchors, expects input anchors to be sorted by position
-size_t erase_low_scoring_anchors(std::vector<anchors>& anchors_by_reference, size_t const max_num_kept_anchors);
 
 } // namespace internal
 

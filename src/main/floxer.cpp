@@ -231,8 +231,7 @@ int main(int argc, char** argv) {
                 .num_reference_sequences = references.records.size(),
                 .scheme_cache = search_scheme_cache,
                 .config = search::search_config{
-                    .max_num_located_raw_anchors = cli_input.max_num_located_anchors(),
-                    .max_num_kept_anchors = cli_input.max_num_kept_anchors(),
+                    .max_num_anchors = cli_input.max_num_anchors(),
                     .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order())
                 }
             };

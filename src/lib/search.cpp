@@ -29,6 +29,13 @@ bool operator==(seed const& lhs, seed const& rhs) {
         lhs.query_position == rhs.query_position;
 }
 
+bool operator==(anchor_t const& lhs, anchor_t const& rhs) {
+    return lhs.reference_position == rhs.reference_position &&
+        lhs.num_errors == rhs.num_errors &&
+        lhs.query_position == rhs.query_position &&
+        lhs.length == rhs.length;
+}
+
 search_schemes::Scheme const& search_scheme_cache::get(
     size_t const pex_leaf_query_length,
     size_t const pex_leaf_num_errors
@@ -150,7 +157,7 @@ search_result searcher::search_seeds(
         size_t i = 0;
         while (
             i < anchor_groups.size() &&
-            num_kept_raw_anchors + anchor_groups[i].cursor.count() <= config.max_num_located_raw_anchors
+            num_kept_raw_anchors + anchor_groups[i].cursor.count() <= config.max_num_anchors
         ) {
             auto const& cursor = anchor_groups[i].cursor;
             size_t const group_count = cursor.count();
@@ -173,10 +180,6 @@ search_result searcher::search_seeds(
         size_t const num_excluded_raw_anchors = total_num_raw_anchors - num_kept_raw_anchors;
 
         size_t num_kept_useful_anchors = erase_useless_anchors(anchors_by_reference);
-
-        if (num_kept_useful_anchors > config.max_num_kept_anchors) {
-            num_kept_useful_anchors = erase_low_scoring_anchors(anchors_by_reference, config.max_num_kept_anchors);
-        }
 
         seed_status status;
         if (num_kept_useful_anchors == 0) {
@@ -240,49 +243,6 @@ size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference) {
     }
 
     return num_kept_useful_anchors;
-}
-
-size_t erase_low_scoring_anchors(std::vector<anchors>& anchors_by_reference, size_t const max_num_kept_anchors) {
-    std::vector<double> scores{};
-
-    for (auto& anchors_of_seed_and_reference : anchors_by_reference) {
-        size_t const num_anchors_of_reference = anchors_of_seed_and_reference.size();
-        for (size_t i = 0; i < num_anchors_of_reference; ++i) {
-            auto& anchor = anchors_of_seed_and_reference[i];
-
-            size_t const difference_to_left = i == 0 ?
-                std::numeric_limits<size_t>::max() :
-                anchor.reference_position - anchors_of_seed_and_reference[i - 1].reference_position;
-
-            size_t const difference_to_right = i == num_anchors_of_reference - 1 ?
-                std::numeric_limits<size_t>::max() :
-                anchors_of_seed_and_reference[i + 1].reference_position - anchor.reference_position;
-
-            double const difference_to_nearest_neighbor = std::min(difference_to_left, difference_to_right);
-
-            // small score is bad
-            double const score = num_anchors_of_reference == 1 ? 0.0 :
-                difference_to_nearest_neighbor * (1 / std::sqrt(anchor.group_count)) *
-                std::sqrt(num_anchors_of_reference);
-
-            anchor.score = score;
-            scores.push_back(score);
-        }
-    }
-
-    std::ranges::nth_element(scores, scores.begin() + max_num_kept_anchors, std::greater<double>());
-    double const score_lower_bound = scores.at(max_num_kept_anchors);
-
-    size_t num_kept_anchors = 0;
-
-    for (auto& anchors_of_seed_and_reference : anchors_by_reference) {
-        std::erase_if(anchors_of_seed_and_reference, [score_lower_bound] (anchor_t const& a) {
-            return a.score.value() <= score_lower_bound;
-        } );
-        num_kept_anchors += anchors_of_seed_and_reference.size();
-    }
-
-    return num_kept_anchors;
 }
 
 } // namespace internal
