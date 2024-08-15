@@ -19,6 +19,8 @@ struct seed {
     size_t const query_position;
 };
 
+bool operator==(seed const& lhs, seed const& rhs);
+
 struct anchor_t {
     size_t reference_position;
     size_t num_errors;

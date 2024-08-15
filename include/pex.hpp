@@ -70,6 +70,9 @@ public:
     // throws std::runtime_error if root is given
     node const& get_parent_of_child(node const& child) const;
 
+    // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
+    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
+
     alignment::query_alignments align_forward_and_reverse_complement(
         std::vector<input::reference_record> const& references,
         std::span<const uint8_t> const query,
@@ -103,9 +106,6 @@ private:
 
     // for bottom up build strategy, returns parent node for nodes in child_nodes and sets their parent_id
     node create_parent_node(std::span<node> const child_nodes, size_t const parent_id);
-
-    // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
-    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
 
     void align_query_in_given_orientation(
         std::vector<input::reference_record> const& references,

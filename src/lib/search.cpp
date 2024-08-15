@@ -14,6 +14,21 @@
 
 namespace search {
 
+bool operator==(seed const& lhs, seed const& rhs) {
+    if (lhs.sequence.size() != rhs.sequence.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < lhs.sequence.size(); ++i) {
+        if (lhs.sequence[i] != rhs.sequence[i]) {
+            return false;
+        }
+    }
+
+    return lhs.num_errors == rhs.num_errors &&
+        lhs.query_position == rhs.query_position;
+}
+
 search_schemes::Scheme const& search_scheme_cache::get(
     size_t const pex_leaf_query_length,
     size_t const pex_leaf_num_errors
