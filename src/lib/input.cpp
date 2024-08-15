@@ -128,8 +128,8 @@ fmindex load_index(std::filesystem::path const& index_path) {
 
 namespace internal {
 
-std::string extract_record_id(std::string_view const& reference_name) {
-    return std::string(reference_name.begin(), std::ranges::find(reference_name, ' '));
+std::string extract_record_id(std::string_view const& record_tag) {
+    return std::string(record_tag.begin(), std::ranges::find(record_tag, ' '));
 }
 
 std::vector<uint8_t> chars_to_rank_sequence(std::string_view const sequence) {
