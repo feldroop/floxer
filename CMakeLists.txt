@@ -47,3 +47,16 @@ option (${PROJECT_NAME}_TEST "Enable testing for ${PROJECT_NAME}." ON)
 if (${PROJECT_NAME}_TEST)
     add_subdirectory (test EXCLUDE_FROM_ALL)
 endif ()
+
+# copy test data from source tree to build dir
+set(test_data_dir "${CMAKE_BINARY_DIR}/test_data")
+file (MAKE_DIRECTORY ${test_data_dir})
+
+file (GLOB TEST_DATA_FILES ${PROJECT_SOURCE_DIR}/test/data/*)
+foreach (test_data_file ${TEST_DATA_FILES})
+    file(COPY ${test_data_file} DESTINATION ${test_data_dir})
+
+    unset (test_data_file)
+endforeach ()
+
+unset(test_data_dir)
