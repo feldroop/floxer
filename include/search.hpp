@@ -25,11 +25,8 @@ bool operator==(seed const& lhs, seed const& rhs);
 struct anchor_t {
     size_t reference_position;
     size_t num_errors;
-    size_t query_position;
-    size_t length;
-
-    size_t group_count;
-    std::optional<double> score = std::nullopt;
+    // size_t query_position;
+    // size_t length;
 
     bool is_better_than(anchor_t const& other);
 

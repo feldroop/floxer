@@ -77,10 +77,7 @@ TEST(search, search_seeds) {
                 search::anchors {
                     search::anchor_t {
                         .reference_position = 0,
-                        .num_errors = 0,
-                        .query_position = 0,
-                        .length = 6,
-                        .group_count = 0
+                        .num_errors = 0
                     }
                 },
                 {}
@@ -94,10 +91,7 @@ TEST(search, search_seeds) {
                 search::anchors {
                     search::anchor_t {
                         .reference_position = 6,
-                        .num_errors = 1,
-                        .query_position = 6,
-                        .length = 6,
-                        .group_count = 0
+                        .num_errors = 1
                     }
                 },
                 {}
@@ -112,10 +106,7 @@ TEST(search, search_seeds) {
                 search::anchors {
                     search::anchor_t {
                         .reference_position = 0,
-                        .num_errors = 1,
-                        .query_position = 0,
-                        .length = 7,
-                        .group_count = 0
+                        .num_errors = 1
                     }
                 }
             }
@@ -135,42 +126,27 @@ TEST(search, search_seeds) {
 TEST(search, erase_useless_anchors) {
     search::anchor_t const useful_anchor1 {
         .reference_position = 100,
-        .num_errors = 0,
-        .query_position = 0,
-        .length = 100,
-        .group_count = 0
+        .num_errors = 0
     };
 
     search::anchor_t const useful_anchor2 {
         .reference_position = 120,
-        .num_errors = 0,
-        .query_position = 0,
-        .length = 100,
-        .group_count = 0
+        .num_errors = 0
     };
 
     std::vector<search::anchors> anchors {{
         search::anchor_t {
             .reference_position = 95,
-            .num_errors = 5,
-            .query_position = 0,
-            .length = 100,
-            .group_count = 0
+            .num_errors = 5
         },
         search::anchor_t {
             .reference_position = 97,
-            .num_errors = 3,
-            .query_position = 0,
-            .length = 100,
-            .group_count = 0
+            .num_errors = 3
         },
         useful_anchor1,
         search::anchor_t {
             .reference_position = 110,
-            .num_errors = 10,
-            .query_position = 0,
-            .length = 100,
-            .group_count = 0
+            .num_errors = 10
         },
         useful_anchor2
     }};

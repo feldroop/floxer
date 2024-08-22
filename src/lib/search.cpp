@@ -31,9 +31,7 @@ bool operator==(seed const& lhs, seed const& rhs) {
 
 bool operator==(anchor_t const& lhs, anchor_t const& rhs) {
     return lhs.reference_position == rhs.reference_position &&
-        lhs.num_errors == rhs.num_errors &&
-        lhs.query_position == rhs.query_position &&
-        lhs.length == rhs.length;
+        lhs.num_errors == rhs.num_errors;
 }
 
 search_schemes::Scheme const& search_scheme_cache::get(
@@ -166,10 +164,7 @@ search_result searcher::search_seeds(
                 auto const [reference_id, position] = index.locate(anchor);
                 anchors_by_reference[reference_id].emplace_back(anchor_t {
                     .reference_position = position,
-                    .num_errors = anchor_groups[i].num_errors,
-                    .query_position = seed.query_position,
-                    .length = seed.sequence.size(),
-                    .group_count = group_count
+                    .num_errors = anchor_groups[i].num_errors
                 });
             }
 
