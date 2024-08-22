@@ -1,4 +1,5 @@
 #include <input.hpp>
+#include <math.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -23,15 +24,9 @@ namespace input {
 
 size_t query_record::num_errors_from_user_config(cli::command_line_input const& cli_input) const {
     if (cli_input.query_error_probability().has_value()) {
-        double const num_errors_frac = rank_sequence.size() * cli_input.query_error_probability().value();
-
-        // handle floating point inaccuracy
-        static constexpr double epsilon = 0.000000001;
-        if (std::abs(num_errors_frac - std::round(num_errors_frac)) < epsilon) {
-            return static_cast<size_t>(std::round(num_errors_frac) + epsilon);
-        } else {
-            return static_cast<size_t>(std::ceil(num_errors_frac));
-        }
+        return math::floating_point_error_aware_ceil(
+            rank_sequence.size() * cli_input.query_error_probability().value()
+        );
     } else {
         return cli_input.query_num_errors().value();
     }

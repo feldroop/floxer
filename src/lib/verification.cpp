@@ -1,3 +1,4 @@
+#include <math.hpp>
 #include <verification.hpp>
 
 #include <stdexcept>
@@ -141,8 +142,8 @@ span_config compute_reference_span_start_and_length(
     double const extra_verification_ratio
 ) {
     size_t const verification_interval_base_length = pex_node.length_of_query_span() + 2 * pex_node.num_errors + 1;
-    size_t const extra_verification_length = std::ceil(verification_interval_base_length * extra_verification_ratio)
-        + std::numeric_limits<double>::epsilon();
+    size_t const extra_verification_length =
+        math::floating_point_error_aware_ceil(verification_interval_base_length * extra_verification_ratio);
 
     int64_t const start_signed = static_cast<int64_t>(anchor.reference_position) -
         static_cast<int64_t>(leaf_query_index_from - pex_node.query_index_from) -
