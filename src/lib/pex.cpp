@@ -55,7 +55,7 @@ pex_tree::pex_tree(pex_tree_config const config)
                 1,
                 config.total_query_length,
                 config.query_num_errors,
-                null_id
+                node::null_id
             );
             break;
         case pex_tree_build_strategy::bottom_up:
@@ -126,7 +126,7 @@ void pex_tree::add_nodes_bottom_up(pex_tree_config const& config) {
     // edge case where tree is only a root
     if (num_desired_leaves == 1) {
         inner_nodes.emplace_back(node {
-            .parent_id = null_id,
+            .parent_id = node::null_id,
             .query_index_from = 0,
             .query_index_to = config.total_query_length - 1,
             .num_errors = config.query_num_errors
@@ -176,7 +176,7 @@ void pex_tree::add_nodes_bottom_up(pex_tree_config const& config) {
     }
 
     inner_nodes.front() = create_parent_node(current_level_nodes, 0);
-    inner_nodes.front().parent_id = null_id;
+    inner_nodes.front().parent_id = node::null_id;
 
     // free reserved space that is not needed
     inner_nodes.shrink_to_fit();

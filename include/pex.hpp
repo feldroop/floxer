@@ -47,6 +47,8 @@ struct pex_alignment_config {
 class pex_tree {
 public:
     struct node {
+        static constexpr size_t null_id = std::numeric_limits<size_t>::max();
+
         // parent_id is index of parent node in inner_nodes or null_id for the root
         size_t parent_id;
 
@@ -115,8 +117,6 @@ private:
         pex_alignment_config const config,
         statistics::search_and_alignment_statistics& stats
     ) const;
-
-    static constexpr size_t null_id = std::numeric_limits<size_t>::max();
 
     std::vector<node> inner_nodes;
     std::vector<node> leaves;
