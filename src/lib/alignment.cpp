@@ -18,6 +18,22 @@
 
 namespace alignment {
 
+bool operator==(query_alignment const& lhs, query_alignment const& rhs) {
+    if (lhs.cigar.size() != rhs.cigar.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < lhs.cigar.size(); ++i) {
+        if (lhs.cigar.at(i) != rhs.cigar.at(i)) {
+            return false;
+        }
+    }
+
+    return lhs.num_errors == rhs.num_errors &&
+        lhs.orientation == rhs.orientation &&
+        lhs.start_in_reference == rhs.start_in_reference;
+}
+
 query_alignments::query_alignments(size_t const num_references)
     : alignments_per_reference(num_references) {}
 

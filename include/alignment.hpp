@@ -22,6 +22,8 @@ struct query_alignment {
     std::vector<seqan3::cigar> cigar;
 };
 
+bool operator==(query_alignment const& lhs, query_alignment const& rhs);
+
 // this class stores all of the alignments of one query to all references
 class query_alignments {
     using alignments_to_reference = std::vector<query_alignment>;
