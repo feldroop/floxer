@@ -38,6 +38,10 @@ pex_tree::node const& pex_tree::get_parent_of_child(pex_tree::node const& child)
     return inner_nodes.at(child.parent_id);
 }
 
+std::vector<pex_tree::node> const& pex_tree::get_leaves() const {
+    return leaves;
+}
+
 pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
     auto [iter, _] = trees.try_emplace(config.total_query_length, config);
     return iter->second;
