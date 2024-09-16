@@ -196,8 +196,14 @@ int main(int argc, char** argv) {
                 query_num_errors < cli_input.pex_seed_num_errors()
             ) {
                 spdlog::debug(
-                    "({}/{}) skipping query: {} due to bad num_errors configuration",
-                    query_index, queries.records.size(), query.id
+                    "({}/{}) skipping query: {} due to bad configuration regarding the number of errors.\n"
+                    "\tquery length: {}, errors in query: {}, PEX seed errors: {}",
+                    query_index,
+                    queries.records.size(),
+                    query.id,
+                    query.rank_sequence.size(),
+                    query_num_errors,
+                    cli_input.pex_seed_num_errors()
                 );
 
                 auto no_alignments = alignment::query_alignments(references.records.size());
