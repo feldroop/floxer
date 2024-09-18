@@ -93,8 +93,8 @@ std::optional<size_t> command_line_input::timeout_seconds() const {
     }
 }
 
-bool command_line_input::print_stats() const {
-    return print_stats_.value;
+std::optional<std::string> command_line_input::stats_target() const {
+    return stats_target_.value;
 }
 
 std::string command_line_input::command_line_call() const {
@@ -121,7 +121,7 @@ std::string command_line_input::command_line_call() const {
 
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
-        print_stats() ? print_stats_.command_line_call() : ""
+        stats_target().has_value() ? stats_target_.command_line_call() : ""
     };
 
     return fmt::format("{}", fmt::join(individual_calls, ""));
@@ -306,10 +306,12 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .advanced = true
     });
 
-    parser.add_flag(print_stats_.value, sharg::config{
-        .short_id = print_stats_.short_id,
-        .long_id = print_stats_.long_id,
-        .description = "Print a number of stats about input, seeding and alignments.",
+    parser.add_option(stats_target_.value, sharg::config{
+        .short_id = stats_target_.short_id,
+        .long_id = stats_target_.long_id,
+        .description = "Can be the value 'terminal', then number of stats about input, seeding and alignments "
+            "will be written to stderr. Otherwise it can be a path to a file and the stats are written to this "
+            "location in TOML format.",
         .advanced = true
     });
 

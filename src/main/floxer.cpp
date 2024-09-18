@@ -12,6 +12,7 @@
 #include <chrono>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <locale>
 #include <memory>
 #include <ranges>
@@ -308,10 +309,14 @@ int main(int argc, char** argv) {
             output::format_elapsed_time(aligning_stopwatch.elapsed())
         );
     }
-
-    if (cli_input.print_stats()) {
-        for (auto const& formatted_statistic : stats.format_statistics()) {
-            spdlog::info("{}", formatted_statistic);
+    if (cli_input.stats_target().has_value()) {
+        if (cli_input.stats_target().value() == "terminal") {
+            for (auto const& formatted_statistic : stats.format_statistics_for_stdout()) {
+                spdlog::info("{}", formatted_statistic);
+            }
+        } else {
+            std::ofstream out(cli_input.stats_target().value());
+            out << stats.format_statistics_as_toml();
         }
     }
 

@@ -2,10 +2,19 @@
 
 #include <algorithm>
 
+#include <spdlog/fmt/ranges.h>
+
 namespace statistics {
 
-std::string search_and_alignment_statistics::count::format_to_string() const {
+std::string search_and_alignment_statistics::count::format_to_string_for_stdout() const {
     return fmt::format("number of {}: {}", name, value);
+}
+
+std::string search_and_alignment_statistics::count::format_as_toml() const {
+    std::string underscored_name = name;
+    std::ranges::replace(underscored_name, ' ', '_');
+
+    return fmt::format("{} = {}\n", underscored_name, value);
 }
 
 search_and_alignment_statistics::histogram::histogram(
@@ -43,7 +52,7 @@ void search_and_alignment_statistics::histogram::merge_with(histogram const& oth
     }
 }
 
-std::string search_and_alignment_statistics::histogram::format_to_string() const {
+std::string search_and_alignment_statistics::histogram::format_to_string_for_stdout() const {
     std::string basic_stats = num_values > 0 ?
         fmt::format(
             "\nmin = {}, mean = {:.2f}, max = {}", min, sum / num_values, max
@@ -60,6 +69,35 @@ std::string search_and_alignment_statistics::histogram::format_to_string() const
         fmt::join(data, "\t"),
         basic_stats
     );
+}
+
+std::string search_and_alignment_statistics::histogram::format_as_toml() const {
+    std::string underscored_name = name;
+    std::ranges::replace(underscored_name, ' ', '_');
+
+    std::string formatted = fmt::format(
+        "[{}]\n"
+        "num_values = {}\n"
+        "thresholds = {}\n"
+        "occurrences = {}\n",
+        underscored_name,
+        num_values,
+        config.thresholds,
+        data
+    );
+
+    if (num_values > 0) {
+        formatted += fmt::format(
+            "min_value = {}\n"
+            "mean = {:.2f}\n"
+            "max_value = {}\n",
+            min,
+            sum / num_values,
+            max
+        );
+    }
+
+    return formatted;
 }
 
 search_and_alignment_statistics::count&
@@ -238,18 +276,32 @@ size_t search_and_alignment_statistics::num_queries() const {
     return histogram_by_name(query_lengths_name).num_values;
 }
 
-std::vector<std::string> search_and_alignment_statistics::format_statistics() const {
+std::vector<std::string> search_and_alignment_statistics::format_statistics_for_stdout() const {
     std::vector<std::string> formatted_statistics{};
 
     for (auto const& c : counts) {
-        formatted_statistics.emplace_back(c.format_to_string());
+        formatted_statistics.emplace_back(c.format_to_string_for_stdout());
     }
 
     for (auto const& histo : histograms) {
-        formatted_statistics.emplace_back(histo.format_to_string());
+        formatted_statistics.emplace_back(histo.format_to_string_for_stdout());
     }
 
     return formatted_statistics;
+}
+
+std::string search_and_alignment_statistics::format_statistics_as_toml() const {
+    std::string formatted{};
+
+    for (auto const& c : counts) {
+        formatted += c.format_as_toml();
+    }
+
+    for (auto const& histo : histograms) {
+        formatted += histo.format_as_toml();
+    }
+
+    return formatted;
 }
 
 search_and_alignment_statistics& combine_stats(

@@ -39,7 +39,9 @@ class search_and_alignment_statistics {
         std::string const name;
         size_t value = 0;
 
-        std::string format_to_string() const;
+        std::string format_to_string_for_stdout() const;
+
+        std::string format_as_toml() const;
     };
 
     struct histogram {
@@ -58,7 +60,9 @@ class search_and_alignment_statistics {
 
         void merge_with(histogram const& other);
 
-        std::string format_to_string() const;
+        std::string format_to_string_for_stdout() const;
+
+        std::string format_as_toml() const;
     };
 
     static inline const std::string num_completely_excluded_queries_name = "completely excluded queries";
@@ -71,15 +75,15 @@ class search_and_alignment_statistics {
     static inline const std::string seed_lengths_name = "seed lengths";
     static inline const std::string errors_per_seed_name = "errors per seed";
     static inline const std::string seeds_per_query_name = "seeds per query";
-    static inline const std::string anchors_per_seed_name = "anchors per (non-excluded) seed";
-    static inline const std::string kept_anchors_per_partly_excluded_seed_name = "kept anchors per (partly-excluded) seed";
-    static inline const std::string raw_anchors_per_excluded_seed_name = "(raw) anchors per fully excluded seed";
-    static inline const std::string anchors_per_query_name = "anchors per query (from non-excluded seeds)";
-    static inline const std::string excluded_raw_anchors_per_query_name = "excluded (raw) anchors per query";
-    static inline const std::string reference_span_sizes_aligned_inner_nodes_name = "reference span sizes aligned (inner nodes)";
-    static inline const std::string reference_span_sizes_avoided_inner_nodes_name = "reference span sizes alignment avoided (inner nodes)";
-    static inline const std::string reference_span_sizes_aligned_root_name = "reference span sizes aligned (roots)";
-    static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes alignment avoided (roots)";
+    static inline const std::string anchors_per_seed_name = "anchors per non excluded seed";
+    static inline const std::string kept_anchors_per_partly_excluded_seed_name = "kept anchors per partly excluded seed";
+    static inline const std::string raw_anchors_per_excluded_seed_name = "raw anchors per fully excluded seed";
+    static inline const std::string anchors_per_query_name = "anchors per query from non excluded seeds";
+    static inline const std::string excluded_raw_anchors_per_query_name = "excluded raw anchors per query";
+    static inline const std::string reference_span_sizes_aligned_inner_nodes_name = "reference span sizes aligned of inner nodes";
+    static inline const std::string reference_span_sizes_avoided_inner_nodes_name = "reference span sizes alignment avoided of inner nodes";
+    static inline const std::string reference_span_sizes_aligned_root_name = "reference span sizes aligned of roots";
+    static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes alignment avoided of roots";
     static inline const std::string alignments_per_query_name = "alignments per query";
     static inline const std::string alignments_edit_distance_name = "alignments edit distance";
 
@@ -149,7 +153,9 @@ public:
 
     size_t num_queries() const;
 
-    std::vector<std::string> format_statistics() const;
+    std::vector<std::string> format_statistics_for_stdout() const;
+
+    std::string format_statistics_as_toml() const;
 
     friend search_and_alignment_statistics& combine_stats(
         search_and_alignment_statistics & inout,
