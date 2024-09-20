@@ -129,7 +129,7 @@ void pex_tree::add_nodes_bottom_up(pex_tree_config const& config) {
 
     // edge case where tree is only a root
     if (num_desired_leaves == 1) {
-        inner_nodes.emplace_back(node {
+        leaves.emplace_back(node {
             .parent_id = node::null_id,
             .query_index_from = 0,
             .query_index_to = config.total_query_length - 1,
