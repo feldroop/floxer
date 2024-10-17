@@ -59,6 +59,10 @@ verified_intervals::verified_intervals(use_interval_optimization const activity_
     : activity_status{activity_status_} {}
 
 void verified_intervals::insert(half_open_interval const new_interval) {
+    if (activity_status == use_interval_optimization::off) {
+        return;
+    }
+
     if (intervals.empty()) {
         intervals.insert(new_interval);
         return;
@@ -127,6 +131,10 @@ void verified_intervals::insert(half_open_interval const new_interval) {
 bool verified_intervals::contains(
     half_open_interval const target_interval
 ) const {
+    if (activity_status == use_interval_optimization::off) {
+        return false;
+    }
+
     // first interval that has an end position NOT BELOW target_interval.end
     auto const existing_interval_iter = intervals.lower_bound(target_interval);
 
