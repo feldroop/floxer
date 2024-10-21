@@ -11,6 +11,7 @@ target_link_libraries (
     fmindex-collection::fmindex-collection
     cereal::cereal
     seqan3::seqan3
+    interval-tree
 )
 
 target_include_directories ("${PROJECT_NAME}_lib" PUBLIC "../../include")

@@ -251,7 +251,8 @@ int main(int argc, char** argv) {
                 .verification_kind = cli_input.direct_full_verification() ?
                     pex::verification_kind_t::direct_full :
                     pex::verification_kind_t::hierarchical,
-                .extra_verification_ratio = cli_input.extra_verification_ratio()
+                .extra_verification_ratio = cli_input.extra_verification_ratio(),
+                .overlap_rate_that_counts_as_contained = cli_input.allowed_interval_overlap_ratio()
             };
 
             auto alignments = pex_tree.align_forward_and_reverse_complement(

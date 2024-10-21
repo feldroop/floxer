@@ -89,14 +89,10 @@ TEST(intervals, verified_intervals) {
 
     interval_test_cases const cases{};
 
-    verified_intervals ivls(use_interval_optimization::on);
-
-    EXPECT_EQ(ivls.size(), 0);
+    verified_intervals ivls(use_interval_optimization::on, 1.0);
 
     ivls.insert(cases.ivl1);
     ivls.insert(cases.ivl2);
-
-    EXPECT_EQ(ivls.size(), 2);
 
     EXPECT_TRUE(ivls.contains(cases.ivl1));
     EXPECT_TRUE(ivls.contains(cases.ivl2));
@@ -114,7 +110,6 @@ TEST(intervals, verified_intervals) {
     EXPECT_FALSE(ivls.contains(cases.above_both));
 
     ivls.insert(cases.ivl3);
-    EXPECT_EQ(ivls.size(), 2);
 
     // [ivl1+3), [ivl2)
     EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
@@ -129,22 +124,20 @@ TEST(intervals, verified_intervals) {
     EXPECT_FALSE(ivls.contains(cases.above_both));
 
     ivls.insert(cases.ivl4);
-    EXPECT_EQ(ivls.size(), 1);
 
     // [ivl1+2+3+4)
     EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
     EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl1));
     EXPECT_FALSE(ivls.contains(cases.containing_ivl1));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2)); // !
     EXPECT_FALSE(ivls.contains(cases.overlapping_above_ivl2));
-    EXPECT_TRUE(ivls.contains(cases.between_both));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_both));
+    EXPECT_TRUE(ivls.contains(cases.between_both)); // !
+    EXPECT_TRUE(ivls.contains(cases.overlapping_both)); // !
     EXPECT_FALSE(ivls.contains(cases.containing_both));
     EXPECT_FALSE(ivls.contains(cases.below_both));
     EXPECT_FALSE(ivls.contains(cases.above_both));
 
     ivls.insert(cases.ivl5);
-    EXPECT_EQ(ivls.size(), 1);
 
     // [ivl5)
     EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
@@ -160,5 +153,52 @@ TEST(intervals, verified_intervals) {
 
     // size should not change when insert repeatedly
     ivls.insert(cases.ivl5);
-    EXPECT_EQ(ivls.size(), 1);
+}
+
+TEST(intervals, verified_intervals_overlapping) {
+    using namespace intervals;
+
+    interval_test_cases const cases{};
+
+    verified_intervals ivls(use_interval_optimization::on, 0.5);
+
+    ivls.insert(cases.ivl1);
+
+    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.containing_ivl1));
+    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl2));
+    EXPECT_FALSE(ivls.contains(cases.overlapping_above_ivl2));
+    EXPECT_FALSE(ivls.contains(cases.between_both));
+    EXPECT_FALSE(ivls.contains(cases.overlapping_both));
+    EXPECT_FALSE(ivls.contains(cases.containing_both));
+    EXPECT_FALSE(ivls.contains(cases.below_both));
+    EXPECT_FALSE(ivls.contains(cases.above_both));
+
+    ivls.insert(cases.ivl2);
+
+    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.containing_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_above_ivl2));
+    EXPECT_FALSE(ivls.contains(cases.between_both));
+    EXPECT_FALSE(ivls.contains(cases.overlapping_both));
+    EXPECT_FALSE(ivls.contains(cases.containing_both));
+    EXPECT_FALSE(ivls.contains(cases.below_both));
+    EXPECT_FALSE(ivls.contains(cases.above_both));
+
+    ivls.insert(cases.ivl3);
+    ivls.insert(cases.ivl4);
+
+    EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.containing_ivl1));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_above_ivl2));
+    EXPECT_TRUE(ivls.contains(cases.between_both));
+    EXPECT_TRUE(ivls.contains(cases.overlapping_both));
+    EXPECT_TRUE(ivls.contains(cases.containing_both));
+    EXPECT_FALSE(ivls.contains(cases.below_both));
+    EXPECT_FALSE(ivls.contains(cases.above_both));
 }

@@ -355,9 +355,13 @@ void pex_tree::align_query_in_given_orientation(
     auto const search_result = config.searcher.search_seeds(seeds);
     stats.add_statistics_for_search_result(search_result);
 
-    std::vector<intervals::verified_intervals> already_verified_intervals_per_reference(
-        references.size(), intervals::verified_intervals(config.use_interval_optimization)
-    );
+    std::vector<intervals::verified_intervals> already_verified_intervals_per_reference{};
+    for (size_t i = 0; i < references.size(); ++i) {
+        already_verified_intervals_per_reference.emplace_back(
+            config.use_interval_optimization,
+            config.overlap_rate_that_counts_as_contained
+        );
+    }
 
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
         auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];

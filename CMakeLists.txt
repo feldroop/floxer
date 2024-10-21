@@ -31,6 +31,7 @@ CPMGetPackage(IVSigma) # for sequence alphabet and transformation utilities (tha
 CPMGetPackage(fmindex-collection) # for the FM-index
 CPMGetPackage(cereal) # for FM-index serialization
 CPMGetPackage(seqan3) # for alignment and sam/bam output
+CPMGetPackage(interval-tree) # for interval tree data structure in the interval optimization
 CPMGetPackage(use_ccache) # for faster compile times
 
 # ----- floxer source code and build configuration -----

@@ -77,6 +77,10 @@ double command_line_input::extra_verification_ratio() const {
     return extra_verification_ratio_.value;
 }
 
+double command_line_input::allowed_interval_overlap_ratio() const {
+    return allowed_interval_overlap_ratio_.value;
+}
+
 bool command_line_input::direct_full_verification() const {
     return direct_full_verification_.value;
 }
@@ -117,6 +121,7 @@ std::string command_line_input::command_line_call() const {
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
         extra_verification_ratio_.command_line_call(),
+        allowed_interval_overlap_ratio_.command_line_call(),
         direct_full_verification() ? direct_full_verification_.command_line_call() : "",
 
         num_threads_.command_line_call(),
@@ -145,6 +150,12 @@ void command_line_input::validate() const {
                 query_num_errors().value(),
                 pex_seed_num_errors()
             )
+        );
+    }
+
+    if (allowed_interval_overlap_ratio() == 1.0 && !use_interval_optimization()) {
+        throw std::runtime_error(
+            "You cannot set the allowed interval overlap ratio without activating the interval optimization."
         );
     }
 }
@@ -279,6 +290,15 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
             "and the additional sequence. Larger values prevent the repeated verification "
             "of mostly overlapping intervals arising from slightly shifted anchors.",
         .advanced = true
+    });
+
+    parser.add_option(allowed_interval_overlap_ratio_.value, sharg::config{
+        .short_id = allowed_interval_overlap_ratio_.short_id,
+        .long_id = allowed_interval_overlap_ratio_.long_id,
+        .description = "In the interval optimization, if a previously verified interval overlaps to this relative amount "
+            "with a new verification interval, the new interval will not be verified.",
+        .advanced = true,
+        .validator = sharg::arithmetic_range_validator{0.0000001, 1.0}
     });
 
     parser.add_flag(direct_full_verification_.value, sharg::config{

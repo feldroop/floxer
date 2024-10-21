@@ -1,4 +1,5 @@
 #include <intervals.hpp>
+#include <math.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -6,6 +7,20 @@
 #include <vector>
 
 namespace intervals {
+
+size_t half_open_interval::size() const {
+    return end - start;
+}
+
+half_open_interval half_open_interval::overlap_interval_with(half_open_interval const other) const {
+    assert(relationship_with(other) != interval_relationship::completely_above);
+    assert(relationship_with(other) != interval_relationship::completely_below);
+
+    return half_open_interval {
+        .start = std::max(start, other.start),
+        .end = std::min(end, other.end)
+    };
+}
 
 interval_relationship half_open_interval::relationship_with(half_open_interval const other) const {
     assert(start < end);
@@ -41,6 +56,10 @@ half_open_interval half_open_interval::trim_from_both_sides(size_t const amount)
     };
 }
 
+lib_interval_tree::interval<size_t> half_open_interval::to_lib_intervaltree_interval() const {
+    return { start, end };
+}
+
 bool operator==(half_open_interval const& interval1, half_open_interval const& interval2) {
     assert(interval1.start < interval1.end);
     assert(interval2.start < interval2.end);
@@ -55,77 +74,21 @@ auto operator<(half_open_interval const& interval1, half_open_interval const& in
     return interval1.end < interval2.end;
 }
 
-verified_intervals::verified_intervals(use_interval_optimization const activity_status_)
-    : activity_status{activity_status_} {}
+verified_intervals::verified_intervals(
+    use_interval_optimization const activity_status_,
+    double const overlap_rate_that_counts_as_contained_
+)
+    : activity_status{activity_status_},
+    overlap_rate_that_counts_as_contained{overlap_rate_that_counts_as_contained_}
+    {}
 
 void verified_intervals::insert(half_open_interval const new_interval) {
     if (activity_status == use_interval_optimization::off) {
         return;
     }
 
-    if (intervals.empty()) {
-        intervals.insert(new_interval);
-        return;
-    }
-
-    std::vector<half_open_interval> intervals_to_remove{};
-    half_open_interval interval_to_insert = new_interval;
-
-    // first interval that has an end position ABOVE new_interval.end
-    auto existing_interval_iter = intervals.upper_bound(new_interval);
-
-    if (existing_interval_iter == intervals.end()) {
-        // safe because intervals can't be empty
-        --existing_interval_iter;
-    }
-
-    bool continue_searching = true;
-
-    // This is linear time in the worst case, if we have to merge all intervals.
-    // However, I believe this case will rarely happen in the usage of this program.
-    // Also it allows simple and quick contains queries, which is a nice trade-off.
-    while (continue_searching) {
-        auto const existing_interval = *existing_interval_iter;
-        auto const relationship = existing_interval.relationship_with(new_interval);
-
-        switch (relationship) {
-            case interval_relationship::completely_above:
-                break;
-            case interval_relationship::completely_below:
-                continue_searching = false;
-                break;
-            case interval_relationship::contains:
-            case interval_relationship::equal:
-                return;
-            case interval_relationship::inside:
-                intervals_to_remove.emplace_back(existing_interval);
-                break;
-            case interval_relationship::overlapping_or_touching_above:
-                intervals_to_remove.emplace_back(existing_interval);
-                interval_to_insert.end = existing_interval.end;
-                break;
-            case interval_relationship::overlapping_or_touching_below:
-                intervals_to_remove.emplace_back(existing_interval);
-                interval_to_insert.start = existing_interval.start;
-                continue_searching = false;
-                break;
-            default:
-                throw std::runtime_error("(should be unreachable) internal bug in interval set");
-        }
-
-        if (existing_interval_iter == intervals.begin()) {
-            continue_searching = false;
-        } else {
-            --existing_interval_iter;
-        }
-    }
-
-    for (half_open_interval const interval_to_remove : intervals_to_remove) {
-        [[maybe_unused]] size_t const num_erased = intervals.erase(interval_to_remove);
-        assert(num_erased == 1);
-    }
-
-    intervals.insert(interval_to_insert);
+    intervals.insert_overlap(new_interval.to_lib_intervaltree_interval());
+    intervals.deoverlap();
 }
 
 bool verified_intervals::contains(
@@ -135,21 +98,36 @@ bool verified_intervals::contains(
         return false;
     }
 
-    // first interval that has an end position NOT BELOW target_interval.end
-    auto const existing_interval_iter = intervals.lower_bound(target_interval);
+    bool does_contain = false;
 
-    if (existing_interval_iter == intervals.end()) {
-        // all existing intervals have an end position below target interval
-        return false;
-    }
+    intervals.overlap_find_all(target_interval.to_lib_intervaltree_interval(), [&] (auto interval_it) {
+        half_open_interval const existing_interval = {
+            .start = interval_it->low(),
+            .end = interval_it->high()
+        };
 
-    auto const relationship = existing_interval_iter->relationship_with(target_interval);
+        // the return value indicates whether to keep searching
+        switch (existing_interval.relationship_with(target_interval)) {
+            case interval_relationship::completely_above:
+            case interval_relationship::completely_below:
+                throw std::runtime_error("(should not happen) found disjoint interval in overlap function");
+            case interval_relationship::equal:
+            case interval_relationship::contains:
+                does_contain = true;
+                break;
+            case interval_relationship::inside:
+            case interval_relationship::overlapping_or_touching_above:
+            case interval_relationship::overlapping_or_touching_below:
+                static constexpr double epsilon = 0.000000001;
+                does_contain = static_cast<double>(
+                    target_interval.overlap_interval_with(existing_interval).size()
+                ) / target_interval.size() + epsilon >= overlap_rate_that_counts_as_contained;
+        }
 
-    return relationship == interval_relationship::contains || relationship == interval_relationship::equal;
-}
+        return !does_contain;
+    });
 
-size_t verified_intervals::size() const {
-    return intervals.size();
+    return does_contain;
 }
 
 } // namespace intervals

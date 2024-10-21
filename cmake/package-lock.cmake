@@ -71,6 +71,15 @@ CPMDeclarePackage (
 )
 
 CPMDeclarePackage (
+    interval-tree
+    NAME interval-tree
+    GITHUB_REPOSITORY 5cript/interval-tree
+    GIT_TAG 4b91cf434eebceef4b8509c97b568d7efef14b20
+    EXCLUDE_FROM_ALL TRUE
+    SYSTEM TRUE
+)
+
+CPMDeclarePackage (
     use_ccache
     NAME use_ccache
     GITHUB_REPOSITORY seqan/cmake-scripts

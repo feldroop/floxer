@@ -54,6 +54,7 @@ class command_line_input {
     cli_option<bool> bottom_up_pex_tree_building_{ 'b', "bottom-up-pex-tree", false };
     cli_option<bool> use_interval_optimization_{ 'n', "interval-optimization", false };
     cli_option<double> extra_verification_ratio_{ 'v', "extra-verification-ratio", 0.01 };
+    cli_option<double> allowed_interval_overlap_ratio_{ 'w', "allowed-interval-overlap-ratio", 1.0 };
     cli_option<bool> direct_full_verification_{ 'd', "direct-full-verification", false };
 
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
@@ -79,6 +80,7 @@ public:
     bool bottom_up_pex_tree_building() const;
     bool use_interval_optimization() const;
     double extra_verification_ratio() const;
+    double allowed_interval_overlap_ratio() const;
     bool direct_full_verification() const;
 
     size_t num_threads() const;
