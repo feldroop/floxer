@@ -319,4 +319,17 @@ search_and_alignment_statistics& combine_stats(
     return inout;
 }
 
+namespace internal {
+
+std::vector<size_t> linear_range(size_t const num_steps, size_t const max) {
+    std::vector<size_t> range{};
+    for (size_t i= 0; i < num_steps; ++i) {
+        range.push_back(i * max / num_steps);
+    }
+
+    return range;
+}
+
+}
+
 } // namespace statistics

@@ -14,6 +14,12 @@
 
 namespace statistics {
 
+namespace internal {
+
+std::vector<size_t> linear_range(size_t const num_steps, size_t const max);
+
+} // namespace internal
+
 class search_and_alignment_statistics {
     struct histogram_config {
         std::vector<size_t> thresholds;
@@ -24,7 +30,11 @@ class search_and_alignment_statistics {
     };
 
     static inline const histogram_config small_values_linear_scale{
-        .thresholds = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70 }
+        .thresholds = internal::linear_range(30, 100)
+    };
+
+    static inline const histogram_config medium_values_linear_scale{
+        .thresholds = internal::linear_range(30, 1000)
     };
 
     static inline const histogram_config small_values_log_scale{
@@ -33,6 +43,14 @@ class search_and_alignment_statistics {
 
     static inline const histogram_config tiny_values_linear_scale{
         .thresholds = { 0, 1, 2, 3, 4 }
+    };
+
+    static inline const histogram_config practical_query_length_scale{
+        .thresholds = internal::linear_range(30, 150'000)
+    };
+
+    static inline const histogram_config practical_anchor_scale{
+        .thresholds = internal::linear_range(30, 10'000)
     };
 
     struct count {
@@ -88,21 +106,21 @@ class search_and_alignment_statistics {
     static inline const std::string alignments_edit_distance_name = "alignments edit distance";
 
     std::vector<histogram> histograms{
-        histogram{large_values_log_scale, query_lengths_name},
+        histogram{practical_query_length_scale, query_lengths_name},
         histogram{small_values_linear_scale, seed_lengths_name},
         histogram{tiny_values_linear_scale, errors_per_seed_name},
-        histogram{small_values_log_scale, seeds_per_query_name},
-        histogram{large_values_log_scale, anchors_per_seed_name},
-        histogram{large_values_log_scale, kept_anchors_per_partly_excluded_seed_name},
-        histogram{large_values_log_scale, raw_anchors_per_excluded_seed_name},
-        histogram{large_values_log_scale, anchors_per_query_name},
-        histogram{large_values_log_scale, excluded_raw_anchors_per_query_name},
-        histogram{large_values_log_scale, reference_span_sizes_aligned_inner_nodes_name},
-        histogram{large_values_log_scale, reference_span_sizes_avoided_inner_nodes_name},
-        histogram{large_values_log_scale, reference_span_sizes_aligned_root_name},
-        histogram{large_values_log_scale, reference_span_sizes_avoided_root_name},
-        histogram{large_values_log_scale, alignments_per_query_name},
-        histogram{small_values_log_scale, alignments_edit_distance_name}
+        histogram{medium_values_linear_scale, seeds_per_query_name},
+        histogram{practical_anchor_scale, anchors_per_seed_name},
+        histogram{practical_anchor_scale, kept_anchors_per_partly_excluded_seed_name},
+        histogram{practical_anchor_scale, raw_anchors_per_excluded_seed_name},
+        histogram{practical_anchor_scale, anchors_per_query_name},
+        histogram{practical_anchor_scale, excluded_raw_anchors_per_query_name},
+        histogram{practical_query_length_scale, reference_span_sizes_aligned_inner_nodes_name},
+        histogram{practical_query_length_scale, reference_span_sizes_avoided_inner_nodes_name},
+        histogram{practical_query_length_scale, reference_span_sizes_aligned_root_name},
+        histogram{practical_query_length_scale, reference_span_sizes_avoided_root_name},
+        histogram{medium_values_linear_scale, alignments_per_query_name},
+        histogram{practical_anchor_scale, alignments_edit_distance_name}
     };
 
     count& count_by_name(std::string const& name);
