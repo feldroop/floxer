@@ -472,15 +472,13 @@ void validate_query_data(std::unordered_map<std::string, query_data_t> const& qu
 void print_value(
     std::string_view const predicate_name,
     size_t const num_queries_matching_predicate,
-    double const num_subset_queries,
-    double const num_queries
+    [[maybe_unused]] double const num_subset_queries,
+    [[maybe_unused]] double const num_queries
 ) {
-    spdlog::info(
-        "{}: {} | {:.1f}% | {:.1f}%",
+    fmt::print(
+        "{} = {}\n",
         predicate_name,
-        num_queries_matching_predicate,
-        (num_queries_matching_predicate / num_subset_queries) * 100.0,
-        (num_queries_matching_predicate / num_queries) * 100.0
+        num_queries_matching_predicate
     );
 }
 
@@ -522,15 +520,16 @@ void print_basic_stats(std::unordered_map<std::string, query_data_t> const& quer
     size_t const num_mapped_floxer = num_queries - num_unmapped_floxer;
     size_t const num_mapped_minimap = num_queries - num_unmapped_minimap;
 
-    print_value("Number of queries", num_queries, num_queries, num_queries);
-    print_value("Both mapped", num_both_mapped, num_queries, num_queries);
-    print_value("Both unmapped", num_both_unmapped, num_queries, num_queries);
-    print_value("Floxer mapped", num_mapped_floxer, num_queries, num_queries);
-    print_value("Floxer unmapped", num_unmapped_floxer, num_queries, num_queries);
-    print_value("Minimap mapped", num_mapped_minimap, num_queries, num_queries);
-    print_value("Minimap unmapped", num_unmapped_minimap, num_queries, num_queries);
-    print_value("Floxer unmapped, minimap mapped", num_floxer_unmapped_minimap_mapped, num_queries, num_queries);
-    print_value("Minimap unmapped, floxer mapped", num_minimap_unmapped_floxer_mapped, num_queries, num_queries);
+    fmt::print("[general_stats]\n");
+    print_value("number_of_queries", num_queries, num_queries, num_queries);
+    print_value("both_mapped", num_both_mapped, num_queries, num_queries);
+    print_value("both_unmapped", num_both_unmapped, num_queries, num_queries);
+    print_value("floxer_mapped", num_mapped_floxer, num_queries, num_queries);
+    print_value("floxer_unmapped", num_unmapped_floxer, num_queries, num_queries);
+    print_value("minimap_mapped", num_mapped_minimap, num_queries, num_queries);
+    print_value("minimap_unmapped", num_unmapped_minimap, num_queries, num_queries);
+    print_value("floxer_unmapped_and_minimap_mapped", num_floxer_unmapped_minimap_mapped, num_queries, num_queries);
+    print_value("minimap_unmapped_and_floxer_mapped", num_minimap_unmapped_floxer_mapped, num_queries, num_queries);
 }
 
 template<typename V>
@@ -543,7 +542,7 @@ void print_alignment_statistics(
     double const floxer_allowed_error_rate,
     alignment_data_view auto alignments
 ) {
-    spdlog::info("---------- {} alignment statistics ----------", title);
+    fmt::print("[{}]\n", title);
 
     size_t num_primary_chimeric = 0;
     size_t num_primary_basic = 0;
@@ -592,23 +591,23 @@ void print_alignment_statistics(
         longest_indel_sum += alignment_data.longest_indel;
         ++num_subset_queries;
     }
-
-    spdlog::info("Number of queries in subset: {}", num_subset_queries);
-    print_value("Primary chimeric", num_primary_chimeric, num_subset_queries, num_queries);
-    print_value("Primary linear not significantly clipped (basic)", num_primary_basic, num_subset_queries, num_queries);
-    print_value("Primary linear clipped", num_primary_linear_clipped, num_subset_queries, num_queries);
-    print_value("Primary high edit distance", num_primary_high_edit_distance, num_subset_queries, num_queries);
-    print_value("Primary inversion", num_primary_inversion, num_subset_queries, num_queries);
-    print_value("Multiple mapping", num_multiple_mapping, num_subset_queries, num_queries);
+    // basic = not significantly clipped
+    fmt::print("num_queries = {}\n", num_subset_queries);
+    print_value("primary_chimeric", num_primary_chimeric, num_subset_queries, num_queries);
+    print_value("primary_linear_basic", num_primary_basic, num_subset_queries, num_queries);
+    print_value("primary_linear_clipped", num_primary_linear_clipped, num_subset_queries, num_queries);
+    print_value("primary_high_edit_distance", num_primary_high_edit_distance, num_subset_queries, num_queries);
+    print_value("primary_inversion", num_primary_inversion, num_subset_queries, num_queries);
+    print_value("multiple_mapping", num_multiple_mapping, num_subset_queries, num_queries);
     print_value(
-        "Primary not basic, secondary basic",
+        "primary_not_basic_secondary_basic",
         num_primary_not_basic_and_secondary_basic,
         num_subset_queries,
         num_queries
     );
-    spdlog::info("average longest indel: {:.2f}", longest_indel_sum / static_cast<double>(num_subset_queries));
-    spdlog::info(
-        "average error rate of primary basic alignments: {:.4f}",
+    fmt::print("average_longest_indel = {:.2f}\n", longest_indel_sum / static_cast<double>(num_subset_queries));
+    fmt::print(
+        "average_error_rate_of_primary_basic_alignments = {:.4f}\n",
         primary_basic_error_rate_sum / static_cast<double>(num_primary_basic)
     );
 }
@@ -667,13 +666,12 @@ int main(int argc, char** argv) {
 
     validate_query_data(query_data_by_query_id);
 
-    spdlog::info("---------- Basic stats ----------");
     print_basic_stats(query_data_by_query_id);
 
     size_t const num_queries = query_data_by_query_id.size();
 
     print_alignment_statistics(
-        "floxer mapped (floxer)",
+        "floxer_stats_if_floxer_mapped",
         num_queries,
         error_rate,
         query_data_by_query_id |
@@ -684,7 +682,7 @@ int main(int argc, char** argv) {
             std::views::transform(&query_data_t::floxer_alignments)
     );
     print_alignment_statistics(
-        "minimap mapped (minimap)",
+        "minimap_stats_if_minimap_mapped",
         num_queries,
         error_rate,
         query_data_by_query_id |
@@ -695,7 +693,7 @@ int main(int argc, char** argv) {
             std::views::transform(&query_data_t::minimap_alignments)
     );
     print_alignment_statistics(
-        "both mapped (minimap)",
+        "minimap_stats_if_both_mapped",
         num_queries,
         error_rate,
         query_data_by_query_id |
@@ -706,7 +704,7 @@ int main(int argc, char** argv) {
             std::views::transform(&query_data_t::minimap_alignments)
     );
     print_alignment_statistics(
-        "floxer unmapped, minimap mapped (minimap)",
+        "minimap_stats_if_only_minimap_mapped",
         num_queries,
         error_rate,
         query_data_by_query_id |
