@@ -130,14 +130,4 @@ private:
     size_t const leaf_max_num_errors;
 };
 
-class pex_tree_cache {
-public:
-    pex_tree const& get(pex_tree_config const config);
-private:
-    // query length determines PEX tree structure uniquely in this application
-    // because either there is a constant number of errors, or the number
-    // of errors per query is a function of only the query length
-    std::unordered_map<size_t, pex_tree> trees;
-};
-
 } // namespace pex

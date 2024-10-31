@@ -93,6 +93,7 @@ search_result searcher::search_seeds(
     size_t num_fully_excluded_seeds = 0;
 
     auto const seeds_span = std::span(seeds);
+    search_scheme_cache scheme_cache;
 
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
         auto const& seed = seeds[seed_id];

@@ -28,7 +28,6 @@ TEST(search, search_seeds) {
     search::searcher searcher {
         .index = index,
         .num_reference_sequences = num_reference_sequences,
-        .scheme_cache = scheme_cache,
         .config = config
     };
 

@@ -125,9 +125,6 @@ int main(int argc, char** argv) {
         references.records
     );
 
-    pex::pex_tree_cache pex_tree_cache;
-    search::search_scheme_cache search_scheme_cache;
-
     // setup for workaround for handling errors in threads
     std::atomic_bool threads_should_stop = false;
     std::vector<std::exception_ptr> exceptions{};
@@ -158,7 +155,6 @@ int main(int argc, char** argv) {
     #pragma omp parallel for \
         num_threads(cli_input.num_threads()) \
         default(none) \
-        private(pex_tree_cache, search_scheme_cache) \
         shared(queries, cli_input, references, index, alignment_output, \
             aligning_stopwatch, exceptions, threads_should_stop) \
         schedule(dynamic) \
@@ -231,12 +227,11 @@ int main(int argc, char** argv) {
                     pex::pex_tree_build_strategy::recursive
             };
 
-            auto const& pex_tree = pex_tree_cache.get(pex_tree_config);
+            pex::pex_tree const pex_tree(pex_tree_config);
 
             auto const searcher = search::searcher{
                 .index = index,
                 .num_reference_sequences = references.records.size(),
-                .scheme_cache = search_scheme_cache,
                 .config = search::search_config{
                     .max_num_anchors = cli_input.max_num_anchors(),
                     .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order())

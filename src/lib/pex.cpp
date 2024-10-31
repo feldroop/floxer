@@ -42,11 +42,6 @@ std::vector<pex_tree::node> const& pex_tree::get_leaves() const {
     return leaves;
 }
 
-pex_tree const& pex_tree_cache::get(pex_tree_config const config) {
-    auto [iter, _] = trees.try_emplace(config.total_query_length, config);
-    return iter->second;
-}
-
 // ------------------------------ PEX tree building + seeding ------------------------------
 
 pex_tree::pex_tree(pex_tree_config const config)
