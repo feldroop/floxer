@@ -153,7 +153,7 @@ void command_line_input::validate() const {
         );
     }
 
-    if (allowed_interval_overlap_ratio() == 1.0 && !use_interval_optimization()) {
+    if (allowed_interval_overlap_ratio() != 1.0 && !use_interval_optimization()) {
         throw std::runtime_error(
             "You cannot set the allowed interval overlap ratio without activating the interval optimization."
         );
