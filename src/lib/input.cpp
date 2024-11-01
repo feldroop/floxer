@@ -22,10 +22,10 @@
 
 namespace input {
 
-size_t query_record::num_errors_from_user_config(cli::command_line_input const& cli_input) const {
+size_t num_errors_from_user_config(size_t const query_length, cli::command_line_input const& cli_input) {
     if (cli_input.query_error_probability().has_value()) {
         return math::floating_point_error_aware_ceil(
-            rank_sequence.size() * cli_input.query_error_probability().value()
+            query_length * cli_input.query_error_probability().value()
         );
     } else {
         return cli_input.query_num_errors().value();
@@ -74,14 +74,17 @@ references read_references(std::filesystem::path const& reference_sequence_path)
     return references { .records = std::move(records), .total_sequence_length = total_length };
 }
 
-queries read_queries(std::filesystem::path const& queries_path) {
-    spdlog::info("reading queries from {}", queries_path);
+queries read_queries(cli::command_line_input const& cli_input) {
+    static constexpr size_t MAX_ALLOWED_QUERY_LENGTH = 100'000;
+
+    spdlog::info("reading queries from {}", cli_input.queries_path());
 
     std::vector<query_record> records{};
+    std::vector<query_record> records_with_invalid_config{};
 
     size_t total_length = 0;
 
-    for (auto const record_view : ivio::fastq::reader{{ .input = queries_path }}) {
+    for (auto const record_view : ivio::fastq::reader{{ .input = cli_input.queries_path() }}) {
         std::string const id = internal::extract_record_id(record_view.id);
 
         if (record_view.seq.empty()) {
@@ -93,21 +96,53 @@ queries read_queries(std::filesystem::path const& queries_path) {
             continue;
         }
 
+        if (record_view.seq.size() > MAX_ALLOWED_QUERY_LENGTH) {
+            spdlog::warn("skipping too large query: {}", id);
+
+            continue;
+        }
+
         std::vector<uint8_t> const rank_sequence = internal::chars_to_rank_sequence(record_view.seq);
         std::string const quality(record_view.qual);
 
         assert(record_view.qual.size() == record_view.seq.size());
 
-        total_length += rank_sequence.size();
+        auto record = query_record {
+            .id = std::move(id),
+            .rank_sequence = std::move(rank_sequence),
+            .quality = std::move(quality)
+        };
 
-        records.emplace_back(
-            std::move(id),
-            std::move(rank_sequence),
-            std::move(quality)
-        );
+        // two cases that likely don't occur in practice where the errors are configured in a way such that the
+        // alignment algorithm makes no sense and floxer just flags them as unaligned
+        size_t const query_num_errors = num_errors_from_user_config(record.rank_sequence.size(), cli_input);
+        if (
+            record.rank_sequence.size() <= query_num_errors ||
+            query_num_errors < cli_input.pex_seed_num_errors()
+        ) {
+            spdlog::debug(
+                "skipping query: {} due to bad configuration regarding the number of errors.\n"
+                "\tquery length: {}, errors in query: {}, PEX seed errors: {}",
+                record.id,
+                record.rank_sequence.size(),
+                query_num_errors,
+                cli_input.pex_seed_num_errors()
+            );
+
+            records_with_invalid_config.emplace_back(std::move(record));
+
+            continue;
+        }
+
+        total_length += record.rank_sequence.size();
+        records.emplace_back(std::move(record));
     }
 
-    return queries{ .records = std::move(records), .total_sequence_length = total_length };
+    return queries{
+        .records = std::move(records),
+        .records_with_invalid_config = std::move(records_with_invalid_config),
+        .total_sequence_length = total_length
+    };
 }
 
 fmindex load_index(std::filesystem::path const& index_path) {

@@ -21,10 +21,6 @@ struct query_record {
     std::vector<uint8_t> const rank_sequence;
     std::string const quality;
 
-    // the number of errors allowed for this queries alignment (edit distance)
-    // it was either directly given by the user, or is calculated using the given
-    // error probability
-    size_t num_errors_from_user_config(cli::command_line_input const& cli_input) const;
 };
 
 struct references {
@@ -34,14 +30,22 @@ struct references {
 
 struct queries {
     std::vector<query_record> records;
+    std::vector<query_record> records_with_invalid_config;
+
+    // record with invalid config do no count into this
     size_t total_sequence_length;
 };
 
 references read_references(std::filesystem::path const& reference_sequence_path);
 
-queries read_queries(std::filesystem::path const& queries_path);
+queries read_queries(cli::command_line_input const& cli_input);
 
 fmindex load_index(std::filesystem::path const& _index_path);
+
+// the number of errors allowed for this a queries alignment (edit distance)
+// it was either directly given by the user, or is calculated using the given
+// error probability
+size_t num_errors_from_user_config(size_t const query_length, cli::command_line_input const& cli_input);
 
 namespace internal {
 

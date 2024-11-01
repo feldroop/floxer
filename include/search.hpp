@@ -68,7 +68,6 @@ struct search_result {
     size_t const num_fully_excluded_seeds;
 };
 
-// not thread safe due to search scheme cache
 struct searcher {
     fmindex const& index;
     size_t const num_reference_sequences;

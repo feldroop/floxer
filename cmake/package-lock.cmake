@@ -80,6 +80,15 @@ CPMDeclarePackage (
 )
 
 CPMDeclarePackage (
+    BS_thread_pool
+    NAME BS_thread_pool
+    GITHUB_REPOSITORY bshoshany/thread-pool
+    VERSION 4.1.0
+    EXCLUDE_FROM_ALL TRUE
+    SYSTEM TRUE
+)
+
+CPMDeclarePackage (
     use_ccache
     NAME use_ccache
     GITHUB_REPOSITORY seqan/cmake-scripts

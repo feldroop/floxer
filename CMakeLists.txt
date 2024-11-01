@@ -32,6 +32,9 @@ CPMGetPackage(fmindex-collection) # for the FM-index
 CPMGetPackage(cereal) # for FM-index serialization
 CPMGetPackage(seqan3) # for alignment and sam/bam output
 CPMGetPackage(interval-tree) # for interval tree data structure in the interval optimization
+CPMGetPackage(BS_thread_pool) # for the thread pool and parallel task queue
+add_library(BS_thread_pool INTERFACE)
+target_include_directories(BS_thread_pool INTERFACE ${BS_thread_pool_SOURCE_DIR}/include)
 CPMGetPackage(use_ccache) # for faster compile times
 
 # ----- floxer source code and build configuration -----

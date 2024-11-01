@@ -12,6 +12,7 @@ target_link_libraries (
     cereal::cereal
     seqan3::seqan3
     interval-tree
+    BS_thread_pool
 )
 
 target_include_directories ("${PROJECT_NAME}_lib" PUBLIC "../../include")
