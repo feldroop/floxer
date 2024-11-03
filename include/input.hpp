@@ -5,8 +5,11 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
+
+#include <ivio/ivio.h>
 
 namespace input {
 
@@ -17,10 +20,9 @@ struct reference_record {
 };
 
 struct query_record {
-    std::string const id;
-    std::vector<uint8_t> const rank_sequence;
-    std::string const quality;
-
+    std::string id;
+    std::vector<uint8_t> rank_sequence;
+    std::string quality;
 };
 
 struct references {
@@ -28,17 +30,20 @@ struct references {
     size_t total_sequence_length;
 };
 
-struct queries {
-    std::vector<query_record> records;
-    std::vector<query_record> records_with_invalid_config;
+class queries {
+public:
+    queries(cli::command_line_input const& cli_input);
 
-    // record with invalid config do no count into this
-    size_t total_sequence_length;
+    std::optional<query_record> next();
+
+private:
+    static constexpr size_t MAX_ALLOWED_QUERY_LENGTH = 100'000;
+
+    ivio::fastq::reader reader;
+    cli::command_line_input const& cli_input;
 };
 
 references read_references(std::filesystem::path const& reference_sequence_path);
-
-queries read_queries(cli::command_line_input const& cli_input);
 
 fmindex load_index(std::filesystem::path const& _index_path);
 

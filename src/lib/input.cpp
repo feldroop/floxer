@@ -13,7 +13,6 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/vector.hpp>
 
-#include <ivio/ivio.h>
 #include <ivsigma/ivsigma.h>
 
 #include <spdlog/fmt/fmt.h>
@@ -74,17 +73,18 @@ references read_references(std::filesystem::path const& reference_sequence_path)
     return references { .records = std::move(records), .total_sequence_length = total_length };
 }
 
-queries read_queries(cli::command_line_input const& cli_input) {
-    static constexpr size_t MAX_ALLOWED_QUERY_LENGTH = 100'000;
+queries::queries(cli::command_line_input const& cli_input_) : reader{{ .input = cli_input_.queries_path() }}, cli_input{cli_input_} {}
 
-    spdlog::info("reading queries from {}", cli_input.queries_path());
+std::optional<query_record> queries::next() {
+    while (true) {
+        std::optional const record_view_opt = reader.next();
 
-    std::vector<query_record> records{};
-    std::vector<query_record> records_with_invalid_config{};
+        if (!record_view_opt.has_value()) {
+            return std::nullopt;
+        }
 
-    size_t total_length = 0;
+        auto const& record_view = *record_view_opt;
 
-    for (auto const record_view : ivio::fastq::reader{{ .input = cli_input.queries_path() }}) {
         std::string const id = internal::extract_record_id(record_view.id);
 
         if (record_view.seq.empty()) {
@@ -96,8 +96,29 @@ queries read_queries(cli::command_line_input const& cli_input) {
             continue;
         }
 
-        if (record_view.seq.size() > MAX_ALLOWED_QUERY_LENGTH) {
+        size_t const sequence_length = record_view.seq.size();
+
+        if (sequence_length > MAX_ALLOWED_QUERY_LENGTH) {
             spdlog::warn("skipping too large query: {}", id);
+
+            continue;
+        }
+
+        // two cases that likely don't occur in practice where the errors are configured in a way such that the
+        // alignment algorithm makes no sense and floxer just flags them as unaligned
+        size_t const query_num_errors = num_errors_from_user_config(sequence_length, cli_input);
+        if (
+            sequence_length <= query_num_errors ||
+            query_num_errors < cli_input.pex_seed_num_errors()
+        ) {
+            spdlog::warn(
+                "skipping query: {} due to bad configuration regarding the number of errors.\n"
+                "\tquery length: {}, errors in query: {}, PEX seed errors: {}",
+                id,
+                sequence_length,
+                query_num_errors,
+                cli_input.pex_seed_num_errors()
+            );
 
             continue;
         }
@@ -105,44 +126,14 @@ queries read_queries(cli::command_line_input const& cli_input) {
         std::vector<uint8_t> const rank_sequence = internal::chars_to_rank_sequence(record_view.seq);
         std::string const quality(record_view.qual);
 
-        assert(record_view.qual.size() == record_view.seq.size());
+        assert(record_view.qual.size() == sequence_length);
 
-        auto record = query_record {
+        return std::make_optional(query_record {
             .id = std::move(id),
             .rank_sequence = std::move(rank_sequence),
             .quality = std::move(quality)
-        };
-
-        // two cases that likely don't occur in practice where the errors are configured in a way such that the
-        // alignment algorithm makes no sense and floxer just flags them as unaligned
-        size_t const query_num_errors = num_errors_from_user_config(record.rank_sequence.size(), cli_input);
-        if (
-            record.rank_sequence.size() <= query_num_errors ||
-            query_num_errors < cli_input.pex_seed_num_errors()
-        ) {
-            spdlog::debug(
-                "skipping query: {} due to bad configuration regarding the number of errors.\n"
-                "\tquery length: {}, errors in query: {}, PEX seed errors: {}",
-                record.id,
-                record.rank_sequence.size(),
-                query_num_errors,
-                cli_input.pex_seed_num_errors()
-            );
-
-            records_with_invalid_config.emplace_back(std::move(record));
-
-            continue;
-        }
-
-        total_length += record.rank_sequence.size();
-        records.emplace_back(std::move(record));
+        });
     }
-
-    return queries{
-        .records = std::move(records),
-        .records_with_invalid_config = std::move(records_with_invalid_config),
-        .total_sequence_length = total_length
-    };
 }
 
 fmindex load_index(std::filesystem::path const& index_path) {

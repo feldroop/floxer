@@ -35,11 +35,11 @@ CPMGetPackage(interval-tree) # for interval tree data structure in the interval 
 CPMGetPackage(BS_thread_pool) # for the thread pool and parallel task queue
 add_library(BS_thread_pool INTERFACE)
 target_include_directories(BS_thread_pool INTERFACE ${BS_thread_pool_SOURCE_DIR}/include)
+CPMGetPackage(cpp-channel) # for the thread communication
 CPMGetPackage(use_ccache) # for faster compile times
 
-# ----- floxer source code and build configuration -----
+# ----- floxer source code -----
 
-option (${PROJECT_NAME}_NO_OPENMP "Disable parallelism using OpenMP" OFF)
 add_subdirectory(src/lib)
 add_subdirectory(src/main)
 

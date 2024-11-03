@@ -1,6 +1,7 @@
 #pragma once
 
 #include <alignment.hpp>
+#include <floxer_cli.hpp>
 #include <fmindex.hpp>
 #include <input.hpp>
 #include <intervals.hpp>
@@ -25,6 +26,14 @@ enum pex_tree_build_strategy {
 };
 
 struct pex_tree_config {
+    pex_tree_config(size_t const query_sequence_length, cli::command_line_input const& cli_input);
+    pex_tree_config(
+        size_t const total_query_length,
+        size_t const query_num_errors,
+        size_t const leaf_max_num_errors,
+        pex_tree_build_strategy const build_strategy
+    );
+
     size_t const total_query_length;
     size_t const query_num_errors;
     size_t const leaf_max_num_errors;
@@ -36,6 +45,8 @@ enum class verification_kind_t {
 };
 
 struct pex_alignment_config {
+    pex_alignment_config(search::searcher const& searcher_, cli::command_line_input const& cli_input);
+
     search::searcher const& searcher;
     intervals::use_interval_optimization const use_interval_optimization;
     verification_kind_t const verification_kind;

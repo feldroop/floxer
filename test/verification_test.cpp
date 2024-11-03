@@ -33,11 +33,11 @@ TEST(verification, verify) {
     };
 
 
-    pex::pex_tree pex_tree(pex::pex_tree_config {
-        .total_query_length = query.size(),
-        .query_num_errors = 5,
-        .leaf_max_num_errors = 1,
-        .build_strategy = pex::pex_tree_build_strategy::bottom_up
+    pex::pex_tree pex_tree(pex::pex_tree_config{
+        query.size(),
+        5,
+        1,
+        pex::pex_tree_build_strategy::bottom_up
     });
 
     search::anchor_t anchor {

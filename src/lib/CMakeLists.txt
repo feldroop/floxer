@@ -13,12 +13,9 @@ target_link_libraries (
     seqan3::seqan3
     interval-tree
     BS_thread_pool
+    msd_channel
 )
 
 target_include_directories ("${PROJECT_NAME}_lib" PUBLIC "../../include")
 
 target_compile_options ("${PROJECT_NAME}_lib" PUBLIC "-pedantic" "-Wall" "-Wextra")
-
-if (NOT ${PROJECT_NAME}_NO_OPENMP)
-    target_compile_options("${PROJECT_NAME}_lib" PUBLIC "-fopenmp")
-endif ()

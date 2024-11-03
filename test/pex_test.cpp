@@ -8,12 +8,12 @@ TEST(pex, generate_seeds_from_recursive) {
     // simple AAACCCGGGTTT example
 
     // first, original pex with 0 leaf errors
-    pex::pex_tree_config const config {
-        .total_query_length = 12,
-        .query_num_errors = 3,
-        .leaf_max_num_errors = 0,
-        .build_strategy = pex::pex_tree_build_strategy::recursive
-    };
+    pex::pex_tree_config const config(
+        12,
+        3,
+        0,
+        pex::pex_tree_build_strategy::recursive
+    );
 
     auto const tree = pex::pex_tree(config);
 
@@ -46,12 +46,12 @@ TEST(pex, generate_seeds_from_recursive) {
     EXPECT_EQ(seeds, expected_seeds);
 
     // now adjusted version with 1 leaf error
-    pex::pex_tree_config const adjusted1_config {
-        .total_query_length = 12,
-        .query_num_errors = 3,
-        .leaf_max_num_errors = 1,
-        .build_strategy = pex::pex_tree_build_strategy::recursive
-    };
+    pex::pex_tree_config const adjusted1_config(
+        12,
+        3,
+        1,
+        pex::pex_tree_build_strategy::recursive
+    );
     auto const adjusted1_tree = pex::pex_tree(adjusted1_config);
     auto const adjusted1_seeds = adjusted1_tree.generate_seeds(query_span);
 
@@ -70,12 +70,12 @@ TEST(pex, generate_seeds_from_recursive) {
     EXPECT_EQ(adjusted1_seeds, expected_seeds_adjusted);
 
     // now adjusted version with 2 leaf errors, nothing should change
-    pex::pex_tree_config const adjusted2_config {
-        .total_query_length = 12,
-        .query_num_errors = 3,
-        .leaf_max_num_errors = 2,
-        .build_strategy = pex::pex_tree_build_strategy::recursive
-    };
+    pex::pex_tree_config const adjusted2_config(
+        12,
+        3,
+        2,
+        pex::pex_tree_build_strategy::recursive
+    );
     auto const adjusted2_tree = pex::pex_tree(adjusted2_config);
     auto const adjusted2_seeds = adjusted2_tree.generate_seeds(query_span);
 
@@ -84,12 +84,12 @@ TEST(pex, generate_seeds_from_recursive) {
 }
 
 TEST(pex, generate_seeds_from_bottom_up) {
-    pex::pex_tree_config const config {
-        .total_query_length = 30,
-        .query_num_errors = 14,
-        .leaf_max_num_errors = 2,
-        .build_strategy = pex::pex_tree_build_strategy::bottom_up
-    };
+    pex::pex_tree_config const config(
+        30,
+        14,
+        2,
+        pex::pex_tree_build_strategy::bottom_up
+    );
 
     auto const tree = pex::pex_tree(config);
 

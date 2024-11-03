@@ -52,6 +52,6 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
 
 std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seconds);
 
-std::string format_large_numer(size_t const number);
+std::string format_large_number(size_t const number);
 
 } // namespace output

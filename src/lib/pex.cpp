@@ -12,6 +12,45 @@
 
 namespace pex {
 
+pex_tree_config::pex_tree_config(size_t const query_sequence_length, cli::command_line_input const& cli_input)
+    : total_query_length{query_sequence_length},
+        query_num_errors{input::num_errors_from_user_config(query_sequence_length, cli_input)},
+        leaf_max_num_errors{cli_input.pex_seed_num_errors()},
+        build_strategy{
+            cli_input.bottom_up_pex_tree_building() ?
+                pex::pex_tree_build_strategy::bottom_up :
+                pex::pex_tree_build_strategy::recursive
+        }
+{}
+
+pex_tree_config::pex_tree_config(
+    size_t const total_query_length_,
+    size_t const query_num_errors_,
+    size_t const leaf_max_num_errors_,
+    pex_tree_build_strategy const build_strategy_
+) : total_query_length{total_query_length_},
+    query_num_errors{query_num_errors_},
+    leaf_max_num_errors{leaf_max_num_errors_},
+    build_strategy{build_strategy_}
+{}
+
+
+pex_alignment_config::pex_alignment_config(search::searcher const& searcher_, cli::command_line_input const& cli_input)
+    : searcher{searcher_},
+        use_interval_optimization{
+            cli_input.use_interval_optimization() ?
+                intervals::use_interval_optimization::on :
+                intervals::use_interval_optimization::off
+        },
+        verification_kind{
+            cli_input.direct_full_verification() ?
+                pex::verification_kind_t::direct_full :
+                pex::verification_kind_t::hierarchical
+        },
+        extra_verification_ratio{cli_input.extra_verification_ratio()},
+        overlap_rate_that_counts_as_contained{cli_input.allowed_interval_overlap_ratio()}
+{}
+
 size_t pex_tree::node::length_of_query_span() const {
     return query_index_to - query_index_from + 1;
 }
@@ -350,6 +389,7 @@ void pex_tree::align_query_in_given_orientation(
     auto const search_result = config.searcher.search_seeds(seeds);
     stats.add_statistics_for_search_result(search_result);
 
+    // TODO update dependency and use simpler copy constructor code
     std::vector<intervals::verified_intervals> already_verified_intervals_per_reference{};
     for (size_t i = 0; i < references.size(); ++i) {
         already_verified_intervals_per_reference.emplace_back(

@@ -179,7 +179,7 @@ std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seco
     }
 }
 
-std::string format_large_numer(size_t const number) {
+std::string format_large_number(size_t const number) {
     static const char separator = ',';
     static const size_t block_size = 3;
 
