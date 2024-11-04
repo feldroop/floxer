@@ -300,16 +300,15 @@ std::string search_and_alignment_statistics::format_statistics_as_toml() const {
     return formatted;
 }
 
-search_and_alignment_statistics& combine_stats(
-    search_and_alignment_statistics & inout,
+void search_and_alignment_statistics::merge_other_into_this(
     search_and_alignment_statistics const& other
 ) {
-    for (size_t i = 0; i < inout.counts.size(); ++i) {
-        inout.counts.at(i).value += other.counts.at(i).value;
+    for (size_t i = 0; i < counts.size(); ++i) {
+        counts.at(i).value += other.counts.at(i).value;
     }
 
-    for (size_t i = 0; i < inout.histograms.size(); ++i) {
-        inout.histograms.at(i).merge_with(other.histograms.at(i));
+    for (size_t i = 0; i < histograms.size(); ++i) {
+        histograms.at(i).merge_with(other.histograms.at(i));
     }
 
     return inout;

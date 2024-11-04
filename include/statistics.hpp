@@ -171,15 +171,8 @@ public:
 
     std::string format_statistics_as_toml() const;
 
-    friend search_and_alignment_statistics& combine_stats(
-        search_and_alignment_statistics & inout,
-        search_and_alignment_statistics const& other
-    );
+    // for merging local stats from threads into the global stats object
+    void merge_other_into_this(search_and_alignment_statistics const& other);
 };
-
-search_and_alignment_statistics& combine_stats(
-    search_and_alignment_statistics & inout,
-    search_and_alignment_statistics const& other
-);
 
 } // namespace statistics
