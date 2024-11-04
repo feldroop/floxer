@@ -9,7 +9,7 @@ TEST(search, search_seeds) {
         .anchor_group_order = search::anchor_group_order_t::hybrid
     };
 
-    search::search_scheme_cache scheme_cache;
+    search::internal::search_scheme_cache scheme_cache;
 
     std::vector<std::vector<uint8_t>> const references {
         { 1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4 },
