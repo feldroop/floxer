@@ -34,30 +34,6 @@ bool operator==(anchor_t const& lhs, anchor_t const& rhs) {
         lhs.num_errors == rhs.num_errors;
 }
 
-search_schemes::Scheme const& search_scheme_cache::get(
-    size_t const pex_leaf_query_length,
-    size_t const pex_leaf_num_errors
-) {
-    auto const scheme_data = std::make_tuple(pex_leaf_query_length, pex_leaf_num_errors);
-    auto const iter = schemes.find(scheme_data);
-
-    if (iter == schemes.end()) {
-        auto search_scheme = search_schemes::expand(
-            (pex_leaf_num_errors <= 3) ?
-                search_schemes::generator::optimum(0, pex_leaf_num_errors) :
-                // h2 = heuristic 2, the best heuristic search scheme generator,
-                // because the optima are not known for more than 3 errors
-                search_schemes::generator::h2(pex_leaf_num_errors + 2, 0, pex_leaf_num_errors),
-            pex_leaf_query_length
-        );
-
-        auto const [emplaced_iter, _] = schemes.emplace(scheme_data, std::move(search_scheme));
-        return emplaced_iter->second;
-    }
-
-    return iter->second;
-}
-
 bool anchor_t::is_better_than(anchor_t const& other) {
     size_t const position_difference = reference_position < other.reference_position ?
         other.reference_position - reference_position : reference_position - other.reference_position;
@@ -93,7 +69,7 @@ search_result searcher::search_seeds(
     size_t num_fully_excluded_seeds = 0;
 
     auto const seeds_span = std::span(seeds);
-    search_scheme_cache scheme_cache;
+    internal::search_scheme_cache scheme_cache;
 
     for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
         auto const& seed = seeds[seed_id];
@@ -201,6 +177,30 @@ search_result searcher::search_seeds(
 }
 
 namespace internal {
+
+search_schemes::Scheme const& search_scheme_cache::get(
+    size_t const pex_leaf_query_length,
+    size_t const pex_leaf_num_errors
+) {
+    auto const scheme_data = std::make_tuple(pex_leaf_query_length, pex_leaf_num_errors);
+    auto const iter = schemes.find(scheme_data);
+
+    if (iter == schemes.end()) {
+        auto search_scheme = search_schemes::expand(
+            (pex_leaf_num_errors <= 3) ?
+                search_schemes::generator::optimum(0, pex_leaf_num_errors) :
+                // h2 = heuristic 2, the best heuristic search scheme generator,
+                // because the optima are not known for more than 3 errors
+                search_schemes::generator::h2(pex_leaf_num_errors + 2, 0, pex_leaf_num_errors),
+            pex_leaf_query_length
+        );
+
+        auto const [emplaced_iter, _] = schemes.emplace(scheme_data, std::move(search_scheme));
+        return emplaced_iter->second;
+    }
+
+    return iter->second;
+}
 
 size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference) {
     size_t num_kept_useful_anchors = 0;

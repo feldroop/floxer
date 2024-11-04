@@ -78,6 +78,8 @@ struct searcher {
     ) const;
 };
 
+namespace internal {
+
 class search_scheme_cache {
 public:
     search_schemes::Scheme const& get(
@@ -88,8 +90,6 @@ public:
 private:
     std::unordered_map<std::tuple<size_t, size_t>, search_schemes::Scheme> schemes;
 };
-
-namespace internal {
 
 struct anchor_group {
     fmindex_cursor cursor;
