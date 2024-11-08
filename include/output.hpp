@@ -30,28 +30,43 @@ using alignment_output_fields_t = seqan3::fields<
     seqan3::field::tags
 >;
 
-using alignment_output_t = seqan3::sam_file_output<
+using seqan_alignment_output = seqan3::sam_file_output<
     alignment_output_fields_t,
     seqan3::type_list<seqan3::format_sam, seqan3::format_bam>,
     std::vector<std::string>
 >;
 
-alignment_output_t create_alignment_output(
-    std::filesystem::path const& output_path,
-    std::vector<input::reference_record> const& references
-);
+// simple wrapper of the seqan3 output to write alignments in the way I want
+class alignment_output {
+public:
+    alignment_output(
+        std::filesystem::path const& output_path,
+        std::vector<input::reference_record> const& references
+    );
 
-void output_for_query(
-    alignment_output_t& alignment_output,
-    input::query_record const& fastq_query,
-    std::vector<input::reference_record> const& references,
-    alignment::query_alignments alignments
-);
+    void write_alignments_for_query(
+        input::query_record const& fastq_query,
+        alignment::query_alignments alignments
+    );
+
+private:
+    seqan_alignment_output out;
+    std::vector<input::reference_record> const& references;
+};
 
 void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
 
 std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seconds);
 
 std::string format_large_number(size_t const number);
+
+namespace internal {
+
+seqan_alignment_output create_seqan_alignment_output(
+    std::filesystem::path const& output_path,
+    std::vector<input::reference_record> const& references
+);
+
+} // namespace internal
 
 } // namespace output

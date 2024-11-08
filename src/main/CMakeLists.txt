@@ -10,6 +10,7 @@ foreach (main_file ${FLOXER_MAIN_SOURCE_FILES})
     endif()
 
     target_link_libraries (${target_name} PUBLIC "${PROJECT_NAME}_lib")
+    target_compile_options (${target_name} PUBLIC "-pedantic" "-Wall" "-Wextra")
 
     unset (main_file)
     unset (target_name)

@@ -44,10 +44,9 @@ enum class verification_kind_t {
     direct_full, hierarchical
 };
 
-struct pex_alignment_config {
-    pex_alignment_config(search::searcher const& searcher_, cli::command_line_input const& cli_input);
+struct pex_verification_config {
+    pex_verification_config(cli::command_line_input const& cli_input);
 
-    search::searcher const& searcher;
     intervals::use_interval_optimization const use_interval_optimization;
     verification_kind_t const verification_kind;
     double const extra_verification_ratio;
@@ -89,16 +88,9 @@ public:
     // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
     std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
 
-    alignment::query_alignments align_forward_and_reverse_complement(
-        std::vector<input::reference_record> const& references,
-        std::span<const uint8_t> const query,
-        pex_alignment_config const config,
-        statistics::search_and_alignment_statistics& stats
-    ) const;
-
     std::string dot_statement() const;
-private:
 
+private:
     size_t num_leaves() const;
 
     void add_node_to_dot_statement(node const& curr_node, size_t const id, std::string& dot) const;
@@ -123,22 +115,13 @@ private:
     // for bottom up build strategy, returns parent node for nodes in child_nodes and sets their parent_id
     node create_parent_node(std::span<node> const child_nodes, size_t const parent_id);
 
-    void align_query_in_given_orientation(
-        std::vector<input::reference_record> const& references,
-        std::span<const uint8_t> const query,
-        alignment::query_alignments& alignments,
-        alignment::query_orientation const orientation,
-        pex_alignment_config const config,
-        statistics::search_and_alignment_statistics& stats
-    ) const;
-
     std::vector<node> inner_nodes;
     std::vector<node> leaves;
 
     // this refers to the original version where leaves have 0 errors
-    size_t const no_error_seed_length;
+    size_t no_error_seed_length;
 
-    size_t const leaf_max_num_errors;
+    size_t leaf_max_num_errors;
 };
 
 } // namespace pex

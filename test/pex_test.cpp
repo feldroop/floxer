@@ -25,22 +25,26 @@ TEST(pex, generate_seeds_from_recursive) {
         search::seed {
             .sequence = query_span.subspan(0,3),
             .num_errors = 0,
-            .query_position = 0
+            .query_position = 0,
+            .pex_leaf_index = 0
         },
         search::seed {
             .sequence = query_span.subspan(3,3),
             .num_errors = 0,
-            .query_position = 3
+            .query_position = 3,
+            .pex_leaf_index = 1
         },
         search::seed {
             .sequence = query_span.subspan(6,3),
             .num_errors = 0,
-            .query_position = 6
+            .query_position = 6,
+            .pex_leaf_index = 2
         },
         search::seed {
             .sequence = query_span.subspan(9,3),
             .num_errors = 0,
-            .query_position = 9
+            .query_position = 9,
+            .pex_leaf_index = 3
         },
     };
     EXPECT_EQ(seeds, expected_seeds);
@@ -59,12 +63,14 @@ TEST(pex, generate_seeds_from_recursive) {
         search::seed {
             .sequence = query_span.subspan(0,6),
             .num_errors = 1,
-            .query_position = 0
+            .query_position = 0,
+            .pex_leaf_index = 0
         },
         search::seed {
             .sequence = query_span.subspan(6,6),
             .num_errors = 1,
-            .query_position = 6
+            .query_position = 6,
+            .pex_leaf_index = 1
         },
     };
     EXPECT_EQ(adjusted1_seeds, expected_seeds_adjusted);
@@ -105,27 +111,32 @@ TEST(pex, generate_seeds_from_bottom_up) {
         search::seed {
             .sequence = query_span.subspan(0,6),
             .num_errors = 2,
-            .query_position = 0
+            .query_position = 0,
+            .pex_leaf_index = 0
         },
         search::seed {
             .sequence = query_span.subspan(6,6),
             .num_errors = 2,
-            .query_position = 6
+            .query_position = 6,
+            .pex_leaf_index = 1
         },
         search::seed {
             .sequence = query_span.subspan(12,6),
             .num_errors = 2,
-            .query_position = 12
+            .query_position = 12,
+            .pex_leaf_index = 2
         },
         search::seed {
             .sequence = query_span.subspan(18,6),
             .num_errors = 2,
-            .query_position = 18
+            .query_position = 18,
+            .pex_leaf_index = 3
         },
         search::seed {
             .sequence = query_span.subspan(24,6),
             .num_errors = 2,
-            .query_position = 24
+            .query_position = 24,
+            .pex_leaf_index = 4
         }
     };
     EXPECT_EQ(seeds, expected_seeds);

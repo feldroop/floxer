@@ -60,6 +60,70 @@ anchor_group_order_t anchor_group_order_from_string(std::string_view const s) {
     }
 }
 
+std::optional<std::reference_wrapper<const anchor_t>> search_result::anchor_iterator::next() {
+    while (current_seed_index < res.anchors_by_seed.size()) {
+        auto const& current_anchors_by_seed = res.anchors_by_seed[current_seed_index];
+
+        while (current_reference_index < current_anchors_by_seed.anchors_by_reference.size()) {
+            auto const& current_anchors_by_seed_and_reference = current_anchors_by_seed.anchors_by_reference[current_reference_index];
+
+            if (current_anchor_index < current_anchors_by_seed_and_reference.size()) {
+                ++current_anchor_index;
+                return std::make_optional(std::cref(current_anchors_by_seed_and_reference[current_anchor_index - 1]));
+            }
+
+            ++current_reference_index;
+            current_anchor_index = 0;
+        }
+
+        ++current_seed_index;
+        current_reference_index = 0;
+        current_anchor_index = 0;
+    }
+
+    return std::nullopt;
+}
+
+search_result::anchor_iterator search_result::anchor_iter() const {
+    return anchor_iterator {
+        .res = *this,
+        .current_seed_index = 0,
+        .current_reference_index = 0,
+        .current_anchor_index = 0
+    };
+}
+
+void search_result::append_anchor_packages(
+    std::vector<anchor_package>& out_packages,
+    size_t const num_anchors_per_package,
+    alignment::query_orientation orientation
+) const {
+    auto iter = anchor_iter();
+    bool anchors_remaining = true;
+
+    while (anchors_remaining) {
+        auto package = anchor_package {
+            .anchors = anchors_t(),
+            .orientation = orientation
+        };
+
+        while (package.anchors.size() < num_anchors_per_package) {
+            auto anchor_opt = iter.next();
+
+            if(!anchor_opt) {
+                anchors_remaining = false;
+                break;
+            }
+
+            package.anchors.emplace_back(anchor_opt->get());
+        }
+
+        if (!package.anchors.empty()) {
+            out_packages.emplace_back(std::move(package));
+        }
+    }
+}
+
 search_result searcher::search_seeds(
     std::vector<seed> const& seeds
 ) const {
@@ -128,7 +192,7 @@ search_result searcher::search_seeds(
         }
 
         size_t num_kept_raw_anchors = 0;
-        std::vector<anchors> anchors_by_reference(num_reference_sequences);
+        std::vector<anchors_t> anchors_by_reference(num_reference_sequences);
         size_t i = 0;
         while (
             i < anchor_groups.size() &&
@@ -140,6 +204,8 @@ search_result searcher::search_seeds(
             for (auto const& anchor: cursor) {
                 auto const [reference_id, position] = index.locate(anchor);
                 anchors_by_reference[reference_id].emplace_back(anchor_t {
+                    .pex_leaf_index = seed.pex_leaf_index,
+                    .reference_id = reference_id,
                     .reference_position = position,
                     .num_errors = anchor_groups[i].num_errors
                 });
@@ -202,7 +268,7 @@ search_schemes::Scheme const& search_scheme_cache::get(
     return iter->second;
 }
 
-size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference) {
+size_t erase_useless_anchors(std::vector<anchors_t>& anchors_by_reference) {
     size_t num_kept_useful_anchors = 0;
 
     for (auto& anchors_of_seed_and_reference : anchors_by_reference) {

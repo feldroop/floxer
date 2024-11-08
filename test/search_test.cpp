@@ -43,22 +43,26 @@ TEST(search, search_seeds) {
         search::seed {
             .sequence = query_span.subspan(0,6),
             .num_errors = 0,
-            .query_position = 0
+            .query_position = 0,
+            .pex_leaf_index = 0
         },
         search::seed {
             .sequence = query_span.subspan(6,6),
             .num_errors = 1,
-            .query_position = 6
+            .query_position = 6,
+            .pex_leaf_index = 1
         },
         search::seed {
             .sequence = query_span.subspan(12,6),
             .num_errors = 1,
-            .query_position = 12
+            .query_position = 12,
+            .pex_leaf_index = 2
         },
         search::seed {
             .sequence = query_span.subspan(18,6),
             .num_errors = 0,
-            .query_position = 18
+            .query_position = 18,
+            .pex_leaf_index = 3
         }
     };
 
@@ -72,9 +76,11 @@ TEST(search, search_seeds) {
             .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 1,
             .num_excluded_raw_anchors = 0,
-            .anchors_by_reference = std::vector<search::anchors> {
-                search::anchors {
+            .anchors_by_reference = std::vector<search::anchors_t> {
+                search::anchors_t {
                     search::anchor_t {
+                        .pex_leaf_index = 0,
+                        .reference_id = 0,
                         .reference_position = 0,
                         .num_errors = 0
                     }
@@ -86,9 +92,11 @@ TEST(search, search_seeds) {
             .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 1,
             .num_excluded_raw_anchors = 0,
-            .anchors_by_reference = std::vector<search::anchors> {
-                search::anchors {
+            .anchors_by_reference = std::vector<search::anchors_t> {
+                search::anchors_t {
                     search::anchor_t {
+                        .pex_leaf_index = 0,
+                        .reference_id = 0,
                         .reference_position = 6,
                         .num_errors = 1
                     }
@@ -100,10 +108,12 @@ TEST(search, search_seeds) {
             .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 1,
             .num_excluded_raw_anchors = 0,
-            .anchors_by_reference = std::vector<search::anchors> {
+            .anchors_by_reference = std::vector<search::anchors_t> {
                 {},
-                search::anchors {
+                search::anchors_t {
                     search::anchor_t {
+                        .pex_leaf_index = 0,
+                        .reference_id = 0,
                         .reference_position = 0,
                         .num_errors = 1
                     }
@@ -114,7 +124,7 @@ TEST(search, search_seeds) {
             .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 0,
             .num_excluded_raw_anchors = 0,
-            .anchors_by_reference = std::vector<search::anchors> {
+            .anchors_by_reference = std::vector<search::anchors_t> {
                 {},
                 {}
             }
@@ -124,26 +134,36 @@ TEST(search, search_seeds) {
 
 TEST(search, erase_useless_anchors) {
     search::anchor_t const useful_anchor1 {
+        .pex_leaf_index = 0,
+        .reference_id = 0,
         .reference_position = 100,
         .num_errors = 0
     };
 
     search::anchor_t const useful_anchor2 {
+        .pex_leaf_index = 0,
+        .reference_id = 0,
         .reference_position = 120,
         .num_errors = 0
     };
 
-    std::vector<search::anchors> anchors {{
+    std::vector<search::anchors_t> anchors {{
         search::anchor_t {
+            .pex_leaf_index = 0,
+            .reference_id = 0,
             .reference_position = 95,
             .num_errors = 5
         },
         search::anchor_t {
+            .pex_leaf_index = 0,
+            .reference_id = 0,
             .reference_position = 97,
             .num_errors = 3
         },
         useful_anchor1,
         search::anchor_t {
+            .pex_leaf_index = 0,
+            .reference_id = 0,
             .reference_position = 110,
             .num_errors = 10
         },
@@ -153,7 +173,7 @@ TEST(search, erase_useless_anchors) {
 
     search::internal::erase_useless_anchors(anchors);
 
-    std::vector<search::anchors> const expected_anchors{{
+    std::vector<search::anchors_t> const expected_anchors{{
         useful_anchor1, useful_anchor2
     }};
 

@@ -62,7 +62,7 @@ CPMDeclarePackage (
     seqan3
     NAME seqan3
     GITHUB_REPOSITORY seqan/seqan3
-    GIT_TAG 41a17ad84058e3c771efe0f2d10764c31f121583
+    GIT_TAG 3b4f6442f632b0b64f0a7d3172f2d71307b6af1d
     EXCLUDE_FROM_ALL TRUE
     SYSTEM TRUE
     OPTIONS
@@ -74,7 +74,7 @@ CPMDeclarePackage (
     interval-tree
     NAME interval-tree
     GITHUB_REPOSITORY 5cript/interval-tree
-    GIT_TAG 4b91cf434eebceef4b8509c97b568d7efef14b20
+    GIT_TAG 9d2e062e6b5755abacffbb8c9cb88b0ad712be18
     EXCLUDE_FROM_ALL TRUE
     SYSTEM TRUE
 )

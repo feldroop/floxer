@@ -22,6 +22,7 @@ struct reference_record {
 struct query_record {
     std::string id;
     std::vector<uint8_t> rank_sequence;
+    std::vector<uint8_t> reverse_complement_rank_sequence;
     std::string quality;
 };
 

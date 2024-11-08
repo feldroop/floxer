@@ -89,7 +89,7 @@ TEST(intervals, verified_intervals) {
 
     interval_test_cases const cases{};
 
-    verified_intervals ivls(use_interval_optimization::on, 1.0);
+    verified_intervals ivls;
 
     ivls.insert(cases.ivl1);
     ivls.insert(cases.ivl2);
@@ -160,7 +160,8 @@ TEST(intervals, verified_intervals_overlapping) {
 
     interval_test_cases const cases{};
 
-    verified_intervals ivls(use_interval_optimization::on, 0.5);
+    verified_intervals ivls;
+    ivls.configure(intervals::use_interval_optimization::on, 0.5);
 
     ivls.insert(cases.ivl1);
 

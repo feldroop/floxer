@@ -36,7 +36,8 @@ void query_verifier::direct_full_verification() {
         stats
     );
 
-    already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
+    auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
+    verified_intervals.insert(root_reference_span_config.as_half_open_interval());
 }
 
 void query_verifier::hierarchical_verification() {
@@ -59,7 +60,10 @@ void query_verifier::hierarchical_verification() {
         );
         assert(outcome == alignment::alignment_outcome::alignment_exists);
 
-        already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
+        {
+            auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
+            verified_intervals.insert(root_reference_span_config.as_half_open_interval());
+        }
 
         return;
     }
@@ -68,6 +72,11 @@ void query_verifier::hierarchical_verification() {
     pex_node = pex_tree.get_parent_of_child(pex_node);
 
     while (true) {
+        // we ask again in every iteration, because another thread might have done it
+        if (root_was_already_verified()) {
+            return;
+        }
+
         auto const reference_span_config = internal::compute_reference_span_start_and_length(
             anchor,
             pex_node,
@@ -87,7 +96,10 @@ void query_verifier::hierarchical_verification() {
         );
 
         if (pex_node.is_root()) {
-            already_verified_intervals.insert(reference_span_config.as_half_open_interval());
+            {
+                auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
+                verified_intervals.insert(reference_span_config.as_half_open_interval());
+            }
         }
 
         if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || pex_node.is_root()) {
@@ -105,7 +117,9 @@ bool query_verifier::root_was_already_verified() const {
         .as_half_open_interval()
         .trim_from_both_sides(root_reference_span_config.applied_extra_verification_length_per_side);
 
-    if (already_verified_intervals.contains(root_interval_to_verify_without_extra_length)) {
+    auto && [lock, verified_intervals] = already_verified_intervals.lock_shared();
+
+    if (verified_intervals.contains(root_interval_to_verify_without_extra_length)) {
         // we have already verified the interval where the whole query could be found according to this anchor
         stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
 
@@ -169,7 +183,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    alignment::query_alignments& alignments,
+    mutex_guarded<alignment::query_alignments>& alignments,
     statistics::search_and_alignment_statistics& stats
 ) {
     auto const this_node_query_span = query.subspan(
@@ -201,7 +215,8 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
         assert(pex_node.is_root());
         assert(alignment_result.outcome == alignment::alignment_outcome::alignment_exists);
 
-        alignments.insert(
+        auto && [lock, algn] = alignments.lock_unique();
+        algn.insert(
             std::move(alignment_result.alignment.value()),
             reference.internal_id
         );

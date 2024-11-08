@@ -21,6 +21,8 @@
 
 namespace input {
 
+using floxer_alphabet_t = ivs::d_dna5;
+
 size_t num_errors_from_user_config(size_t const query_length, cli::command_line_input const& cli_input) {
     if (cli_input.query_error_probability().has_value()) {
         return math::floating_point_error_aware_ceil(
@@ -124,6 +126,8 @@ std::optional<query_record> queries::next() {
         }
 
         std::vector<uint8_t> const rank_sequence = internal::chars_to_rank_sequence(record_view.seq);
+        std::vector<uint8_t> const reverse_complement_rank_sequence = ivs::reverse_complement_rank<floxer_alphabet_t>(rank_sequence);
+
         std::string const quality(record_view.qual);
 
         assert(record_view.qual.size() == sequence_length);
@@ -131,6 +135,7 @@ std::optional<query_record> queries::next() {
         return std::make_optional(query_record {
             .id = std::move(id),
             .rank_sequence = std::move(rank_sequence),
+            .reverse_complement_rank_sequence = std::move(reverse_complement_rank_sequence),
             .quality = std::move(quality)
         });
     }
@@ -154,9 +159,9 @@ std::string extract_record_id(std::string_view const& record_tag) {
 }
 
 std::vector<uint8_t> chars_to_rank_sequence(std::string_view const sequence) {
-    auto rank_sequence = ivs::convert_char_to_rank<ivs::d_dna5>(sequence);
+    auto rank_sequence = ivs::convert_char_to_rank<floxer_alphabet_t>(sequence);
 
-    uint8_t const replacement_rank = ivs::d_dna5::char_to_rank('N');
+    uint8_t const replacement_rank = floxer_alphabet_t::char_to_rank('N');
     std::ranges::replace_if(
         rank_sequence,
         [] (uint8_t const rank) { return !ivs::verify_rank(rank); },

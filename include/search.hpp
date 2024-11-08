@@ -1,5 +1,6 @@
 #pragma once
 
+#include <alignment.hpp>
 #include <fmindex.hpp>
 #include <tuple_hash.hpp>
 
@@ -17,16 +18,17 @@ struct seed {
     std::span<const uint8_t> const sequence;
     size_t const num_errors;
     size_t const query_position;
+    size_t const pex_leaf_index;
 };
 
 // group count and score are not compared
 bool operator==(seed const& lhs, seed const& rhs);
 
 struct anchor_t {
+    size_t pex_leaf_index; // a.k.a. seed id
+    size_t reference_id;
     size_t reference_position;
     size_t num_errors;
-    // size_t query_position;
-    // size_t length;
 
     bool is_better_than(anchor_t const& other);
 
@@ -37,7 +39,7 @@ struct anchor_t {
 
 bool operator==(anchor_t const& lhs, anchor_t const& rhs);
 
-using anchors = std::vector<anchor_t>;
+using anchors_t = std::vector<anchor_t>;
 
 enum class anchor_group_order_t {
     num_errors_first, count_first, hybrid
@@ -54,18 +56,44 @@ enum class seed_status {
     fully_excluded, partly_excluded, not_excluded
 };
 
-struct search_result {
-    struct anchors_of_seed {
-        seed_status const status;
-        size_t const num_kept_useful_anchors;
-        size_t const num_excluded_raw_anchors;
+struct anchor_package {
+    anchors_t anchors;
+    alignment::query_orientation orientation;
+};
 
-        // empty if fully excluded
-        std::vector<anchors> const anchors_by_reference;
+struct search_result {
+    struct anchor_iterator {
+        search_result const& res;
+        size_t current_seed_index;
+        size_t current_reference_index;
+        size_t current_anchor_index;
+
+        // TODO can I just use const& here?
+        std::optional<std::reference_wrapper<const anchor_t>> next();
     };
 
-    std::vector<anchors_of_seed> const anchors_by_seed{};
-    size_t const num_fully_excluded_seeds;
+    struct anchors_of_seed {
+        seed_status status;
+        size_t num_kept_useful_anchors;
+        size_t num_excluded_raw_anchors;
+
+        // empty if fully excluded
+        std::vector<anchors_t> anchors_by_reference;
+    };
+
+    std::vector<anchors_of_seed> anchors_by_seed{};
+    size_t num_fully_excluded_seeds;
+
+    // a "flattened" iterator over the anchors of all queries to all references
+    // the order is sorted by query first, then by reference, then by position (the only way it makes sense)
+    anchor_iterator anchor_iter() const;
+
+    // package for verification tasks
+    void append_anchor_packages(
+        std::vector<anchor_package>& out_packages,
+        size_t const num_anchors_per_package,
+        alignment::query_orientation orientation
+    ) const;
 };
 
 struct searcher {
@@ -99,7 +127,7 @@ struct anchor_group {
 static inline constexpr size_t erase_marker = std::numeric_limits<size_t>::max();
 
 // returns the number of kept anchors, sorts anchors by position
-size_t erase_useless_anchors(std::vector<anchors>& anchors_by_reference);
+size_t erase_useless_anchors(std::vector<anchors_t>& anchors_by_reference);
 
 } // namespace internal
 

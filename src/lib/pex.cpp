@@ -35,20 +35,19 @@ pex_tree_config::pex_tree_config(
 {}
 
 
-pex_alignment_config::pex_alignment_config(search::searcher const& searcher_, cli::command_line_input const& cli_input)
-    : searcher{searcher_},
-        use_interval_optimization{
-            cli_input.use_interval_optimization() ?
-                intervals::use_interval_optimization::on :
-                intervals::use_interval_optimization::off
-        },
-        verification_kind{
-            cli_input.direct_full_verification() ?
-                pex::verification_kind_t::direct_full :
-                pex::verification_kind_t::hierarchical
-        },
-        extra_verification_ratio{cli_input.extra_verification_ratio()},
-        overlap_rate_that_counts_as_contained{cli_input.allowed_interval_overlap_ratio()}
+pex_verification_config::pex_verification_config(cli::command_line_input const& cli_input)
+    : use_interval_optimization{
+        cli_input.use_interval_optimization() ?
+            intervals::use_interval_optimization::on :
+            intervals::use_interval_optimization::off
+    },
+    verification_kind{
+        cli_input.direct_full_verification() ?
+            pex::verification_kind_t::direct_full :
+            pex::verification_kind_t::hierarchical
+    },
+    extra_verification_ratio{cli_input.extra_verification_ratio()},
+    overlap_rate_that_counts_as_contained{cli_input.allowed_interval_overlap_ratio()}
 {}
 
 size_t pex_tree::node::length_of_query_span() const {
@@ -274,12 +273,14 @@ std::vector<search::seed> pex_tree::generate_seeds(
     std::vector<search::seed> seeds{};
     seeds.reserve(leaves.size());
 
-    for (auto const& leaf : leaves) {
+    for (size_t pex_leaf_index = 0; pex_leaf_index < leaves.size(); ++pex_leaf_index) {
+        auto const& leaf = leaves[pex_leaf_index];
         auto const seed_span = query.subspan(leaf.query_index_from, leaf.length_of_query_span());
         seeds.emplace_back(search::seed {
             .sequence = seed_span,
             .num_errors = leaf.num_errors,
-            .query_position = leaf.query_index_from
+            .query_position = leaf.query_index_from,
+            .pex_leaf_index = pex_leaf_index
         });
     }
 
@@ -330,103 +331,6 @@ void pex_tree::add_node_to_dot_statement(node const& curr_node, size_t const id,
     dot += curr_node.dot_statement(id);
     if (!curr_node.is_root()) {
         dot += fmt::format("{} -- {};\n", id, curr_node.parent_id);
-    }
-}
-
-// ------------------------------ hierarchical verification + alignment ------------------------------
-
-alignment::query_alignments pex_tree::align_forward_and_reverse_complement(
-    std::vector<input::reference_record> const& references,
-    std::span<const uint8_t> const query,
-    pex_alignment_config const config,
-    statistics::search_and_alignment_statistics& stats
-) const {
-    auto alignments = alignment::query_alignments(references.size());
-
-    align_query_in_given_orientation(
-        references,
-        query,
-        alignments,
-        alignment::query_orientation::forward,
-        config,
-        stats
-    );
-
-    auto const reverse_complement_query =
-        ivs::reverse_complement_rank<ivs::d_dna4>(query);
-
-    align_query_in_given_orientation(
-        references,
-        reverse_complement_query,
-        alignments,
-        alignment::query_orientation::reverse_complement,
-        config,
-        stats
-    );
-
-    stats.add_num_alignments(alignments.size());
-
-    for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-        for (auto const& alignment : alignments.to_reference(reference_id)) {
-            stats.add_alignment_edit_distance(alignment.num_errors);
-        }
-    }
-
-    return alignments;
-}
-
-void pex_tree::align_query_in_given_orientation(
-    std::vector<input::reference_record> const& references,
-    std::span<const uint8_t> const query,
-    alignment::query_alignments& alignments,
-    alignment::query_orientation const orientation,
-    pex_alignment_config const config,
-    statistics::search_and_alignment_statistics& stats
-) const {
-    auto const seeds = generate_seeds(query);
-    stats.add_statistics_for_seeds(seeds);
-
-    auto const search_result = config.searcher.search_seeds(seeds);
-    stats.add_statistics_for_search_result(search_result);
-
-    // TODO update dependency and use simpler copy constructor code
-    std::vector<intervals::verified_intervals> already_verified_intervals_per_reference{};
-    for (size_t i = 0; i < references.size(); ++i) {
-        already_verified_intervals_per_reference.emplace_back(
-            config.use_interval_optimization,
-            config.overlap_rate_that_counts_as_contained
-        );
-    }
-
-    for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
-        auto const& anchors_of_seed = search_result.anchors_by_seed[seed_id];
-
-        if (anchors_of_seed.status == search::seed_status::fully_excluded) {
-            continue;
-        }
-
-        for (size_t reference_id = 0; reference_id < references.size(); ++reference_id) {
-            for (auto const& anchor : anchors_of_seed.anchors_by_reference[reference_id]) {
-                // this depends on the implementation of generate_leave_queries returning the
-                // leaf queries in the same order as the leaves (which it should always do!)
-                auto pex_node = leaves.at(seed_id);
-
-                verification::query_verifier verifier {
-                    .pex_tree = *this,
-                    .anchor = anchor,
-                    .pex_node = pex_node,
-                    .query = query,
-                    .orientation = orientation,
-                    .reference = references[reference_id],
-                    .already_verified_intervals = already_verified_intervals_per_reference[reference_id],
-                    .extra_verification_ratio = config.extra_verification_ratio,
-                    .alignments = alignments,
-                    .stats = stats
-                };
-
-                verifier.verify(config.verification_kind);
-            }
-        }
     }
 }
 

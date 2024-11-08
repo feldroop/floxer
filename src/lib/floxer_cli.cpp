@@ -85,6 +85,10 @@ bool command_line_input::direct_full_verification() const {
     return direct_full_verification_.value;
 }
 
+size_t command_line_input::num_anchors_per_verification_task() const {
+    return num_anchors_per_verification_task_.value;
+}
+
 size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
@@ -123,6 +127,8 @@ std::string command_line_input::command_line_call() const {
         extra_verification_ratio_.command_line_call(),
         allowed_interval_overlap_ratio_.command_line_call(),
         direct_full_verification() ? direct_full_verification_.command_line_call() : "",
+
+        num_anchors_per_verification_task_.command_line_call(),
 
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
@@ -313,6 +319,14 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = num_threads_.long_id,
         .description = "The number of threads to use in the different steps of the program.",
         .validator = sharg::arithmetic_range_validator{1, 4096}
+    });
+
+    parser.add_option(num_anchors_per_verification_task_.value, sharg::config{
+        .short_id = num_anchors_per_verification_task_.short_id,
+        .long_id = num_anchors_per_verification_task_.long_id,
+        .description = "The number of anchors to give each verification task. A lower number means potentially "
+            "better work division, but a higher parallelization overhead.",
+        .validator = sharg::arithmetic_range_validator{1ul, std::numeric_limits<size_t>::max()}
     });
 
     parser.add_option(timeout_seconds_.value, sharg::config{

@@ -3,6 +3,7 @@
 #include <fmindex.hpp>
 #include <input.hpp>
 #include <intervals.hpp>
+#include <mutex_wrapper.hpp>
 #include <output.hpp>
 #include <parallelization.hpp>
 #include <pex.hpp>
@@ -17,7 +18,7 @@
 #include <fstream>
 #include <locale>
 #include <memory>
-#include <mutex>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <thread>
@@ -118,30 +119,32 @@ int main(int argc, char** argv) {
         }
     };
 
-    pex::pex_alignment_config const pex_alignment_config(searcher, cli_input);
+    pex::pex_verification_config const pex_verification_config(cli_input);
 
-    auto alignment_output = output::create_alignment_output(
+    mutex_guarded<output::alignment_output> alignment_output(
         cli_input.output_path(),
         references.records
     );
-    std::mutex alignment_output_mutex;
 
-    statistics::search_and_alignment_statistics global_stats{};
+    mutex_guarded<statistics::search_and_alignment_statistics> global_stats;
 
-    bool all_queries_started = false;
-    size_t num_queries_started = 0;
-    size_t num_queries_finished = 0;
+    bool all_search_tasks_started = false;
+    size_t num_search_tasks_started = 0;
+    size_t num_search_tasks_finished = 0;
     std::atomic_bool threads_should_stop = false;
 
     if (cli_input.timeout_seconds().has_value()) {
         std::thread([&cli_input, &threads_should_stop] {
             std::this_thread::sleep_for(std::chrono::seconds(*cli_input.timeout_seconds()));
             threads_should_stop = true;
+            spdlog::warn("Timeout happened. Shutting down threads now. The output file might be incomplete.");
         }).detach();
     }
 
     BS::thread_pool thread_pool(cli_input.num_threads());
-    msd::channel<parallelization::align_task_result> channel;
+
+    // std::nullopt sent means an error occurred
+    msd::channel<std::optional<parallelization::search_task_result>> search_task_result_channel;
 
     auto const query_file_size_bytes = std::filesystem::file_size(cli_input.queries_path());
     spdlog::info(
@@ -157,19 +160,16 @@ int main(int argc, char** argv) {
     spdlog::stopwatch const aligning_stopwatch;
 
     // initialize thread pool task queue with a search task for every thread
-    while (num_queries_started < cli_input.num_threads()) {
-        auto const spawning_outcome = spawn_alignment_task(
+    while (num_search_tasks_started < 2 * cli_input.num_threads()) { // TODO experiment with other values than 2
+        auto const spawning_outcome = parallelization::spawn_search_task(
             queries,
-            thread_pool,
-            threads_should_stop,
+            num_search_tasks_started,
             cli_input,
+            searcher,
             global_stats,
-            num_queries_started,
-            references,
-            pex_alignment_config,
-            alignment_output,
-            alignment_output_mutex,
-            channel
+            thread_pool,
+            search_task_result_channel,
+            threads_should_stop
         );
 
         if (spawning_outcome == parallelization::spawning_outcome::input_error) {
@@ -179,49 +179,86 @@ int main(int argc, char** argv) {
         }
 
         if (spawning_outcome == parallelization::spawning_outcome::input_exhausted) {
-            all_queries_started = true;
+            all_search_tasks_started = true;
             break;
         }
 
         assert(spawning_outcome == parallelization::spawning_outcome::success);
-        ++num_queries_started;
+        ++num_search_tasks_started;
     }
 
-    if (num_queries_started == 0) {
+    if (num_search_tasks_started == 0) {
         spdlog::warn("empty input file {}", cli_input.queries_path());
         return 0;
     }
 
-    for (parallelization::align_task_result const& res : channel) {
-        if (res.is_error()) {
+    while (num_search_tasks_started != num_search_tasks_finished) {
+        std::optional<parallelization::search_task_result> res_opt;
+        search_task_result_channel >> res_opt;
+
+        // std::nullopt means an error must have happened
+        if (!res_opt) {
             thread_pool.purge();
             thread_pool.wait();
-
-            spdlog::error(
-                "An error occured while a thread was aligning reads or writing output. "
-                "The output file is likely incomplete and invalid.\n{}\n",
-                res.get_exception().what()
-            );
 
             return -1;
         }
 
-        ++num_queries_finished;
-        statistics::combine_stats(global_stats, res.get_success_result());
+        ++num_search_tasks_finished;
+        auto res = *std::move(res_opt);
 
-        if (!all_queries_started) {
-            auto const spawning_outcome = spawn_alignment_task(
+        auto verification_config = pex::pex_verification_config(cli_input);
+
+        auto verified_intervals_forward = intervals::create_thread_safe_verified_intervals(
+            references.records.size(),
+            verification_config.use_interval_optimization,
+            verification_config.overlap_rate_that_counts_as_contained
+        );
+        auto verified_intervals_reverse_complement = intervals::create_thread_safe_verified_intervals(
+            references.records.size(),
+            verification_config.use_interval_optimization,
+            verification_config.overlap_rate_that_counts_as_contained
+        );
+
+        auto shared_verification_data = std::make_shared<parallelization::shared_verification_data>(
+            std::move(res.query),
+            res.query_index, // TODO move index into query
+            references,
+            std::move(res.pex_tree),
+            verification_config,
+            alignment_output,
+            global_stats,
+            threads_should_stop
+        );
+
+        auto alignments = std::make_shared<mutex_guarded<alignment::query_alignments>>(
+            references.records.size()
+        );
+        auto num_verification_tasks_remaining = std::make_shared<std::atomic_size_t>(res.anchor_packages.size());
+
+        for (auto& package : res.anchor_packages) {
+            parallelization::spawn_verification_task(
+                std::move(package),
+                package.orientation == alignment::query_orientation::forward ?
+                    verified_intervals_forward :
+                    verified_intervals_reverse_complement,
+                shared_verification_data,
+                alignments,
+                num_verification_tasks_remaining,
+                thread_pool
+            );
+        }
+
+        if (!all_search_tasks_started) {
+            auto const spawning_outcome = parallelization::spawn_search_task(
                 queries,
-                thread_pool,
-                threads_should_stop,
+                num_search_tasks_started,
                 cli_input,
+                searcher,
                 global_stats,
-                num_queries_started,
-                references,
-                pex_alignment_config,
-                alignment_output,
-                alignment_output_mutex,
-                channel
+                thread_pool,
+                search_task_result_channel,
+                threads_should_stop
             );
 
             if (spawning_outcome == parallelization::spawning_outcome::input_error) {
@@ -231,25 +268,18 @@ int main(int argc, char** argv) {
             }
 
             if (spawning_outcome == parallelization::spawning_outcome::input_exhausted) {
-                all_queries_started = true;
+                all_search_tasks_started = true;
             } else {
                 assert(spawning_outcome == parallelization::spawning_outcome::success);
-                ++num_queries_started;
+                ++num_search_tasks_started;
             }
-        }
-
-        if (num_queries_started == num_queries_finished) {
-            break;
         }
     }
 
-    if (threads_should_stop) {
-        spdlog::info(
-            "Timed out after {}. Aligned {} queries.",
-            output::format_elapsed_time(aligning_stopwatch.elapsed()),
-            global_stats.num_queries()
-        );
-    } else {
+    // wait for all remaining verification tasks to complete
+    thread_pool.wait();
+
+    if (!threads_should_stop) {
         spdlog::info(
             "finished aligning successfully in {}",
             output::format_elapsed_time(aligning_stopwatch.elapsed())
@@ -257,14 +287,15 @@ int main(int argc, char** argv) {
     }
 
     if (cli_input.stats_target().has_value()) {
+        auto && [lock, stats] = global_stats.lock_unique();
         // TODO remove the stats to terminal printing
         if (cli_input.stats_target().value() == "terminal") {
-            for (auto const& formatted_statistic : global_stats.format_statistics_for_stdout()) {
+            for (auto const& formatted_statistic : stats.format_statistics_for_stdout()) {
                 spdlog::info("{}", formatted_statistic);
             }
         } else {
             std::ofstream out(cli_input.stats_target().value());
-            out << global_stats.format_statistics_as_toml();
+            out << stats.format_statistics_as_toml();
         }
     }
 

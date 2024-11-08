@@ -57,6 +57,8 @@ class command_line_input {
     cli_option<double> allowed_interval_overlap_ratio_{ 'w', "allowed-interval-overlap-ratio", 1.0 };
     cli_option<bool> direct_full_verification_{ 'd', "direct-full-verification", false };
 
+    cli_option<size_t> num_anchors_per_verification_task_{ 'u', "num-anchors-per-task", 100 };
+
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
     cli_option<std::string> stats_target_{ 'a', "stats", "" };
@@ -82,6 +84,8 @@ public:
     double extra_verification_ratio() const;
     double allowed_interval_overlap_ratio() const;
     bool direct_full_verification() const;
+
+    size_t num_anchors_per_verification_task() const;
 
     size_t num_threads() const;
     std::optional<size_t> timeout_seconds() const;

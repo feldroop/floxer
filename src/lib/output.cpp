@@ -39,27 +39,14 @@ void save_index(fmindex const& index, std::filesystem::path const& index_path) {
     }
 }
 
-alignment_output_t create_alignment_output(
-    std::filesystem::path const& output_path,
-    std::vector<input::reference_record> const& references
-) {
-    auto reference_id_view = references | std::views::transform(&input::reference_record::id);
-    std::vector<std::string> reference_ids(reference_id_view.begin(), reference_id_view.end());
+alignment_output::alignment_output(
+        std::filesystem::path const& output_path,
+        std::vector<input::reference_record> const& references_
+) : out(internal::create_seqan_alignment_output(output_path, references_)), references(references_)
+{}
 
-    return seqan3::sam_file_output(
-        output_path,
-        std::move(reference_ids),
-        references | std::views::transform([] (input::reference_record const& ref) {
-            return ref.rank_sequence.size();
-        }),
-        alignment_output_fields_t{}
-    );
-}
-
-void output_for_query(
-    alignment_output_t& alignment_output,
+void alignment_output::write_alignments_for_query(
     input::query_record const& query,
-    std::vector<input::reference_record> const& references,
     alignment::query_alignments alignments
 ) {
     static constexpr uint8_t mapq_not_available = 255;
@@ -90,7 +77,7 @@ void output_for_query(
             using namespace seqan3::literals;
             tags.get<"NM"_tag>() = alignment.num_errors;
 
-            alignment_output.emplace_back(
+            out.emplace_back(
                 query.id, // id
                 flag, // flag
                 reference.id, // ref_id
@@ -105,7 +92,7 @@ void output_for_query(
     }
 
     if (!primary_alignment_was_written) {
-        alignment_output.emplace_back(
+        out.emplace_back(
             query.id, // id
             seqan3::sam_flag::unmapped, // flag
             std::string{}, // ref_id
@@ -199,5 +186,26 @@ std::string format_large_number(size_t const number) {
 
     return formatted_number_string;
 }
+
+namespace internal {
+
+seqan_alignment_output create_seqan_alignment_output(
+    std::filesystem::path const& output_path,
+    std::vector<input::reference_record> const& references
+) {
+    auto reference_id_view = references | std::views::transform(&input::reference_record::id);
+    std::vector<std::string> reference_ids(reference_id_view.begin(), reference_id_view.end());
+
+    return seqan3::sam_file_output(
+        output_path,
+        std::move(reference_ids),
+        references | std::views::transform([] (input::reference_record const& ref) {
+            return ref.rank_sequence.size();
+        }),
+        alignment_output_fields_t{}
+    );
+}
+
+} // namespace internal
 
 } // namespace output

@@ -41,17 +41,19 @@ TEST(verification, verify) {
     });
 
     search::anchor_t anchor {
+        .pex_leaf_index = 0,
+        .reference_id = 0,
         .reference_position = 50,
         .num_errors = 0
     };
 
     auto const& pex_node = pex_tree.get_leaves().at(0);
 
-    intervals::verified_intervals already_verified_intervals(intervals::use_interval_optimization::on, 1.0);
+    shared_mutex_guarded<intervals::verified_intervals> already_verified_intervals;
 
     double const extra_verification_ratio = 0.1;
 
-    alignment::query_alignments alignments(1);
+    mutex_guarded<alignment::query_alignments> alignments(1);
     statistics::search_and_alignment_statistics stats;
 
     verification::query_verifier verifier {
@@ -69,20 +71,33 @@ TEST(verification, verify) {
 
     verifier.verify(pex::verification_kind_t::hierarchical);
 
-    EXPECT_EQ(alignments.size(), 1);
-    auto const& alignment = alignments.to_reference(0).at(0);
+    {
+        auto && [lock, algn] = alignments.lock_unique();
 
-    EXPECT_EQ(alignment.cigar, seqan3::detail::parse_cigar("10=1I9=1D10="));
-    EXPECT_EQ(alignment.num_errors, 2);
-    EXPECT_EQ(alignment.orientation, alignment::query_orientation::reverse_complement);
-    EXPECT_EQ(alignment.start_in_reference, 50);
+        EXPECT_EQ(algn.size(), 1);
+        auto const& alignment = algn.to_reference(0).at(0);
+
+        EXPECT_EQ(alignment.cigar, seqan3::detail::parse_cigar("10=1I9=1D10="));
+        EXPECT_EQ(alignment.num_errors, 2);
+        EXPECT_EQ(alignment.orientation, alignment::query_orientation::reverse_complement);
+        EXPECT_EQ(alignment.start_in_reference, 50);
+
+    }
 
     verifier.verify(pex::verification_kind_t::hierarchical);
 
-    // nothing should change because of already_verified_intervals
-    EXPECT_EQ(alignments.size(), 1);
+    {
+        auto && [lock, algn] = alignments.lock_unique();
 
-    intervals::verified_intervals deactivated_already_verified_intervals(intervals::use_interval_optimization::off, 1.0);
+        // nothing should change because of already_verified_intervals
+        EXPECT_EQ(algn.size(), 1);
+    }
+
+    shared_mutex_guarded<intervals::verified_intervals> deactivated_already_verified_intervals;
+    {
+        auto && [lock, ivls] = already_verified_intervals.lock_unique();
+        ivls.configure(intervals::use_interval_optimization::off, 1.0);
+    }
     verification::query_verifier direct_verifier {
         .pex_tree = pex_tree,
         .anchor = anchor,
@@ -98,8 +113,12 @@ TEST(verification, verify) {
 
     direct_verifier.verify(pex::verification_kind_t::direct_full);
 
-    EXPECT_EQ(alignments.size(), 2);
-    EXPECT_EQ(alignments.to_reference(0).at(1), alignments.to_reference(0).at(0));
+    {
+        auto && [lock, algn] = alignments.lock_unique();
+
+        EXPECT_EQ(algn.size(), 2);
+        EXPECT_EQ(algn.to_reference(0).at(1), algn.to_reference(0).at(0));
+    }
 
     // add more errors such that no alignment should be added
     query[5] = 1;
@@ -108,12 +127,19 @@ TEST(verification, verify) {
     query[20] = 2;
 
     direct_verifier.verify(pex::verification_kind_t::direct_full);
-    EXPECT_EQ(alignments.size(), 2);
+
+    {
+        auto && [lock, algn] = alignments.lock_unique();
+
+        EXPECT_EQ(algn.size(), 2);
+    }
 }
 
 
 TEST(verification, compute_reference_span_start_and_length) {
     search::anchor_t anchor {
+        .pex_leaf_index = 0,
+        .reference_id = 0,
         .reference_position = 100'755,
         .num_errors = 25
     };
@@ -190,7 +216,7 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
         1,1,1,1,1
     };
 
-    alignment::query_alignments alignments(1);
+    mutex_guarded<alignment::query_alignments> alignments(1);
     statistics::search_and_alignment_statistics stats;
 
     auto const outcome_expected_exists = verification::internal::try_to_align_pex_node_query_with_reference_span(
@@ -204,13 +230,18 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
     );
 
     EXPECT_EQ(outcome_expected_exists, alignment::alignment_outcome::alignment_exists);
-    EXPECT_EQ(alignments.size(), 1);
 
-    auto const& alignment = alignments.to_reference(0).at(0);
+    {
+        auto && [lock, algn] = alignments.lock_unique();
 
-    EXPECT_EQ(alignment.num_errors, 5);
-    EXPECT_EQ(alignment.orientation, alignment::query_orientation::forward);
-    EXPECT_EQ(alignment.start_in_reference, 50);
+        EXPECT_EQ(algn.size(), 1);
+
+        auto const& alignment = algn.to_reference(0).at(0);
+
+        EXPECT_EQ(alignment.num_errors, 5);
+        EXPECT_EQ(alignment.orientation, alignment::query_orientation::forward);
+        EXPECT_EQ(alignment.start_in_reference, 50);
+    }
 
     pex_node.parent_id = 0; // ---------- not root anymore ----------
 
@@ -225,7 +256,11 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
     );
 
     EXPECT_EQ(outcome_expected_exists_again, alignment::alignment_outcome::alignment_exists);
-    EXPECT_EQ(alignments.size(), 1);
+    {
+        auto && [lock, algn] = alignments.lock_unique();
+
+        EXPECT_EQ(algn.size(), 1);
+    }
 
     query[42] = 2; // ---------- too many errors ----------
     auto const outcome_expected_does_not_exist = verification::internal::try_to_align_pex_node_query_with_reference_span(
@@ -239,5 +274,9 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
     );
 
     EXPECT_EQ(outcome_expected_does_not_exist, alignment::alignment_outcome::no_adequate_alignment_exists);
-    EXPECT_EQ(alignments.size(), 1);
+    {
+        auto && [lock, algn] = alignments.lock_unique();
+
+        EXPECT_EQ(algn.size(), 1);
+    }
 }

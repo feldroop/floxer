@@ -310,8 +310,6 @@ void search_and_alignment_statistics::merge_other_into_this(
     for (size_t i = 0; i < histograms.size(); ++i) {
         histograms.at(i).merge_with(other.histograms.at(i));
     }
-
-    return inout;
 }
 
 namespace internal {
