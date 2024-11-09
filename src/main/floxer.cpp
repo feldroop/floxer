@@ -209,46 +209,22 @@ int main(int argc, char** argv) {
         ++num_search_tasks_finished;
         auto res = *std::move(res_opt);
 
-        auto verification_config = pex::pex_verification_config(cli_input);
-
-        // TODO create all of this already in the search thread
-        auto verified_intervals_forward = intervals::create_thread_safe_verified_intervals(
-            references.records.size(),
-            verification_config.use_interval_optimization,
-            verification_config.overlap_rate_that_counts_as_contained
-        );
-        auto verified_intervals_reverse_complement = intervals::create_thread_safe_verified_intervals(
-            references.records.size(),
-            verification_config.use_interval_optimization,
-            verification_config.overlap_rate_that_counts_as_contained
-        );
-
         auto shared_verification_data = std::make_shared<parallelization::shared_verification_data>(
             std::move(res.query),
             res.query_index, // TODO move index into query
             references,
             std::move(res.pex_tree),
-            verification_config,
+            cli_input,
             alignment_output,
+            res.anchor_packages.size(),
             global_stats,
             threads_should_stop
         );
 
-        // TODO move these into shared data.
-        auto alignments = std::make_shared<mutex_guarded<alignment::query_alignments>>(
-            references.records.size()
-        );
-        auto num_verification_tasks_remaining = std::make_shared<std::atomic_size_t>(res.anchor_packages.size());
-
         for (auto& package : res.anchor_packages) {
             parallelization::spawn_verification_task(
                 std::move(package),
-                package.orientation == alignment::query_orientation::forward ?
-                    verified_intervals_forward :
-                    verified_intervals_reverse_complement,
                 shared_verification_data,
-                alignments,
-                num_verification_tasks_remaining,
                 thread_pool
             );
         }

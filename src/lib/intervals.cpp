@@ -131,15 +131,15 @@ bool verified_intervals::contains(
     return does_contain;
 }
 
-std::shared_ptr<verified_intervals_for_all_references> create_thread_safe_verified_intervals(
+verified_intervals_for_all_references create_thread_safe_verified_intervals(
     size_t const num_references,
     use_interval_optimization const activity_status,
     double const overlap_rate_that_counts_as_contained
 ) {
-    auto out = std::make_shared<verified_intervals_for_all_references>(num_references);
+    auto out = verified_intervals_for_all_references(num_references);
 
     for (size_t i = 0; i < num_references; ++i) {
-        auto && [lock, ivls] = out->at(i).lock_unique();
+        auto && [lock, ivls] = out[i].lock_unique();
         ivls.configure(activity_status, overlap_rate_that_counts_as_contained);
     }
 

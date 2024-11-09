@@ -47,22 +47,34 @@ spawning_outcome spawn_search_task(
 // some of the members are owned by all of the verification tasks, some of them are just references to the main thread data
 struct shared_verification_data {
     input::query_record const query;
-    size_t query_index;
+    size_t const query_index;
     input::references const& references;
     pex::pex_tree const pex_tree;
     pex::pex_verification_config const config;
+    intervals::verified_intervals_for_all_references verified_intervals_forward;
+    intervals::verified_intervals_for_all_references verified_intervals_reverse_complement;
+    mutex_guarded<alignment::query_alignments> alignments;
     mutex_guarded<output::alignment_output>& alignment_output;
+    std::atomic_size_t num_verification_tasks_remaining;
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats;
     std::atomic_bool& threads_should_stop;
+
+    shared_verification_data(
+        input::query_record const query_,
+        size_t const query_index_,
+        input::references const& references_,
+        pex::pex_tree const pex_tree_,
+        cli::command_line_input const& cli_input,
+        mutex_guarded<output::alignment_output>& alignment_output_,
+        size_t const num_verification_tasks,
+        mutex_guarded<statistics::search_and_alignment_statistics>& global_stats,
+        std::atomic_bool& threads_should_stop
+    );
 };
 
-// TODO create constructor for shared_verification_data where alignments and num_remaining are part of it
 void spawn_verification_task(
     search::anchor_package package,
-    std::shared_ptr<intervals::verified_intervals_for_all_references> verified_intervals_for_all_references,
     std::shared_ptr<shared_verification_data> data,
-    std::shared_ptr<mutex_guarded<alignment::query_alignments>> alignments_ptr, // can't be part of shared_verification_data, because it can't be move initialized
-    std::shared_ptr<std::atomic_size_t> num_verification_tasks_remaining, // can't be part of shared_verification_data, because it can't be move initialized
     BS::thread_pool& thread_pool
 );
 

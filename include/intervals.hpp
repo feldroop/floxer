@@ -3,7 +3,6 @@
 #include <mutex_wrapper.hpp>
 
 #include <cstddef>
-#include <memory>
 #include <optional>
 #include <set>
 #include <vector>
@@ -78,7 +77,7 @@ private:
 
 using verified_intervals_for_all_references = std::vector<shared_mutex_guarded<verified_intervals>>;
 
-std::shared_ptr<verified_intervals_for_all_references> create_thread_safe_verified_intervals(
+verified_intervals_for_all_references create_thread_safe_verified_intervals(
     size_t const num_references,
     use_interval_optimization const activity_status,
     double const overlap_rate_that_counts_as_contained

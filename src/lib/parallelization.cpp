@@ -123,20 +123,46 @@ spawning_outcome spawn_search_task(
     return spawning_outcome::success;
 }
 
+shared_verification_data::shared_verification_data(
+    input::query_record const query_,
+    size_t const query_index_,
+    input::references const& references_,
+    pex::pex_tree const pex_tree_,
+    cli::command_line_input const& cli_input,
+    mutex_guarded<output::alignment_output>& alignment_output_,
+    size_t const num_verification_tasks_,
+    mutex_guarded<statistics::search_and_alignment_statistics>& global_stats_,
+    std::atomic_bool& threads_should_stop_
+) : query{query_},
+    query_index{query_index_},
+    references{references_},
+    pex_tree{pex_tree_},
+    config(cli_input),
+    verified_intervals_forward(intervals::create_thread_safe_verified_intervals(
+        references.records.size(),
+        config.use_interval_optimization,
+        config.overlap_rate_that_counts_as_contained
+    )),
+    verified_intervals_reverse_complement(intervals::create_thread_safe_verified_intervals(
+        references.records.size(),
+        config.use_interval_optimization,
+        config.overlap_rate_that_counts_as_contained
+    )),
+    alignments(references.records.size()),
+    alignment_output{alignment_output_},
+    num_verification_tasks_remaining(num_verification_tasks_),
+    global_stats{global_stats_},
+    threads_should_stop{threads_should_stop_}
+{}
+
 void spawn_verification_task(
     search::anchor_package package,
-    std::shared_ptr<intervals::verified_intervals_for_all_references> verified_intervals_for_all_references,
     std::shared_ptr<shared_verification_data> data,
-    std::shared_ptr<mutex_guarded<alignment::query_alignments>> alignments_ptr,
-    std::shared_ptr<std::atomic_size_t> num_verification_tasks_remaining,
     BS::thread_pool& thread_pool
 ) {
     thread_pool.detach_task(
         [
             package = std::move(package),
-            verified_intervals_for_all_references,
-            alignments_ptr,
-            num_verification_tasks_remaining,
             data
         ] {
             if (data->threads_should_stop) {
@@ -147,6 +173,10 @@ void spawn_verification_task(
                 spdlog::debug("verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
 
                 statistics::search_and_alignment_statistics local_stats;
+
+                auto& verified_intervals_for_all_references = package.orientation == alignment::query_orientation::forward ?
+                    data->verified_intervals_forward :
+                    data->verified_intervals_reverse_complement;
 
                 for (auto const anchor : package.anchors) {
                     auto const& pex_leaf_node = data->pex_tree.get_leaves().at(anchor.pex_leaf_index);
@@ -159,9 +189,9 @@ void spawn_verification_task(
                             data->query.rank_sequence : data->query.reverse_complement_rank_sequence,
                         .orientation = package.orientation,
                         .reference = data->references.records[anchor.reference_id],
-                        .already_verified_intervals = verified_intervals_for_all_references->at(anchor.reference_id),
+                        .already_verified_intervals = verified_intervals_for_all_references.at(anchor.reference_id),
                         .extra_verification_ratio = data->config.extra_verification_ratio,
-                        .alignments = *alignments_ptr,
+                        .alignments = data->alignments,
                         .stats = local_stats
                     };
 
@@ -171,9 +201,9 @@ void spawn_verification_task(
                 spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
 
                 // write to output file if I am the last remaining thread
-                if (num_verification_tasks_remaining->fetch_sub(1) == 1) {
+                if (data->num_verification_tasks_remaining.fetch_sub(1) == 1) {
                     // this locking is only necessary for the mutex wrapper (because this is the last verification task oif this query)
-                    auto && [alignments_lock, alignments] = alignments_ptr->lock_unique();
+                    auto && [alignments_lock, alignments] = data->alignments.lock_unique();
 
                     local_stats.add_num_alignments(alignments.size());
 
