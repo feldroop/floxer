@@ -292,7 +292,6 @@ int main(int argc, char** argv) {
 
     if (cli_input.stats_target().has_value()) {
         auto && [lock, stats] = global_stats.lock_unique();
-        // TODO remove the stats to terminal printing
         if (cli_input.stats_target().value() == "terminal") {
             for (auto const& formatted_statistic : stats.format_statistics_for_stdout()) {
                 spdlog::info("{}", formatted_statistic);
