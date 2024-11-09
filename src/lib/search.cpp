@@ -103,6 +103,7 @@ void search_result::append_anchor_packages(
 
     while (anchors_remaining) {
         auto package = anchor_package {
+            .package_id = out_packages.size(),
             .anchors = anchors_t(),
             .orientation = orientation
         };

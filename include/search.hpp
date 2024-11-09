@@ -57,6 +57,7 @@ enum class seed_status {
 };
 
 struct anchor_package {
+    size_t package_id;
     anchors_t anchors;
     alignment::query_orientation orientation;
 };

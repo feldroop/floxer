@@ -53,7 +53,7 @@ spawning_outcome spawn_search_task(
             }
 
             try {
-                spdlog::debug("({}) searching query: {}", query_index, query.id);
+                spdlog::debug("searching query {}: {}", query_index, query.id);
 
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
@@ -88,6 +88,8 @@ spawning_outcome spawn_search_task(
                     auto && [lock, ref] = global_stats.lock_unique();
                     ref.merge_other_into_this(local_stats);
                 }
+
+                spdlog::debug("finished searching query {}: {}", query_index, query.id);
 
                 channel << std::make_optional(search_task_result {
                     .query = std::move(query),
@@ -132,6 +134,8 @@ void spawn_verification_task(
             }
 
             try {
+                spdlog::debug("verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
+
                 statistics::search_and_alignment_statistics local_stats;
 
                 for (auto const anchor : package.anchors) {
@@ -154,6 +158,8 @@ void spawn_verification_task(
                     verifier.verify(data->config.verification_kind);
                 }
 
+                spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
+
                 // write to output file if I am the last remaining thread
                 if (num_verification_tasks_remaining->fetch_sub(1) == 0) {
                     // this locking is only necessary for the mutex wrapper (because this is the last verification task oif this query)
@@ -166,6 +172,8 @@ void spawn_verification_task(
                             local_stats.add_alignment_edit_distance(alignment.num_errors);
                         }
                     }
+
+                    spdlog::debug("(package {}) writing alignments for query {}: {}", package.package_id, data->query_index, data->query.id);
 
                     auto && [output_lock, output] = data->alignment_output.lock_unique();
                     output.write_alignments_for_query(data->query, alignments);
