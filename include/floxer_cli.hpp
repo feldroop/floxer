@@ -43,6 +43,7 @@ class command_line_input {
     cli_option<std::filesystem::path> output_path_{ 'o', "output", "" };
     cli_option<std::filesystem::path> index_path_{ 'i', "index", "" };
     cli_option<std::filesystem::path> logfile_path_{ 'l', "logfile", "" };
+    cli_option<bool> console_debug_logs_{ 'c', "console-debug-logs", false };
 
     cli_option<size_t> query_num_errors_{ 'e', "query-errors", std::numeric_limits<size_t>::max() };
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
@@ -71,6 +72,7 @@ public:
     std::filesystem::path const& output_path() const;
     std::optional<std::filesystem::path> index_path() const;
     std::optional<std::filesystem::path> logfile_path() const;
+    bool console_debug_logs() const;
 
     std::optional<size_t> query_num_errors() const;
     std::optional<double> query_error_probability() const;

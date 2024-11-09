@@ -106,12 +106,16 @@ void alignment_output::write_alignments_for_query(
     }
 }
 
-void initialize_logger(std::optional<std::filesystem::path> const logfile_path) {
+void initialize_logger(std::optional<std::filesystem::path> const logfile_path, bool const console_debug_logs) {
     try {
         std::vector<spdlog::sink_ptr> sinks;
 
         auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
-        console_sink->set_level(spdlog::level::info);
+        if (console_debug_logs) {
+            console_sink->set_level(spdlog::level::trace);
+        } else {
+            console_sink->set_level(spdlog::level::info);
+        }
 
         sinks.push_back(console_sink);
 

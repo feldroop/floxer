@@ -54,7 +54,7 @@ private:
     std::vector<input::reference_record> const& references;
 };
 
-void initialize_logger(std::optional<std::filesystem::path> const logfile_path);
+void initialize_logger(std::optional<std::filesystem::path> const logfile_path, bool const console_debug_logs);
 
 std::string format_elapsed_time(std::chrono::duration<double> const elapsed_seconds);
 

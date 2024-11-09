@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 #include <spdlog/fmt/fmt.h>
+#include <spdlog/fmt/std.h>
 
 std::tuple<int, std::string> run_floxer_on_test_data(std::string const& additional_params) {
     std::string output_filename = std::tmpnam(nullptr);
@@ -20,11 +21,14 @@ std::tuple<int, std::string> run_floxer_on_test_data(std::string const& addition
         "--queries ../test_data/queries.fastq "
         "--output {} "
         "--interval-optimization "
+        "--console-debug-logs "
         "{}",
         output_filename,
         additional_params
     );
 
+    testing::internal::CaptureStdout();
+    testing::internal::CaptureStderr();
     int const exit_code = std::system(command.c_str());
 
     return std::make_tuple(exit_code, output_filename);
@@ -84,16 +88,15 @@ void check_floxer_output_file(std::string const& output_filename) {
     }
 }
 
-void run_floxer_via_cli_and_check_output(size_t const seed_errors) {
-    testing::internal::CaptureStdout();
-    testing::internal::CaptureStderr();
-
+void run_floxer_via_cli_and_check_output(size_t const seed_errors, size_t const num_threads) {
     auto const [exit_code, output_filename] = run_floxer_on_test_data(
         fmt::format(
             "--query-errors 2 "
             "--seed-errors {} "
-            "--extra-verification-ratio 2",
-            seed_errors
+            "--extra-verification-ratio 2 "
+            "--threads {} ",
+            seed_errors,
+            num_threads
         )
     );
 
@@ -101,10 +104,10 @@ void run_floxer_via_cli_and_check_output(size_t const seed_errors) {
 
     std::string const out = testing::internal::GetCapturedStdout();
     std::string const err = testing::internal::GetCapturedStderr();
-    (void)err;
 
-    if (!out.empty()) {
+    if (exit_code != 0 || !out.empty())  {
         fmt::print("FLOXER STDOUT: {}\n", out);
+        fmt::print("FLOXER STDERR: {}\n", err);
     }
 
     // all of the diagnostic output should be in stderr
@@ -116,9 +119,13 @@ void run_floxer_via_cli_and_check_output(size_t const seed_errors) {
 }
 
 TEST(floxer, whole_program_via_cli_old_pex) {
-    run_floxer_via_cli_and_check_output(0);
+    run_floxer_via_cli_and_check_output(0, 1);
 }
 
 TEST(floxer, whole_program_via_cli_adjusted_pex) {
-    run_floxer_via_cli_and_check_output(1);
+    run_floxer_via_cli_and_check_output(1, 1);
+}
+
+TEST(floxer, whole_program_via_cli_multithreaded) {
+    run_floxer_via_cli_and_check_output(1, 4);
 }

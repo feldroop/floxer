@@ -37,6 +37,10 @@ std::optional<std::filesystem::path> command_line_input::logfile_path() const {
     }
 }
 
+bool command_line_input::console_debug_logs() const {
+    return console_debug_logs_.value;
+}
+
 std::optional<size_t> command_line_input::query_num_errors() const {
     if (query_num_errors_.value != std::numeric_limits<size_t>::max()) {
         return query_num_errors_.value;
@@ -114,6 +118,7 @@ std::string command_line_input::command_line_call() const {
         index_path().has_value() ? index_path_.command_line_call() : "",
         output_path_.command_line_call(),
         logfile_path().has_value() ? logfile_path_.command_line_call() : "",
+        console_debug_logs() ? console_debug_logs_.command_line_call() : "",
 
         query_num_errors().has_value() ? query_num_errors_.command_line_call() : "",
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
@@ -226,6 +231,13 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .description = "If a logfile path is given, a rotating logfile will be created "
             "and debug information will be written to it.",
         .default_message = "no logfile"
+    });
+
+    parser.add_flag(console_debug_logs_.value, sharg::config{
+        .short_id = console_debug_logs_.short_id,
+        .long_id = console_debug_logs_.long_id,
+        .description = "Print debug and trace logs into stderr (usually observable on the console).",
+        .advanced = false
     });
 
     parser.add_option(query_num_errors_.value, sharg::config{

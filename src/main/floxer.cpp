@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    output::initialize_logger(cli_input.logfile_path());
+    output::initialize_logger(cli_input.logfile_path(), cli_input.console_debug_logs());
 
     spdlog::info("successfully parsed CLI input ... starting");
     spdlog::debug("command line call: {}", cli_input.command_line_call());
@@ -161,6 +161,8 @@ int main(int argc, char** argv) {
 
     // initialize thread pool task queue with a search task for every thread
     while (num_search_tasks_started < 2 * cli_input.num_threads()) { // TODO experiment with other values than 2
+        // TODO multiple queries per search task,
+        // do io on thread. how to synchronize in case of exhausted input? another atomic bool needed?
         auto const spawning_outcome = parallelization::spawn_search_task(
             queries,
             num_search_tasks_started,
@@ -209,6 +211,7 @@ int main(int argc, char** argv) {
 
         auto verification_config = pex::pex_verification_config(cli_input);
 
+        // TODO create all of this already in the search thread
         auto verified_intervals_forward = intervals::create_thread_safe_verified_intervals(
             references.records.size(),
             verification_config.use_interval_optimization,
@@ -231,6 +234,7 @@ int main(int argc, char** argv) {
             threads_should_stop
         );
 
+        // TODO move these into shared data.
         auto alignments = std::make_shared<mutex_guarded<alignment::query_alignments>>(
             references.records.size()
         );
@@ -252,7 +256,7 @@ int main(int argc, char** argv) {
         if (!all_search_tasks_started) {
             auto const spawning_outcome = parallelization::spawn_search_task(
                 queries,
-                num_search_tasks_started,
+                num_search_tasks_started, // TODO decouple query index and num search tasks
                 cli_input,
                 searcher,
                 global_stats,
