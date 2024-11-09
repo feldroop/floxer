@@ -161,7 +161,7 @@ void spawn_verification_task(
                 spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
 
                 // write to output file if I am the last remaining thread
-                if (num_verification_tasks_remaining->fetch_sub(1) == 0) {
+                if (num_verification_tasks_remaining->fetch_sub(1) == 1) {
                     // this locking is only necessary for the mutex wrapper (because this is the last verification task oif this query)
                     auto && [alignments_lock, alignments] = alignments_ptr->lock_unique();
 
