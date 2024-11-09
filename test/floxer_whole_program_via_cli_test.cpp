@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <seqan3/io/sam_file/detail/cigar.hpp>
 #include <seqan3/io/sam_file/input.hpp>
@@ -37,7 +39,11 @@ std::tuple<int, std::string> run_floxer_on_test_data(std::string const& addition
 void check_floxer_output_file(std::string const& output_filename) {
     seqan3::sam_file_input floxer_output{output_filename};
 
+    std::unordered_set<std::string> mentioned_query_ids{};
+
     for (auto const& record : floxer_output) {
+        mentioned_query_ids.insert(record.id());
+
         if (record.id() == "query1" || record.id() == "query6") {
             EXPECT_EQ(record.flag(), seqan3::sam_flag::unmapped);
             continue;
@@ -86,6 +92,12 @@ void check_floxer_output_file(std::string const& output_filename) {
             EXPECT_EQ(record.cigar_sequence(), seqan3::detail::parse_cigar("12="));
         }
     }
+
+    std::unordered_set<std::string> expected_query_ids{
+        "query1", "query2", "query3", "query4", "query5", "query6"
+    };
+
+    EXPECT_EQ(expected_query_ids, mentioned_query_ids);
 }
 
 void run_floxer_via_cli_and_check_output(size_t const seed_errors, size_t const num_threads) {

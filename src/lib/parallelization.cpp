@@ -76,6 +76,16 @@ spawning_outcome spawn_search_task(
                     alignment::query_orientation::reverse_complement
                 );
 
+                // even if no anchors are found, one empty anchor package is created
+                // such that one verification task writes the query as unaligned
+                if (anchor_packages.empty()) {
+                    anchor_packages.emplace_back(search::anchor_package {
+                        .package_id = 0,
+                        .anchors{},
+                        .orientation = alignment::query_orientation::forward
+                    });
+                }
+
                 // this is confusing, because the stats are written once for forward and once for reverse complement
                 // however the alignment stats are written for everything at once (TODO find a good way to fix this)
                 statistics::search_and_alignment_statistics local_stats;
