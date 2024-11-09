@@ -135,12 +135,12 @@ void spawn_verification_task(
                 statistics::search_and_alignment_statistics local_stats;
 
                 for (auto const anchor : package.anchors) {
-                    auto const& pex_node = data->pex_tree.get_leaves().at(anchor.pex_leaf_index);
+                    auto const& pex_leaf_node = data->pex_tree.get_leaves().at(anchor.pex_leaf_index);
 
                     verification::query_verifier verifier {
                         .pex_tree = data->pex_tree,
                         .anchor = anchor,
-                        .pex_node = pex_node,
+                        .pex_leaf_node = pex_leaf_node,
                         .query = package.orientation == alignment::query_orientation::forward ?
                             data->query.rank_sequence : data->query.reverse_complement_rank_sequence,
                         .orientation = package.orientation,

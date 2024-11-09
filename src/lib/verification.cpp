@@ -48,9 +48,9 @@ void query_verifier::hierarchical_verification() {
     auto const root_reference_span_config = compute_root_reference_span_config();
 
     // case for when the whole PEX tree is just a single root
-    if (pex_node.is_root()) {
+    if (pex_leaf_node.is_root()) {
         [[maybe_unused]] auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
-            pex_node,
+            pex_leaf_node,
             reference,
             root_reference_span_config,
             query,
@@ -68,8 +68,8 @@ void query_verifier::hierarchical_verification() {
         return;
     }
 
-    size_t const seed_query_index_from = pex_node.query_index_from;
-    pex_node = pex_tree.get_parent_of_child(pex_node);
+    size_t const seed_query_index_from = pex_leaf_node.query_index_from;
+    auto curr_pex_node = pex_tree.get_parent_of_child(pex_leaf_node);
 
     while (true) {
         // we ask again in every iteration, because another thread might have done it
@@ -79,14 +79,14 @@ void query_verifier::hierarchical_verification() {
 
         auto const reference_span_config = internal::compute_reference_span_start_and_length(
             anchor,
-            pex_node,
+            curr_pex_node,
             seed_query_index_from,
             reference.rank_sequence.size(),
             extra_verification_ratio
         );
 
         auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
-            pex_node,
+            curr_pex_node,
             reference,
             reference_span_config,
             query,
@@ -95,18 +95,18 @@ void query_verifier::hierarchical_verification() {
             stats
         );
 
-        if (pex_node.is_root()) {
+        if (curr_pex_node.is_root()) {
             {
                 auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
                 verified_intervals.insert(reference_span_config.as_half_open_interval());
             }
         }
 
-        if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || pex_node.is_root()) {
+        if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || curr_pex_node.is_root()) {
             break;
         }
 
-        pex_node = pex_tree.get_parent_of_child(pex_node);
+        curr_pex_node = pex_tree.get_parent_of_child(curr_pex_node);
     }
 }
 
@@ -133,7 +133,7 @@ internal::span_config query_verifier::compute_root_reference_span_config() const
     return internal::compute_reference_span_start_and_length(
         anchor,
         pex_tree.root(),
-        pex_node.query_index_from,
+        pex_leaf_node.query_index_from,
         reference.rank_sequence.size(),
         extra_verification_ratio
     );

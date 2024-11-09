@@ -35,7 +35,7 @@ private:
 public:
     pex::pex_tree const& pex_tree;
     search::anchor_t const& anchor;
-    pex::pex_tree::node pex_node;
+    pex::pex_tree::node const pex_leaf_node;
     std::span<const uint8_t> const query;
     alignment::query_orientation const orientation;
     input::reference_record const& reference;

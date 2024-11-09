@@ -59,7 +59,7 @@ TEST(verification, verify) {
     verification::query_verifier verifier {
         .pex_tree = pex_tree,
         .anchor = anchor,
-        .pex_node = pex_node,
+        .pex_leaf_node = pex_node,
         .query = query,
         .orientation = alignment::query_orientation::reverse_complement,
         .reference = reference,
@@ -101,7 +101,7 @@ TEST(verification, verify) {
     verification::query_verifier direct_verifier {
         .pex_tree = pex_tree,
         .anchor = anchor,
-        .pex_node = pex_node,
+        .pex_leaf_node = pex_node,
         .query = query,
         .orientation = alignment::query_orientation::reverse_complement,
         .reference = reference,
