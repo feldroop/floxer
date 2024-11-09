@@ -69,7 +69,6 @@ struct search_result {
         size_t current_reference_index;
         size_t current_anchor_index;
 
-        // TODO can I just use const& here?
         std::optional<std::reference_wrapper<const anchor_t>> next();
     };
 
