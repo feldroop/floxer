@@ -120,8 +120,8 @@ void initialize_logger(std::optional<std::filesystem::path> const logfile_path, 
         sinks.push_back(console_sink);
 
         if (logfile_path.has_value()) {
-            auto const max_logfile_size = 1024 * 1024 * 5; // 5 MB
-            auto const max_num_logfiles = 1;
+            auto const max_logfile_size = 1024 * 1024 * 20; // 5 MB
+            auto const max_num_logfiles = 5;
 
             auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
                 logfile_path.value(),
