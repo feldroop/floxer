@@ -9,6 +9,7 @@
 
 namespace parallelization {
 
+// TODO maybe split reding tasks and searching tasks
 void spawn_search_task(
     mutex_guarded<input::queries>& queries,
     input::references const& references,
@@ -56,13 +57,14 @@ void spawn_search_task(
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
 
-                // maybe parallelize of seeds
+                // TODO maybe parallelize searhing via seeds
                 auto forward_seeds = pex_tree.generate_seeds(query.rank_sequence);
                 auto reverse_complement_seeds = pex_tree.generate_seeds(query.reverse_complement_rank_sequence);
 
                 auto forward_search_result = searcher.search_seeds(forward_seeds);
                 auto reverse_complement_search_result = searcher.search_seeds(reverse_complement_seeds);
 
+                // TODO factor the packaging into small function
                 std::vector<search::anchor_package> anchor_packages;
                 forward_search_result.append_anchor_packages(
                     anchor_packages,
@@ -85,6 +87,7 @@ void spawn_search_task(
                     });
                 }
 
+                // TODO record stats for package sizes
                 // this is confusing, because the stats are written once for forward and once for reverse complement
                 // however the alignment stats are written for everything at once (TODO find a good way to fix this)
                 statistics::search_and_alignment_statistics local_stats;
@@ -100,7 +103,7 @@ void spawn_search_task(
 
                 spdlog::debug("finished searching query {}: {}", query.internal_id, query.id);
 
-                auto shared_verification_data = std::make_shared<parallelization::shared_verification_data>(
+                auto shared_data = std::make_shared<shared_verification_data>(
                     std::move(query),
                     references,
                     std::move(pex_tree),
@@ -112,9 +115,9 @@ void spawn_search_task(
                 );
 
                 for (auto& package : anchor_packages) {
-                    parallelization::spawn_verification_task(
+                    spawn_verification_task(
                         std::move(package),
-                        shared_verification_data,
+                        shared_data,
                         thread_pool
                     );
                 }
@@ -192,6 +195,9 @@ void spawn_verification_task(
 
                 statistics::search_and_alignment_statistics local_stats;
 
+                auto const& query = package.orientation == alignment::query_orientation::forward ?
+                            data->query.rank_sequence : data->query.reverse_complement_rank_sequence;
+
                 auto& verified_intervals_for_all_references = package.orientation == alignment::query_orientation::forward ?
                     data->verified_intervals_forward :
                     data->verified_intervals_reverse_complement;
@@ -203,8 +209,7 @@ void spawn_verification_task(
                         .pex_tree = data->pex_tree,
                         .anchor = anchor,
                         .pex_leaf_node = pex_leaf_node,
-                        .query = package.orientation == alignment::query_orientation::forward ?
-                            data->query.rank_sequence : data->query.reverse_complement_rank_sequence,
+                        .query = query,
                         .orientation = package.orientation,
                         .reference = data->references.records[anchor.reference_id],
                         .already_verified_intervals = verified_intervals_for_all_references.at(anchor.reference_id),
