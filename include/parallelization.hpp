@@ -21,7 +21,6 @@ namespace parallelization {
 
 struct search_task_result {
     input::query_record query;
-    size_t query_index;
     pex::pex_tree pex_tree;
 
     std::vector<search::anchor_package> anchor_packages;
@@ -33,7 +32,6 @@ enum class spawning_outcome {
 
 spawning_outcome spawn_search_task(
     input::queries& queries,
-    size_t const query_index,
     cli::command_line_input const& cli_input,
     search::searcher const& searcher,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats,
@@ -47,7 +45,6 @@ spawning_outcome spawn_search_task(
 // some of the members are owned by all of the verification tasks, some of them are just references to the main thread data
 struct shared_verification_data {
     input::query_record const query;
-    size_t const query_index;
     input::references const& references;
     pex::pex_tree const pex_tree;
     pex::pex_verification_config const config;
@@ -61,7 +58,6 @@ struct shared_verification_data {
 
     shared_verification_data(
         input::query_record const query_,
-        size_t const query_index_,
         input::references const& references_,
         pex::pex_tree const pex_tree_,
         cli::command_line_input const& cli_input,

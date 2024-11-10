@@ -75,7 +75,10 @@ references read_references(std::filesystem::path const& reference_sequence_path)
     return references { .records = std::move(records), .total_sequence_length = total_length };
 }
 
-queries::queries(cli::command_line_input const& cli_input_) : reader{{ .input = cli_input_.queries_path() }}, cli_input{cli_input_} {}
+queries::queries(cli::command_line_input const& cli_input_)
+    : reader{{ .input = cli_input_.queries_path() }},
+    num_queries_read{0},
+    cli_input{cli_input_} {}
 
 std::optional<query_record> queries::next() {
     while (true) {
@@ -132,11 +135,14 @@ std::optional<query_record> queries::next() {
 
         assert(record_view.qual.size() == sequence_length);
 
+        ++num_queries_read;
+
         return std::make_optional(query_record {
             .id = std::move(id),
             .rank_sequence = std::move(rank_sequence),
             .reverse_complement_rank_sequence = std::move(reverse_complement_rank_sequence),
-            .quality = std::move(quality)
+            .quality = std::move(quality),
+            .internal_id = num_queries_read - 1
         });
     }
 }

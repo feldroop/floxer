@@ -165,7 +165,6 @@ int main(int argc, char** argv) {
         // do io on thread. how to synchronize in case of exhausted input? another atomic bool needed?
         auto const spawning_outcome = parallelization::spawn_search_task(
             queries,
-            num_search_tasks_started,
             cli_input,
             searcher,
             global_stats,
@@ -194,6 +193,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    // TODO completely kick out channel and detach veri tasks from inside the search tasks
     while (num_search_tasks_started != num_search_tasks_finished) {
         std::optional<parallelization::search_task_result> res_opt;
         search_task_result_channel >> res_opt;
@@ -209,9 +209,9 @@ int main(int argc, char** argv) {
         ++num_search_tasks_finished;
         auto res = *std::move(res_opt);
 
+        // TODO construct this already in searcher
         auto shared_verification_data = std::make_shared<parallelization::shared_verification_data>(
             std::move(res.query),
-            res.query_index, // TODO move index into query
             references,
             std::move(res.pex_tree),
             cli_input,
@@ -228,11 +228,10 @@ int main(int argc, char** argv) {
                 thread_pool
             );
         }
-
+        // TODO decouple query index and num search tasks
         if (!all_search_tasks_started) {
             auto const spawning_outcome = parallelization::spawn_search_task(
                 queries,
-                num_search_tasks_started, // TODO decouple query index and num search tasks
                 cli_input,
                 searcher,
                 global_stats,

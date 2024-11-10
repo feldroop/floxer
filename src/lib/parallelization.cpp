@@ -9,7 +9,6 @@ namespace parallelization {
 
 spawning_outcome spawn_search_task(
     input::queries& queries,
-    size_t const query_index,
     cli::command_line_input const& cli_input,
     search::searcher const& searcher,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats,
@@ -42,7 +41,6 @@ spawning_outcome spawn_search_task(
         [
             &cli_input,
             query = std::move(query),
-            query_index,
             &searcher,
             &channel,
             &threads_should_stop,
@@ -53,7 +51,7 @@ spawning_outcome spawn_search_task(
             }
 
             try {
-                spdlog::debug("searching query {}: {}", query_index, query.id);
+                spdlog::debug("searching query {}: {}", query.internal_id, query.id);
 
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
@@ -99,11 +97,10 @@ spawning_outcome spawn_search_task(
                     ref.merge_other_into_this(local_stats);
                 }
 
-                spdlog::debug("finished searching query {}: {}", query_index, query.id);
+                spdlog::debug("finished searching query {}: {}", query.internal_id, query.id);
 
                 channel << std::make_optional(search_task_result {
                     .query = std::move(query),
-                    .query_index = query_index,
                     .pex_tree = std::move(pex_tree),
                     .anchor_packages = std::move(anchor_packages)
                 });
@@ -112,7 +109,7 @@ spawning_outcome spawn_search_task(
                 spdlog::error(
                     "An error occurred while this thread was searching the query no. {}.\n"
                     "Shutting down threads. The output file is likely incomplete. Error message:\n{}",
-                    query_index, e.what()
+                    query.internal_id, e.what()
                 );
                 channel << std::optional<search_task_result>(); // std::nullopt
             }
@@ -125,7 +122,6 @@ spawning_outcome spawn_search_task(
 
 shared_verification_data::shared_verification_data(
     input::query_record const query_,
-    size_t const query_index_,
     input::references const& references_,
     pex::pex_tree const pex_tree_,
     cli::command_line_input const& cli_input,
@@ -134,7 +130,6 @@ shared_verification_data::shared_verification_data(
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats_,
     std::atomic_bool& threads_should_stop_
 ) : query{query_},
-    query_index{query_index_},
     references{references_},
     pex_tree{pex_tree_},
     config(cli_input),
@@ -170,7 +165,7 @@ void spawn_verification_task(
             }
 
             try {
-                spdlog::debug("verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
+                spdlog::debug("verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);
 
                 statistics::search_and_alignment_statistics local_stats;
 
@@ -198,7 +193,7 @@ void spawn_verification_task(
                     verifier.verify(data->config.verification_kind);
                 }
 
-                spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query_index, data->query.id);
+                spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);
 
                 // write to output file if I am the last remaining thread
                 if (data->num_verification_tasks_remaining.fetch_sub(1) == 1) {
@@ -213,7 +208,7 @@ void spawn_verification_task(
                         }
                     }
 
-                    spdlog::debug("(package {}) writing alignments for query {}: {}", package.package_id, data->query_index, data->query.id);
+                    spdlog::debug("(package {}) writing alignments for query {}: {}", package.package_id, data->query.internal_id, data->query.id);
 
                     auto && [output_lock, output] = data->alignment_output.lock_unique();
                     output.write_alignments_for_query(data->query, alignments);
@@ -228,7 +223,7 @@ void spawn_verification_task(
                 spdlog::error(
                     "An error occurred while this thread was verifying (aligning) the query no. {}.\n"
                     "Shutting down threads. The output file is likely incomplete. Error message:\n{}",
-                    data->query_index, e.what()
+                    data->query.internal_id, e.what()
                 );
             }
         },

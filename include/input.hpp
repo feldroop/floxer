@@ -24,6 +24,7 @@ struct query_record {
     std::vector<uint8_t> rank_sequence;
     std::vector<uint8_t> reverse_complement_rank_sequence;
     std::string quality;
+    size_t internal_id;
 };
 
 struct references {
@@ -41,6 +42,7 @@ private:
     static constexpr size_t MAX_ALLOWED_QUERY_LENGTH = 100'000;
 
     ivio::fastq::reader reader;
+    size_t num_queries_read;
     cli::command_line_input const& cli_input;
 };
 
