@@ -13,30 +13,19 @@
 #include <memory>
 #include <variant>
 
-#include <msd/channel.hpp>
 #define BS_THREAD_POOL_ENABLE_PRIORITY
 #include <BS_thread_pool.hpp>
 
 namespace parallelization {
 
-struct search_task_result {
-    input::query_record query;
-    pex::pex_tree pex_tree;
-
-    std::vector<search::anchor_package> anchor_packages;
-};
-
-enum class spawning_outcome {
-    success, input_error, input_exhausted
-};
-
-spawning_outcome spawn_search_task(
-    input::queries& queries,
+void spawn_search_task(
+    mutex_guarded<input::queries>& queries,
+    input::references const& references,
     cli::command_line_input const& cli_input,
     search::searcher const& searcher,
+    mutex_guarded<output::alignment_output>& alignment_output,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats,
     BS::thread_pool& thread_pool,
-    msd::channel<std::optional<search_task_result>>& channel,
     std::atomic_bool& threads_should_stop
 );
 

@@ -89,15 +89,6 @@ CPMDeclarePackage (
 )
 
 CPMDeclarePackage (
-    cpp-channel
-    NAME cpp-channel
-    GITHUB_REPOSITORY andreiavrammsd/cpp-channel
-    GIT_TAG 38ffdec0b7eec2acbbe98026663d1a7e1acc29eb
-    EXCLUDE_FROM_ALL TRUE
-    SYSTEM TRUE
-)
-
-CPMDeclarePackage (
     use_ccache
     NAME use_ccache
     GITHUB_REPOSITORY seqan/cmake-scripts

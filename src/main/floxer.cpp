@@ -27,8 +27,6 @@
 #define BS_THREAD_POOL_ENABLE_PRIORITY
 #include <BS_thread_pool.hpp>
 
-#include <msd/channel.hpp>
-
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/fmt/std.h>
 #include <spdlog/spdlog.h>
@@ -108,7 +106,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    input::queries queries(cli_input);
+    mutex_guarded<input::queries> queries(cli_input);
 
     auto const searcher = search::searcher {
         .index = index,
@@ -128,9 +126,6 @@ int main(int argc, char** argv) {
 
     mutex_guarded<statistics::search_and_alignment_statistics> global_stats;
 
-    bool all_search_tasks_started = false;
-    size_t num_search_tasks_started = 0;
-    size_t num_search_tasks_finished = 0;
     std::atomic_bool threads_should_stop = false;
 
     if (cli_input.timeout_seconds().has_value()) {
@@ -142,9 +137,6 @@ int main(int argc, char** argv) {
     }
 
     BS::thread_pool thread_pool(cli_input.num_threads());
-
-    // std::nullopt sent means an error occurred
-    msd::channel<std::optional<parallelization::search_task_result>> search_task_result_channel;
 
     auto const query_file_size_bytes = std::filesystem::file_size(cli_input.queries_path());
     spdlog::info(
@@ -160,105 +152,27 @@ int main(int argc, char** argv) {
     spdlog::stopwatch const aligning_stopwatch;
 
     // initialize thread pool task queue with a search task for every thread
-    while (num_search_tasks_started < 2 * cli_input.num_threads()) { // TODO experiment with other values than 2
+    for (size_t t = 0; t < cli_input.num_threads(); ++t) {
         // TODO multiple queries per search task,
         // do io on thread. how to synchronize in case of exhausted input? another atomic bool needed?
-        auto const spawning_outcome = parallelization::spawn_search_task(
+        parallelization::spawn_search_task(
             queries,
+            references,
             cli_input,
             searcher,
+            alignment_output,
             global_stats,
             thread_pool,
-            search_task_result_channel,
             threads_should_stop
         );
-
-        if (spawning_outcome == parallelization::spawning_outcome::input_error) {
-            thread_pool.purge();
-            thread_pool.wait();
-            return -1;
-        }
-
-        if (spawning_outcome == parallelization::spawning_outcome::input_exhausted) {
-            all_search_tasks_started = true;
-            break;
-        }
-
-        assert(spawning_outcome == parallelization::spawning_outcome::success);
-        ++num_search_tasks_started;
     }
 
-    if (num_search_tasks_started == 0) {
-        spdlog::warn("empty input file {}", cli_input.queries_path());
-        return 0;
-    }
-
-    // TODO completely kick out channel and detach veri tasks from inside the search tasks
-    while (num_search_tasks_started != num_search_tasks_finished) {
-        std::optional<parallelization::search_task_result> res_opt;
-        search_task_result_channel >> res_opt;
-
-        // std::nullopt means an error must have happened
-        if (!res_opt) {
-            thread_pool.purge();
-            thread_pool.wait();
-
-            return -1;
-        }
-
-        ++num_search_tasks_finished;
-        auto res = *std::move(res_opt);
-
-        // TODO construct this already in searcher
-        auto shared_verification_data = std::make_shared<parallelization::shared_verification_data>(
-            std::move(res.query),
-            references,
-            std::move(res.pex_tree),
-            cli_input,
-            alignment_output,
-            res.anchor_packages.size(),
-            global_stats,
-            threads_should_stop
-        );
-
-        for (auto& package : res.anchor_packages) {
-            parallelization::spawn_verification_task(
-                std::move(package),
-                shared_verification_data,
-                thread_pool
-            );
-        }
-        // TODO decouple query index and num search tasks
-        if (!all_search_tasks_started) {
-            auto const spawning_outcome = parallelization::spawn_search_task(
-                queries,
-                cli_input,
-                searcher,
-                global_stats,
-                thread_pool,
-                search_task_result_channel,
-                threads_should_stop
-            );
-
-            if (spawning_outcome == parallelization::spawning_outcome::input_error) {
-                thread_pool.purge();
-                thread_pool.wait();
-                return -1;
-            }
-
-            if (spawning_outcome == parallelization::spawning_outcome::input_exhausted) {
-                all_search_tasks_started = true;
-            } else {
-                assert(spawning_outcome == parallelization::spawning_outcome::success);
-                ++num_search_tasks_started;
-            }
-        }
-    }
-
-    // wait for all remaining verification tasks to complete
+    // wait for all tasks to complete
     thread_pool.wait();
 
-    if (!threads_should_stop) {
+    if (threads_should_stop) {
+        return -1;
+    } else{
         spdlog::info(
             "finished aligning successfully in {}",
             output::format_elapsed_time(aligning_stopwatch.elapsed())

@@ -13,7 +13,6 @@ target_link_libraries (
     seqan3::seqan3
     interval-tree
     BS_thread_pool
-    msd_channel
 )
 
 target_include_directories ("${PROJECT_NAME}_lib" PUBLIC "../../include")

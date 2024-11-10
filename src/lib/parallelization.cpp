@@ -5,57 +5,58 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/std.h>
 
+#include <limits>
+
 namespace parallelization {
 
-spawning_outcome spawn_search_task(
-    input::queries& queries,
+void spawn_search_task(
+    mutex_guarded<input::queries>& queries,
+    input::references const& references,
     cli::command_line_input const& cli_input,
     search::searcher const& searcher,
+    mutex_guarded<output::alignment_output>& alignment_output,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats,
     BS::thread_pool& thread_pool,
-    msd::channel<std::optional<search_task_result>>& channel,
     std::atomic_bool& threads_should_stop
 ) {
-    input::query_record query;
-
-    try {
-        auto query_opt = queries.next();
-
-        if (!query_opt.has_value()) {
-            return spawning_outcome::input_exhausted;
-        }
-
-        query = *std::move(query_opt);
-    } catch (std::exception const& e) {
-        spdlog::error(
-            "An error occured while trying to read the queries from "
-            "the file {}.\n{}\n",
-            cli_input.queries_path(),
-            e.what()
-        );
-        threads_should_stop = true;
-        return spawning_outcome::input_error;
-    }
-
     thread_pool.detach_task(
         [
+            &queries,
+            &references,
             &cli_input,
-            query = std::move(query),
             &searcher,
-            &channel,
+            &alignment_output,
             &threads_should_stop,
-            &global_stats
+            &global_stats,
+            &thread_pool
         ] {
             if (threads_should_stop) {
                 return;
             }
 
+            std::optional<size_t> query_internal_id;
+
             try {
+                std::optional<input::query_record> query_opt;
+
+                {
+                    auto && [lock, qs] = queries.lock_unique();
+                    query_opt = qs.next();
+                }
+
+                if (!query_opt.has_value()) {
+                    return;
+                }
+
+                auto query = *std::move(query_opt);
+                query_internal_id = query.internal_id;
+
                 spdlog::debug("searching query {}: {}", query.internal_id, query.id);
 
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
 
+                // maybe parallelize of seeds
                 auto forward_seeds = pex_tree.generate_seeds(query.rank_sequence);
                 auto reverse_complement_seeds = pex_tree.generate_seeds(query.reverse_complement_rank_sequence);
 
@@ -99,25 +100,47 @@ spawning_outcome spawn_search_task(
 
                 spdlog::debug("finished searching query {}: {}", query.internal_id, query.id);
 
-                channel << std::make_optional(search_task_result {
-                    .query = std::move(query),
-                    .pex_tree = std::move(pex_tree),
-                    .anchor_packages = std::move(anchor_packages)
-                });
+                auto shared_verification_data = std::make_shared<parallelization::shared_verification_data>(
+                    std::move(query),
+                    references,
+                    std::move(pex_tree),
+                    cli_input,
+                    alignment_output,
+                    anchor_packages.size(),
+                    global_stats,
+                    threads_should_stop
+                );
+
+                for (auto& package : anchor_packages) {
+                    parallelization::spawn_verification_task(
+                        std::move(package),
+                        shared_verification_data,
+                        thread_pool
+                    );
+                }
+
+                spawn_search_task(
+                    queries,
+                    references,
+                    cli_input,
+                    searcher,
+                    alignment_output,
+                    global_stats,
+                    thread_pool,
+                    threads_should_stop
+                );
             } catch (std::exception const& e) {
                 threads_should_stop = true;
                 spdlog::error(
-                    "An error occurred while this thread was searching the query no. {}.\n"
+                    "An error occurred while this thread was reading and searching the query no. {}.\n"
                     "Shutting down threads. The output file is likely incomplete. Error message:\n{}",
-                    query.internal_id, e.what()
+                    query_internal_id.has_value() ? fmt::format("{}", *query_internal_id) : "<unknown>",
+                    e.what()
                 );
-                channel << std::optional<search_task_result>(); // std::nullopt
             }
         },
         BS::pr::low
     );
-
-    return spawning_outcome::success;
 }
 
 shared_verification_data::shared_verification_data(
