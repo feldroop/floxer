@@ -39,7 +39,7 @@ public:
     std::span<const uint8_t> const query;
     alignment::query_orientation const orientation;
     input::reference_record const& reference;
-    intervals::verified_intervals& already_verified_intervals;
+    shared_mutex_guarded<intervals::verified_intervals>& already_verified_intervals;
     double const extra_verification_ratio;
     alignment::query_alignments& alignments;
     statistics::search_and_alignment_statistics& stats;

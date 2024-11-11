@@ -172,6 +172,16 @@ shared_verification_data::shared_verification_data(
     references{references_},
     pex_tree{pex_tree_},
     config(cli_input),
+    verified_intervals_forward(intervals::create_thread_safe_verified_intervals(
+        references.records.size(),
+        config.use_interval_optimization,
+        config.overlap_rate_that_counts_as_contained
+    )),
+    verified_intervals_reverse_complement(intervals::create_thread_safe_verified_intervals(
+        references.records.size(),
+        config.use_interval_optimization,
+        config.overlap_rate_that_counts_as_contained
+    )),
     all_tasks_alignments(references.records.size()),
     alignment_output{alignment_output_},
     num_verification_tasks_remaining(num_verification_tasks_),
@@ -201,16 +211,11 @@ void spawn_verification_task(
                 auto const& query = package.orientation == alignment::query_orientation::forward ?
                             data->query.rank_sequence : data->query.reverse_complement_rank_sequence;
 
+                auto& verified_intervals_for_all_references = package.orientation == alignment::query_orientation::forward ?
+                    data->verified_intervals_forward :
+                    data->verified_intervals_reverse_complement;
+
                 alignment::query_alignments this_tasks_alignments(data->references.records.size());
-                // the intervals are also local to this task. this is a trade-off between avoiding more verification
-                // and less synchronisation between the tasks
-                std::vector<intervals::verified_intervals> already_verified_intervals(
-                    data->references.records.size(),
-                    intervals::verified_intervals(
-                        data->config.use_interval_optimization,
-                        data->config.overlap_rate_that_counts_as_contained
-                    )
-                );
 
                 for (auto const anchor : package.anchors) {
                     auto const& pex_leaf_node = data->pex_tree.get_leaves().at(anchor.pex_leaf_index);
@@ -222,7 +227,7 @@ void spawn_verification_task(
                         .query = query,
                         .orientation = package.orientation,
                         .reference = data->references.records[anchor.reference_id],
-                        .already_verified_intervals = already_verified_intervals[anchor.reference_id],
+                        .already_verified_intervals = verified_intervals_for_all_references.at(anchor.reference_id),
                         .extra_verification_ratio = data->config.extra_verification_ratio,
                         .alignments = this_tasks_alignments,
                         .stats = local_stats
