@@ -18,6 +18,12 @@
 
 namespace parallelization {
 
+std::vector<search::anchor_package> create_anchor_packages(
+    search::search_result const& forward_search_result,
+    search::search_result const& reverse_complement_search_result,
+    cli::command_line_input const& cli_input
+);
+
 void spawn_search_task(
     mutex_guarded<input::queries>& queries,
     input::references const& references,

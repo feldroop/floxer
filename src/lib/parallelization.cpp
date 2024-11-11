@@ -9,6 +9,37 @@
 
 namespace parallelization {
 
+std::vector<search::anchor_package> create_anchor_packages(
+    search::search_result const& forward_search_result,
+    search::search_result const& reverse_complement_search_result,
+    cli::command_line_input const& cli_input
+) {
+    std::vector<search::anchor_package> anchor_packages;
+
+    forward_search_result.append_anchor_packages(
+        anchor_packages,
+        cli_input.num_anchors_per_verification_task(),
+        alignment::query_orientation::forward
+    );
+    reverse_complement_search_result.append_anchor_packages(
+        anchor_packages,
+        cli_input.num_anchors_per_verification_task(),
+        alignment::query_orientation::reverse_complement
+    );
+
+    // even if no anchors are found, one empty anchor package is created
+    // such that one verification task writes the query as unaligned
+    if (anchor_packages.empty()) {
+        anchor_packages.emplace_back(search::anchor_package {
+            .package_id = 0,
+            .anchors{},
+            .orientation = alignment::query_orientation::forward
+        });
+    }
+
+    return anchor_packages;
+}
+
 // TODO maybe split reding tasks and searching tasks
 void spawn_search_task(
     mutex_guarded<input::queries>& queries,
@@ -64,30 +95,12 @@ void spawn_search_task(
                 auto forward_search_result = searcher.search_seeds(forward_seeds);
                 auto reverse_complement_search_result = searcher.search_seeds(reverse_complement_seeds);
 
-                // TODO factor the packaging into small function
-                std::vector<search::anchor_package> anchor_packages;
-                forward_search_result.append_anchor_packages(
-                    anchor_packages,
-                    cli_input.num_anchors_per_verification_task(),
-                    alignment::query_orientation::forward
+                auto anchor_packages = create_anchor_packages(
+                    forward_search_result, reverse_complement_search_result, cli_input
                 );
-                reverse_complement_search_result.append_anchor_packages(
-                    anchor_packages,
-                    cli_input.num_anchors_per_verification_task(),
-                    alignment::query_orientation::reverse_complement
-                );
-
-                // even if no anchors are found, one empty anchor package is created
-                // such that one verification task writes the query as unaligned
-                if (anchor_packages.empty()) {
-                    anchor_packages.emplace_back(search::anchor_package {
-                        .package_id = 0,
-                        .anchors{},
-                        .orientation = alignment::query_orientation::forward
-                    });
-                }
 
                 // TODO record stats for package sizes
+
                 // this is confusing, because the stats are written once for forward and once for reverse complement
                 // however the alignment stats are written for everything at once (TODO find a good way to fix this)
                 statistics::search_and_alignment_statistics local_stats;

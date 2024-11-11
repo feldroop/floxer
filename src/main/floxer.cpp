@@ -117,15 +117,12 @@ int main(int argc, char** argv) {
         }
     };
 
-    pex::pex_verification_config const pex_verification_config(cli_input);
-
     mutex_guarded<output::alignment_output> alignment_output(
         cli_input.output_path(),
         references.records
     );
 
     mutex_guarded<statistics::search_and_alignment_statistics> global_stats;
-
     std::atomic_bool threads_should_stop = false;
 
     if (cli_input.timeout_seconds().has_value()) {
@@ -153,8 +150,6 @@ int main(int argc, char** argv) {
 
     // initialize thread pool task queue with a search task for every thread
     for (size_t t = 0; t < cli_input.num_threads(); ++t) {
-        // TODO multiple queries per search task,
-        // do io on thread. how to synchronize in case of exhausted input? another atomic bool needed?
         parallelization::spawn_search_task(
             queries,
             references,
