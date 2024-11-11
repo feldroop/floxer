@@ -183,7 +183,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    mutex_guarded<alignment::query_alignments>& alignments,
+    alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 ) {
     auto const this_node_query_span = query.subspan(
@@ -215,8 +215,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
         assert(pex_node.is_root());
         assert(alignment_result.outcome == alignment::alignment_outcome::alignment_exists);
 
-        auto && [lock, algn] = alignments.lock_unique();
-        algn.insert(
+        alignments.insert(
             std::move(alignment_result.alignment.value()),
             reference.internal_id
         );

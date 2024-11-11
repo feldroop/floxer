@@ -45,6 +45,9 @@ public:
     std::optional<size_t> best_num_errors() const;
 
     size_t size() const;
+
+    // the other one is consumed (should be moved into this function)
+    void merge_other_into_this(query_alignments other);
 };
 
 enum class alignment_mode {

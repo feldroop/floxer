@@ -70,6 +70,14 @@ size_t query_alignments::size() const {
     return size;
 }
 
+void query_alignments::merge_other_into_this(query_alignments other) {
+    for (size_t reference_id = 0; reference_id < alignments_per_reference.size(); ++reference_id) {
+        for (auto& alignment : other.to_reference(reference_id)) {
+            insert(std::move(alignment), reference_id);
+        }
+    }
+}
+
 static constexpr uint64_t very_large_memory_usage = 10'000'000'000;
 
 alignment_result align(

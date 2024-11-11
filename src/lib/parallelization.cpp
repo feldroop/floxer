@@ -169,7 +169,7 @@ shared_verification_data::shared_verification_data(
         config.use_interval_optimization,
         config.overlap_rate_that_counts_as_contained
     )),
-    alignments(references.records.size()),
+    all_tasks_alignments(references.records.size()),
     alignment_output{alignment_output_},
     num_verification_tasks_remaining(num_verification_tasks_),
     global_stats{global_stats_},
@@ -202,6 +202,8 @@ void spawn_verification_task(
                     data->verified_intervals_forward :
                     data->verified_intervals_reverse_complement;
 
+                alignment::query_alignments this_tasks_alignments(data->references.records.size());
+
                 for (auto const anchor : package.anchors) {
                     auto const& pex_leaf_node = data->pex_tree.get_leaves().at(anchor.pex_leaf_index);
 
@@ -214,7 +216,7 @@ void spawn_verification_task(
                         .reference = data->references.records[anchor.reference_id],
                         .already_verified_intervals = verified_intervals_for_all_references.at(anchor.reference_id),
                         .extra_verification_ratio = data->config.extra_verification_ratio,
-                        .alignments = data->alignments,
+                        .alignments = this_tasks_alignments,
                         .stats = local_stats
                     };
 
@@ -223,23 +225,25 @@ void spawn_verification_task(
 
                 spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);
 
-                // write to output file if I am the last remaining thread
-                if (data->num_verification_tasks_remaining.fetch_sub(1) == 1) {
-                    // this locking is only necessary for the mutex wrapper (because this is the last verification task oif this query)
-                    auto && [alignments_lock, alignments] = data->alignments.lock_unique();
+                {
+                    auto && [alignments_lock, all_tasks_alignments] = data->all_tasks_alignments.lock_unique();
+                    all_tasks_alignments.merge_other_into_this(std::move(this_tasks_alignments));
 
-                    local_stats.add_num_alignments(alignments.size());
+                    // write to output file and stats if I am the last remaining thread
+                    if (data->num_verification_tasks_remaining.fetch_sub(1) == 1) {
+                        local_stats.add_num_alignments(all_tasks_alignments.size());
 
-                    for (size_t reference_id = 0; reference_id < data->references.records.size(); ++reference_id) {
-                        for (auto const& alignment : alignments.to_reference(reference_id)) {
-                            local_stats.add_alignment_edit_distance(alignment.num_errors);
+                        for (size_t reference_id = 0; reference_id < data->references.records.size(); ++reference_id) {
+                            for (auto const& alignment : all_tasks_alignments.to_reference(reference_id)) {
+                                local_stats.add_alignment_edit_distance(alignment.num_errors);
+                            }
                         }
+
+                        spdlog::debug("(package {}) writing alignments for query {}: {}", package.package_id, data->query.internal_id, data->query.id);
+
+                        auto && [output_lock, output] = data->alignment_output.lock_unique();
+                        output.write_alignments_for_query(data->query, all_tasks_alignments);
                     }
-
-                    spdlog::debug("(package {}) writing alignments for query {}: {}", package.package_id, data->query.internal_id, data->query.id);
-
-                    auto && [output_lock, output] = data->alignment_output.lock_unique();
-                    output.write_alignments_for_query(data->query, alignments);
                 }
 
                 {

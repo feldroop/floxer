@@ -53,7 +53,7 @@ TEST(verification, verify) {
 
     double const extra_verification_ratio = 0.1;
 
-    mutex_guarded<alignment::query_alignments> alignments(1);
+    alignment::query_alignments alignments(1);
     statistics::search_and_alignment_statistics stats;
 
     verification::query_verifier verifier {
@@ -71,27 +71,18 @@ TEST(verification, verify) {
 
     verifier.verify(pex::verification_kind_t::hierarchical);
 
-    {
-        auto && [lock, algn] = alignments.lock_unique();
+    EXPECT_EQ(alignments.size(), 1);
+    auto const& alignment = alignments.to_reference(0).at(0);
 
-        EXPECT_EQ(algn.size(), 1);
-        auto const& alignment = algn.to_reference(0).at(0);
-
-        EXPECT_EQ(alignment.cigar, seqan3::detail::parse_cigar("10=1I9=1D10="));
-        EXPECT_EQ(alignment.num_errors, 2);
-        EXPECT_EQ(alignment.orientation, alignment::query_orientation::reverse_complement);
-        EXPECT_EQ(alignment.start_in_reference, 50);
-
-    }
+    EXPECT_EQ(alignment.cigar, seqan3::detail::parse_cigar("10=1I9=1D10="));
+    EXPECT_EQ(alignment.num_errors, 2);
+    EXPECT_EQ(alignment.orientation, alignment::query_orientation::reverse_complement);
+    EXPECT_EQ(alignment.start_in_reference, 50);
 
     verifier.verify(pex::verification_kind_t::hierarchical);
 
-    {
-        auto && [lock, algn] = alignments.lock_unique();
-
-        // nothing should change because of already_verified_intervals
-        EXPECT_EQ(algn.size(), 1);
-    }
+    // nothing should change because of already_verified_intervals
+    EXPECT_EQ(alignments.size(), 1);
 
     shared_mutex_guarded<intervals::verified_intervals> deactivated_already_verified_intervals;
     {
@@ -113,12 +104,8 @@ TEST(verification, verify) {
 
     direct_verifier.verify(pex::verification_kind_t::direct_full);
 
-    {
-        auto && [lock, algn] = alignments.lock_unique();
-
-        EXPECT_EQ(algn.size(), 2);
-        EXPECT_EQ(algn.to_reference(0).at(1), algn.to_reference(0).at(0));
-    }
+    EXPECT_EQ(alignments.size(), 2);
+    EXPECT_EQ(alignments.to_reference(0).at(1), alignments.to_reference(0).at(0));
 
     // add more errors such that no alignment should be added
     query[5] = 1;
@@ -128,11 +115,7 @@ TEST(verification, verify) {
 
     direct_verifier.verify(pex::verification_kind_t::direct_full);
 
-    {
-        auto && [lock, algn] = alignments.lock_unique();
-
-        EXPECT_EQ(algn.size(), 2);
-    }
+    EXPECT_EQ(alignments.size(), 2);
 }
 
 
@@ -216,7 +199,7 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
         1,1,1,1,1
     };
 
-    mutex_guarded<alignment::query_alignments> alignments(1);
+    alignment::query_alignments alignments(1);
     statistics::search_and_alignment_statistics stats;
 
     auto const outcome_expected_exists = verification::internal::try_to_align_pex_node_query_with_reference_span(
@@ -231,17 +214,13 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
 
     EXPECT_EQ(outcome_expected_exists, alignment::alignment_outcome::alignment_exists);
 
-    {
-        auto && [lock, algn] = alignments.lock_unique();
+    EXPECT_EQ(alignments.size(), 1);
 
-        EXPECT_EQ(algn.size(), 1);
+    auto const& alignment = alignments.to_reference(0).at(0);
 
-        auto const& alignment = algn.to_reference(0).at(0);
-
-        EXPECT_EQ(alignment.num_errors, 5);
-        EXPECT_EQ(alignment.orientation, alignment::query_orientation::forward);
-        EXPECT_EQ(alignment.start_in_reference, 50);
-    }
+    EXPECT_EQ(alignment.num_errors, 5);
+    EXPECT_EQ(alignment.orientation, alignment::query_orientation::forward);
+    EXPECT_EQ(alignment.start_in_reference, 50);
 
     pex_node.parent_id = 0; // ---------- not root anymore ----------
 
@@ -256,11 +235,8 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
     );
 
     EXPECT_EQ(outcome_expected_exists_again, alignment::alignment_outcome::alignment_exists);
-    {
-        auto && [lock, algn] = alignments.lock_unique();
 
-        EXPECT_EQ(algn.size(), 1);
-    }
+    EXPECT_EQ(alignments.size(), 1);
 
     query[42] = 2; // ---------- too many errors ----------
     auto const outcome_expected_does_not_exist = verification::internal::try_to_align_pex_node_query_with_reference_span(
@@ -274,9 +250,5 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
     );
 
     EXPECT_EQ(outcome_expected_does_not_exist, alignment::alignment_outcome::no_adequate_alignment_exists);
-    {
-        auto && [lock, algn] = alignments.lock_unique();
-
-        EXPECT_EQ(algn.size(), 1);
-    }
+    EXPECT_EQ(alignments.size(), 1);
 }
