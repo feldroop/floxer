@@ -103,6 +103,7 @@ class search_and_alignment_statistics {
     static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes alignment avoided of roots";
     static inline const std::string alignments_per_query_name = "alignments per query";
     static inline const std::string alignments_edit_distance_name = "alignments edit distance";
+    static inline const std::string milliseconds_spent_per_query_name = "milliseconds spent per query";
 
     std::vector<histogram> histograms{
         histogram{practical_query_length_scale, query_lengths_name},
@@ -118,7 +119,8 @@ class search_and_alignment_statistics {
         histogram{practical_query_length_scale, reference_span_sizes_aligned_root_name},
         histogram{practical_query_length_scale, reference_span_sizes_avoided_root_name},
         histogram{small_values_linear_scale, alignments_per_query_name},
-        histogram{edit_distance_scale, alignments_edit_distance_name}
+        histogram{edit_distance_scale, alignments_edit_distance_name},
+        histogram{practical_query_length_scale, milliseconds_spent_per_query_name}
     };
 
     count& count_by_name(std::string const& name);
@@ -162,6 +164,8 @@ public:
     void add_num_alignments(size_t const value);
 
     void add_alignment_edit_distance(size_t const value);
+
+    void add_milliseconds_spent_per_query(size_t const value);
 
     void add_statistics_for_search_result(search::search_result const& search_result);
 

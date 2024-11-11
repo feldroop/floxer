@@ -4,7 +4,9 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/std.h>
+#include <spdlog/stopwatch.h>
 
+#include <chrono>
 #include <limits>
 
 namespace parallelization {
@@ -40,7 +42,6 @@ std::vector<search::anchor_package> create_anchor_packages(
     return anchor_packages;
 }
 
-// TODO maybe split reding tasks and searching tasks
 void spawn_search_task(
     mutex_guarded<input::queries>& queries,
     input::references const& references,
@@ -69,6 +70,8 @@ void spawn_search_task(
             std::optional<size_t> query_internal_id;
 
             try {
+                spdlog::stopwatch const stopwatch;
+
                 std::optional<input::query_record> query_opt;
 
                 {
@@ -88,7 +91,6 @@ void spawn_search_task(
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
 
-                // TODO maybe parallelize searhing via seeds
                 auto forward_seeds = pex_tree.generate_seeds(query.rank_sequence);
                 auto reverse_complement_seeds = pex_tree.generate_seeds(query.reverse_complement_rank_sequence);
 
@@ -98,8 +100,6 @@ void spawn_search_task(
                 auto anchor_packages = create_anchor_packages(
                     forward_search_result, reverse_complement_search_result, cli_input
                 );
-
-                // TODO record stats for package sizes
 
                 // this is confusing, because the stats are written once for forward and once for reverse complement
                 // however the alignment stats are written for everything at once (TODO find a good way to fix this)
@@ -116,6 +116,8 @@ void spawn_search_task(
 
                 spdlog::debug("finished searching query {}: {}", query.internal_id, query.id);
 
+                size_t spent_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stopwatch.elapsed()).count();
+
                 auto shared_data = std::make_shared<shared_verification_data>(
                     std::move(query),
                     references,
@@ -124,6 +126,7 @@ void spawn_search_task(
                     alignment_output,
                     anchor_packages.size(),
                     global_stats,
+                    spent_milliseconds,
                     threads_should_stop
                 );
 
@@ -167,6 +170,7 @@ shared_verification_data::shared_verification_data(
     mutex_guarded<output::alignment_output>& alignment_output_,
     size_t const num_verification_tasks_,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats_,
+    size_t const spent_milliseconds_so_far,
     std::atomic_bool& threads_should_stop_
 ) : query{query_},
     references{references_},
@@ -186,6 +190,7 @@ shared_verification_data::shared_verification_data(
     alignment_output{alignment_output_},
     num_verification_tasks_remaining(num_verification_tasks_),
     global_stats{global_stats_},
+    spent_milliseconds{spent_milliseconds_so_far},
     threads_should_stop{threads_should_stop_}
 {}
 
@@ -205,12 +210,14 @@ void spawn_verification_task(
 
             try {
                 spdlog::debug("verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);
+                spdlog::stopwatch const stopwatch;
 
                 statistics::search_and_alignment_statistics local_stats;
 
                 auto const& query = package.orientation == alignment::query_orientation::forward ?
                             data->query.rank_sequence : data->query.reverse_complement_rank_sequence;
 
+                // at some point I tried using only a local verified_intervals per thread, but this massively increased runtime
                 auto& verified_intervals_for_all_references = package.orientation == alignment::query_orientation::forward ?
                     data->verified_intervals_forward :
                     data->verified_intervals_reverse_complement;
@@ -238,6 +245,9 @@ void spawn_verification_task(
 
                 spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);
 
+                size_t spent_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stopwatch.elapsed()).count();
+                data->spent_milliseconds.fetch_add(spent_milliseconds);
+
                 {
                     auto && [alignments_lock, all_tasks_alignments] = data->all_tasks_alignments.lock_unique();
                     all_tasks_alignments.merge_other_into_this(std::move(this_tasks_alignments));
@@ -245,6 +255,7 @@ void spawn_verification_task(
                     // write to output file and stats if I am the last remaining thread
                     if (data->num_verification_tasks_remaining.fetch_sub(1) == 1) {
                         local_stats.add_num_alignments(all_tasks_alignments.size());
+                        local_stats.add_milliseconds_spent_per_query(data->spent_milliseconds.load());
 
                         for (size_t reference_id = 0; reference_id < data->references.records.size(); ++reference_id) {
                             for (auto const& alignment : all_tasks_alignments.to_reference(reference_id)) {
