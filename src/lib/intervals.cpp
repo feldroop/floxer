@@ -75,13 +75,14 @@ auto operator<(half_open_interval const& interval1, half_open_interval const& in
     return interval1.end < interval2.end;
 }
 
-void verified_intervals::configure(
+
+
+verified_intervals::verified_intervals(
     use_interval_optimization const activity_status_,
     double const overlap_rate_that_counts_as_contained_
-) {
-    activity_status = activity_status_;
-    overlap_rate_that_counts_as_contained = overlap_rate_that_counts_as_contained_;
-}
+) : activity_status{activity_status_},
+    overlap_rate_that_counts_as_contained{overlap_rate_that_counts_as_contained_}
+{}
 
 void verified_intervals::insert(half_open_interval const new_interval) {
     if (activity_status == use_interval_optimization::off) {
@@ -129,21 +130,6 @@ bool verified_intervals::contains(
     });
 
     return does_contain;
-}
-
-verified_intervals_for_all_references create_thread_safe_verified_intervals(
-    size_t const num_references,
-    use_interval_optimization const activity_status,
-    double const overlap_rate_that_counts_as_contained
-) {
-    auto out = verified_intervals_for_all_references(num_references);
-
-    for (size_t i = 0; i < num_references; ++i) {
-        auto && [lock, ivls] = out[i].lock_unique();
-        ivls.configure(activity_status, overlap_rate_that_counts_as_contained);
-    }
-
-    return out;
 }
 
 } // namespace intervals

@@ -49,7 +49,10 @@ TEST(verification, verify) {
 
     auto const& pex_node = pex_tree.get_leaves().at(0);
 
-    shared_mutex_guarded<intervals::verified_intervals> already_verified_intervals;
+    intervals::verified_intervals already_verified_intervals(
+        intervals::use_interval_optimization::on,
+        1.0
+    );
 
     double const extra_verification_ratio = 0.1;
 
@@ -84,11 +87,11 @@ TEST(verification, verify) {
     // nothing should change because of already_verified_intervals
     EXPECT_EQ(alignments.size(), 1);
 
-    shared_mutex_guarded<intervals::verified_intervals> deactivated_already_verified_intervals;
-    {
-        auto && [lock, ivls] = already_verified_intervals.lock_unique();
-        ivls.configure(intervals::use_interval_optimization::off, 1.0);
-    }
+    intervals::verified_intervals deactivated_already_verified_intervals(
+        intervals::use_interval_optimization::off,
+        1.0
+    );
+
     verification::query_verifier direct_verifier {
         .pex_tree = pex_tree,
         .anchor = anchor,

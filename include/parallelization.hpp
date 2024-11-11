@@ -43,8 +43,6 @@ struct shared_verification_data {
     input::references const& references;
     pex::pex_tree const pex_tree;
     pex::pex_verification_config const config;
-    intervals::verified_intervals_for_all_references verified_intervals_forward;
-    intervals::verified_intervals_for_all_references verified_intervals_reverse_complement;
     mutex_guarded<alignment::query_alignments> all_tasks_alignments;
     mutex_guarded<output::alignment_output>& alignment_output;
     std::atomic_size_t num_verification_tasks_remaining;

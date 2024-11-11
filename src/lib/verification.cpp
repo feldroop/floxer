@@ -36,8 +36,7 @@ void query_verifier::direct_full_verification() {
         stats
     );
 
-    auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
-    verified_intervals.insert(root_reference_span_config.as_half_open_interval());
+    already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
 }
 
 void query_verifier::hierarchical_verification() {
@@ -60,10 +59,7 @@ void query_verifier::hierarchical_verification() {
         );
         assert(outcome == alignment::alignment_outcome::alignment_exists);
 
-        {
-            auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
-            verified_intervals.insert(root_reference_span_config.as_half_open_interval());
-        }
+        already_verified_intervals.insert(root_reference_span_config.as_half_open_interval());
 
         return;
     }
@@ -72,11 +68,6 @@ void query_verifier::hierarchical_verification() {
     auto curr_pex_node = pex_tree.get_parent_of_child(pex_leaf_node);
 
     while (true) {
-        // we ask again in every iteration, because another thread might have done it
-        if (root_was_already_verified()) {
-            return;
-        }
-
         auto const reference_span_config = internal::compute_reference_span_start_and_length(
             anchor,
             curr_pex_node,
@@ -96,10 +87,7 @@ void query_verifier::hierarchical_verification() {
         );
 
         if (curr_pex_node.is_root()) {
-            {
-                auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
-                verified_intervals.insert(reference_span_config.as_half_open_interval());
-            }
+            already_verified_intervals.insert(reference_span_config.as_half_open_interval());
         }
 
         if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || curr_pex_node.is_root()) {
@@ -117,9 +105,7 @@ bool query_verifier::root_was_already_verified() const {
         .as_half_open_interval()
         .trim_from_both_sides(root_reference_span_config.applied_extra_verification_length_per_side);
 
-    auto && [lock, verified_intervals] = already_verified_intervals.lock_shared();
-
-    if (verified_intervals.contains(root_interval_to_verify_without_extra_length)) {
+    if (already_verified_intervals.contains(root_interval_to_verify_without_extra_length)) {
         // we have already verified the interval where the whole query could be found according to this anchor
         stats.add_reference_span_size_avoided_root(root_reference_span_config.length);
 
