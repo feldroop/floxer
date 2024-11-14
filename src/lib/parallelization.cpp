@@ -109,6 +109,8 @@ void spawn_search_task(
                 local_stats.add_statistics_for_seeds(reverse_complement_seeds);
                 local_stats.add_statistics_for_search_result(forward_search_result);
                 local_stats.add_statistics_for_search_result(reverse_complement_search_result);
+                size_t spent_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stopwatch.elapsed()).count();
+                local_stats.add_milliseconds_spent_in_search_per_query(spent_milliseconds);
                 {
                     auto && [lock, ref] = global_stats.lock_unique();
                     ref.merge_other_into_this(local_stats);
@@ -116,7 +118,8 @@ void spawn_search_task(
 
                 spdlog::debug("finished searching query {}: {}", query.internal_id, query.id);
 
-                size_t spent_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stopwatch.elapsed()).count();
+
+
 
                 auto shared_data = std::make_shared<shared_verification_data>(
                     std::move(query),
@@ -126,7 +129,6 @@ void spawn_search_task(
                     alignment_output,
                     anchor_packages.size(),
                     global_stats,
-                    spent_milliseconds,
                     threads_should_stop
                 );
 
@@ -170,7 +172,6 @@ shared_verification_data::shared_verification_data(
     mutex_guarded<output::alignment_output>& alignment_output_,
     size_t const num_verification_tasks_,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats_,
-    size_t const spent_milliseconds_so_far,
     std::atomic_bool& threads_should_stop_
 ) : query{query_},
     references{references_},
@@ -190,7 +191,7 @@ shared_verification_data::shared_verification_data(
     alignment_output{alignment_output_},
     num_verification_tasks_remaining(num_verification_tasks_),
     global_stats{global_stats_},
-    spent_milliseconds{spent_milliseconds_so_far},
+    spent_milliseconds{0},
     threads_should_stop{threads_should_stop_}
 {}
 
@@ -255,7 +256,7 @@ void spawn_verification_task(
                     // write to output file and stats if I am the last remaining thread
                     if (data->num_verification_tasks_remaining.fetch_sub(1) == 1) {
                         local_stats.add_num_alignments(all_tasks_alignments.size());
-                        local_stats.add_milliseconds_spent_per_query(data->spent_milliseconds.load());
+                        local_stats.add_milliseconds_spent_in_verification_per_query(data->spent_milliseconds.load());
 
                         for (size_t reference_id = 0; reference_id < data->references.records.size(); ++reference_id) {
                             for (auto const& alignment : all_tasks_alignments.to_reference(reference_id)) {

@@ -60,7 +60,6 @@ struct shared_verification_data {
         mutex_guarded<output::alignment_output>& alignment_output_,
         size_t const num_verification_tasks,
         mutex_guarded<statistics::search_and_alignment_statistics>& global_stats,
-        size_t const spent_milliseconds_so_far,
         std::atomic_bool& threads_should_stop
     );
 };

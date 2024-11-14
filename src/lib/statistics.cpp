@@ -232,8 +232,12 @@ void search_and_alignment_statistics::add_alignment_edit_distance(size_t const v
     insert_value_to(alignments_edit_distance_name, value);
 }
 
-void search_and_alignment_statistics::add_milliseconds_spent_per_query(size_t const value) {
-    insert_value_to(milliseconds_spent_per_query_name, value);
+void search_and_alignment_statistics::add_milliseconds_spent_in_search_per_query(size_t const value) {
+    insert_value_to(milliseconds_spent_in_search_per_query_name, value);
+}
+
+void search_and_alignment_statistics::add_milliseconds_spent_in_verification_per_query(size_t const value) {
+    insert_value_to(milliseconds_spent_in_verification_per_query_name, value);
 }
 
 void search_and_alignment_statistics::add_statistics_for_search_result(
