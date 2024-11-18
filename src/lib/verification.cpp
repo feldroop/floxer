@@ -72,11 +72,6 @@ void query_verifier::hierarchical_verification() {
     auto curr_pex_node = pex_tree.get_parent_of_child(pex_leaf_node);
 
     while (true) {
-        // we ask again in every iteration, because another thread might have done it
-        if (root_was_already_verified()) {
-            return;
-        }
-
         auto const reference_span_config = internal::compute_reference_span_start_and_length(
             anchor,
             curr_pex_node,
@@ -84,6 +79,16 @@ void query_verifier::hierarchical_verification() {
             reference.rank_sequence.size(),
             extra_verification_ratio
         );
+
+        static constexpr size_t MAX_REF_SPAN_LENGTH_WITHOUT_CHECKING_INTERVALS = 512;
+        // we ask again, because another thread might have done it
+        // this is only done when the reference span is not super small
+        if (
+            reference_span_config.length > MAX_REF_SPAN_LENGTH_WITHOUT_CHECKING_INTERVALS
+            && root_was_already_verified()
+        ) {
+            return;
+        }
 
         auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
             curr_pex_node,
@@ -96,10 +101,8 @@ void query_verifier::hierarchical_verification() {
         );
 
         if (curr_pex_node.is_root()) {
-            {
-                auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
-                verified_intervals.insert(reference_span_config.as_half_open_interval());
-            }
+            auto && [lock, verified_intervals] = already_verified_intervals.lock_unique();
+            verified_intervals.insert(reference_span_config.as_half_open_interval());
         }
 
         if (outcome == alignment::alignment_outcome::no_adequate_alignment_exists || curr_pex_node.is_root()) {

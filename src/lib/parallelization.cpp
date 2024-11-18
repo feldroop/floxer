@@ -91,11 +91,11 @@ void spawn_search_task(
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
 
-                auto forward_seeds = pex_tree.generate_seeds(query.rank_sequence);
-                auto reverse_complement_seeds = pex_tree.generate_seeds(query.reverse_complement_rank_sequence);
+                auto const forward_seeds = pex_tree.generate_seeds(query.rank_sequence);
+                auto const reverse_complement_seeds = pex_tree.generate_seeds(query.reverse_complement_rank_sequence);
 
-                auto forward_search_result = searcher.search_seeds(forward_seeds);
-                auto reverse_complement_search_result = searcher.search_seeds(reverse_complement_seeds);
+                auto const forward_search_result = searcher.search_seeds(forward_seeds);
+                auto const reverse_complement_search_result = searcher.search_seeds(reverse_complement_seeds);
 
                 auto anchor_packages = create_anchor_packages(
                     forward_search_result, reverse_complement_search_result, cli_input
@@ -105,10 +105,8 @@ void spawn_search_task(
                 // however the alignment stats are written for everything at once (TODO find a good way to fix this)
                 statistics::search_and_alignment_statistics local_stats;
                 local_stats.add_query_length(query.rank_sequence.size());
-                local_stats.add_statistics_for_seeds(forward_seeds);
-                local_stats.add_statistics_for_seeds(reverse_complement_seeds);
-                local_stats.add_statistics_for_search_result(forward_search_result);
-                local_stats.add_statistics_for_search_result(reverse_complement_search_result);
+                local_stats.add_statistics_for_seeds(forward_seeds, reverse_complement_seeds);
+                local_stats.add_statistics_for_search_result(forward_search_result, reverse_complement_search_result);
                 size_t spent_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stopwatch.elapsed()).count();
                 local_stats.add_milliseconds_spent_in_search_per_query(spent_milliseconds);
                 {
@@ -117,9 +115,6 @@ void spawn_search_task(
                 }
 
                 spdlog::debug("finished searching query {}: {}", query.internal_id, query.id);
-
-
-
 
                 auto shared_data = std::make_shared<shared_verification_data>(
                     std::move(query),
@@ -173,9 +168,9 @@ shared_verification_data::shared_verification_data(
     size_t const num_verification_tasks_,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats_,
     std::atomic_bool& threads_should_stop_
-) : query{query_},
+) : query{std::move(query_)},
     references{references_},
-    pex_tree{pex_tree_},
+    pex_tree{std::move(pex_tree_)},
     config(cli_input),
     verified_intervals_forward(intervals::create_thread_safe_verified_intervals(
         references.records.size(),

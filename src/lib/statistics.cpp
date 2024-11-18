@@ -183,10 +183,18 @@ void search_and_alignment_statistics::add_num_seeds_per_query(size_t const value
     insert_value_to(seeds_per_query_name, value);
 }
 
-void search_and_alignment_statistics::add_statistics_for_seeds(std::vector<search::seed> const& seeds) {
-    add_num_seeds_per_query(seeds.size());
+void search_and_alignment_statistics::add_statistics_for_seeds(
+    std::vector<search::seed> const& forward_seeds,
+    std::vector<search::seed> const& reverse_complement_seeds
+) {
+    add_num_seeds_per_query(forward_seeds.size() + reverse_complement_seeds.size());
 
-    for (auto const& seed : seeds) {
+    for (auto const& seed : forward_seeds) {
+        add_num_errors_per_seed(seed.num_errors);
+        add_seed_length(seed.sequence.size());
+    }
+
+    for (auto const& seed : reverse_complement_seeds) {
         add_num_errors_per_seed(seed.num_errors);
         add_seed_length(seed.sequence.size());
     }
@@ -241,13 +249,36 @@ void search_and_alignment_statistics::add_milliseconds_spent_in_verification_per
 }
 
 void search_and_alignment_statistics::add_statistics_for_search_result(
-    search::search_result const& search_result
+    search::search_result const& forward_search_result,
+    search::search_result const& reverse_complement_search_result
 ) {
     size_t num_anchors_of_whole_query = 0;
     size_t num_excluded_anchors_of_whole_query = 0;
     bool all_excluded = true;
 
-    for (auto const& anchors_of_seed : search_result.anchors_by_seed) {
+    for (auto const& anchors_of_seed : forward_search_result.anchors_by_seed) {
+        switch (anchors_of_seed.status) {
+            case search::seed_status::fully_excluded :
+                add_num_raw_anchors_per_excluded_seed(anchors_of_seed.num_excluded_raw_anchors);
+                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
+                break;
+            case search::seed_status::partly_excluded :
+                add_num_kept_anchors_per_partly_excluded_seed(anchors_of_seed.num_kept_useful_anchors);
+                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
+                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
+                all_excluded = false;
+                break;
+            case search::seed_status::not_excluded :
+                add_num_anchors_per_seed(anchors_of_seed.num_kept_useful_anchors);
+                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
+                all_excluded = false;
+                break;
+            default:
+                throw std::runtime_error("(should be unreachable) internal bug in statistics gathering");
+        }
+    }
+
+    for (auto const& anchors_of_seed : reverse_complement_search_result.anchors_by_seed) {
         switch (anchors_of_seed.status) {
             case search::seed_status::fully_excluded :
                 add_num_raw_anchors_per_excluded_seed(anchors_of_seed.num_excluded_raw_anchors);

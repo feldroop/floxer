@@ -192,6 +192,9 @@ search_result searcher::search_seeds(
                 throw std::runtime_error("(Should be unreachable) internal bug in anchor group order config.");
         }
 
+        // At some point in the future, if the locate operation start showing up in profiles,
+        // it could be an optimization opportunity to merge the fmindex cursors before locating
+
         size_t num_kept_raw_anchors = 0;
         std::vector<anchors_t> anchors_by_reference(num_reference_sequences);
         size_t i = 0;
