@@ -145,7 +145,10 @@ public:
 
     void add_num_seeds_per_query(size_t const value);
 
-    void add_statistics_for_seeds(std::vector<search::seed> const& seeds);
+    void add_statistics_for_seeds(
+        std::vector<search::seed> const& forward_seeds,
+        std::vector<search::seed> const& reverse_complement_seeds
+    );
 
     void add_num_anchors_per_seed(size_t const value);
 
@@ -171,7 +174,10 @@ public:
 
     void add_milliseconds_spent_in_verification_per_query(size_t const value);
 
-    void add_statistics_for_search_result(search::search_result const& search_result);
+    void add_statistics_for_search_result(
+        search::search_result const& forward_search_result,
+        search::search_result const& reverse_complement_search_result
+    );
 
     size_t num_queries() const;
 
