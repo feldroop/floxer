@@ -87,7 +87,7 @@ TEST(verification, verify) {
     shared_mutex_guarded<intervals::verified_intervals> deactivated_already_verified_intervals;
     {
         auto && [lock, ivls] = already_verified_intervals.lock_unique();
-        ivls.configure(intervals::use_interval_optimization::off, 1.0);
+        ivls.configure(intervals::use_interval_optimization::off);
     }
     verification::query_verifier direct_verifier {
         .pex_tree = pex_tree,

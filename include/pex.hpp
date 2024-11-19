@@ -50,7 +50,6 @@ struct pex_verification_config {
     intervals::use_interval_optimization const use_interval_optimization;
     verification_kind_t const verification_kind;
     double const extra_verification_ratio;
-    double const overlap_rate_that_counts_as_contained;
 };
 
 // based on chapter 6.5.1 from the book "Flexible Pattern Matching in Strings" by Navarro and Raffinot

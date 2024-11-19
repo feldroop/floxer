@@ -101,8 +101,6 @@ void spawn_search_task(
                     forward_search_result, reverse_complement_search_result, cli_input
                 );
 
-                // this is confusing, because the stats are written once for forward and once for reverse complement
-                // however the alignment stats are written for everything at once (TODO find a good way to fix this)
                 statistics::search_and_alignment_statistics local_stats;
                 local_stats.add_query_length(query.rank_sequence.size());
                 local_stats.add_statistics_for_seeds(forward_seeds, reverse_complement_seeds);
@@ -174,13 +172,11 @@ shared_verification_data::shared_verification_data(
     config(cli_input),
     verified_intervals_forward(intervals::create_thread_safe_verified_intervals(
         references.records.size(),
-        config.use_interval_optimization,
-        config.overlap_rate_that_counts_as_contained
+        config.use_interval_optimization
     )),
     verified_intervals_reverse_complement(intervals::create_thread_safe_verified_intervals(
         references.records.size(),
-        config.use_interval_optimization,
-        config.overlap_rate_that_counts_as_contained
+        config.use_interval_optimization
     )),
     all_tasks_alignments(references.records.size()),
     alignment_output{alignment_output_},

@@ -57,8 +57,7 @@ public:
 
     // workaround because this needs to be default constructible
     void configure(
-        use_interval_optimization const activity_status,
-        double const overlap_rate_that_counts_as_contained
+        use_interval_optimization const activity_status
     );
 
     void insert(half_open_interval const new_interval);
@@ -69,7 +68,6 @@ public:
 
 private:
     use_interval_optimization activity_status = use_interval_optimization::on;
-    double overlap_rate_that_counts_as_contained = 1.0;
 
     // inside this tree I use closed intervals, because I want [0,5) and [5, 10) to count as overlapping
     lib_interval_tree::interval_tree_t<size_t> intervals{};
@@ -79,8 +77,7 @@ using verified_intervals_for_all_references = std::vector<shared_mutex_guarded<v
 
 verified_intervals_for_all_references create_thread_safe_verified_intervals(
     size_t const num_references,
-    use_interval_optimization const activity_status,
-    double const overlap_rate_that_counts_as_contained
+    use_interval_optimization const activity_status
 );
 
 } // namespace intervals

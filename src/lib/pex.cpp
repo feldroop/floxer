@@ -46,8 +46,7 @@ pex_verification_config::pex_verification_config(cli::command_line_input const& 
             pex::verification_kind_t::direct_full :
             pex::verification_kind_t::hierarchical
     },
-    extra_verification_ratio{cli_input.extra_verification_ratio()},
-    overlap_rate_that_counts_as_contained{cli_input.allowed_interval_overlap_ratio()}
+    extra_verification_ratio{cli_input.extra_verification_ratio()}
 {}
 
 size_t pex_tree::node::length_of_query_span() const {
