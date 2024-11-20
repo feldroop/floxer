@@ -201,7 +201,14 @@ void spawn_verification_task(
             }
 
             try {
-                spdlog::debug("verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);
+                spdlog::debug(
+                    "verifiying package {} of query {}: {} ({}), {} anchors",
+                    package.package_id,
+                    data->query.internal_id,
+                    data->query.id,
+                    package.orientation == alignment::query_orientation::forward ? "forward" : "revcomp",
+                    package.anchors.size()
+                );
                 spdlog::stopwatch const stopwatch;
 
                 statistics::search_and_alignment_statistics local_stats;
