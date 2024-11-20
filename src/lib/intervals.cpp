@@ -82,12 +82,11 @@ void verified_intervals::configure(
 }
 
 void verified_intervals::insert(half_open_interval const new_interval) {
-    if (activity_status == use_interval_optimization::off) {
+    if (activity_status == use_interval_optimization::off || contains(new_interval)) {
         return;
     }
 
-    intervals.insert_overlap(new_interval.to_lib_intervaltree_interval());
-    intervals.deoverlap();
+    intervals.insert(new_interval.to_lib_intervaltree_interval());
 }
 
 bool verified_intervals::contains(
