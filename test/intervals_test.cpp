@@ -126,13 +126,17 @@ TEST(intervals, verified_intervals) {
     ivls.insert(cases.ivl4);
 
     // [ivl1+2+3+4)
+    // the 3 cases marked with an ! are supposed to be false,
+    // because the intervals are not supposed to be merged inside the interval tree
+    // (otherwise is does not work correctly as a verification cache).
+    // they were previously and this was the cause of a bug
     EXPECT_TRUE(ivls.contains(cases.inside_ivl1));
     EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl1));
     EXPECT_FALSE(ivls.contains(cases.containing_ivl1));
-    EXPECT_TRUE(ivls.contains(cases.overlapping_below_ivl2)); // !
+    EXPECT_FALSE(ivls.contains(cases.overlapping_below_ivl2)); // !
     EXPECT_FALSE(ivls.contains(cases.overlapping_above_ivl2));
-    EXPECT_TRUE(ivls.contains(cases.between_both)); // !
-    EXPECT_TRUE(ivls.contains(cases.overlapping_both)); // !
+    EXPECT_FALSE(ivls.contains(cases.between_both)); // !
+    EXPECT_FALSE(ivls.contains(cases.overlapping_both)); // !
     EXPECT_FALSE(ivls.contains(cases.containing_both));
     EXPECT_FALSE(ivls.contains(cases.below_both));
     EXPECT_FALSE(ivls.contains(cases.above_both));
@@ -150,7 +154,4 @@ TEST(intervals, verified_intervals) {
     EXPECT_TRUE(ivls.contains(cases.containing_both));
     EXPECT_TRUE(ivls.contains(cases.below_both));
     EXPECT_TRUE(ivls.contains(cases.above_both));
-
-    // size should not change when insert repeatedly
-    ivls.insert(cases.ivl5);
 }
