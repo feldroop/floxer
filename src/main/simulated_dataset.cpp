@@ -409,52 +409,52 @@ int verify_alignments(sharg::parser& parser) {
         });
     }
 
-    bool all_queries_found_correctly = true;
+    fmt::print("result = [\n");
 
     for (auto const& [query_id, alignments] : alignments_by_query_id) {
         auto const origin = parse_query_id(query_id);
 
         size_t pos_diff = std::numeric_limits<size_t>::max();
+        size_t pos_diff_higher_num_errors = std::numeric_limits<size_t>::max();
 
         for (auto const& alignment : alignments) {
-            if (origin.chromosome_id != alignment.chromosome_id || alignment.num_errors > origin.max_num_errors) {
+            if (origin.chromosome_id != alignment.chromosome_id) {
                 continue;
             }
 
-            pos_diff = std::min(
-                std::max(origin.position, alignment.position) - std::min(origin.position, alignment.position),
-                pos_diff
-            );
+            if (alignment.num_errors > origin.max_num_errors) {
+                pos_diff_higher_num_errors = std::min(
+                    std::max(origin.position, alignment.position) - std::min(origin.position, alignment.position),
+                    pos_diff_higher_num_errors
+                );
+            } else {
+                pos_diff = std::min(
+                    std::max(origin.position, alignment.position) - std::min(origin.position, alignment.position),
+                    pos_diff
+                );
+            }
 
             if (pos_diff == 0) {
                 break;
             }
         }
 
-        if (pos_diff == std::numeric_limits<size_t>::max()) {
-            spdlog::warn(
-                "query id \"{}\": no alignment found with the expected amount of errors on the correct chromosome.",
-                query_id
-            );
-            all_queries_found_correctly = false;
-            continue;
-        }
+        fmt::print("    {{ id = {}, status = ", query_id);
 
-        if (pos_diff != 0) {
-            spdlog::warn(
-                "query id \"{}\": closest found alignment to actual origin is {} position{} away.",
-                query_id,
+        if (pos_diff == 0) {
+            fmt::print("FoundOptimal }},\n");
+        } else if (pos_diff == std::numeric_limits<size_t>::max() && pos_diff_higher_num_errors == std::numeric_limits<size_t>::max()) {
+            fmt::print("NotFound }},\n");
+        } else {
+            fmt::print(
+                "FoundSuboptimal = {{ pos_diff_expected_num_errors = {}, pos_diff_higher_num_errors = {} }} }},\n",
                 pos_diff,
-                pos_diff == 1 ? "" : "s"
+                pos_diff_higher_num_errors
             );
-            all_queries_found_correctly = false;
         }
     }
 
-    if (all_queries_found_correctly) {
-        spdlog::info("All queries were found correctly.");
-    }
-
+    fmt::print("]\n");
     return 0;
 }
 
