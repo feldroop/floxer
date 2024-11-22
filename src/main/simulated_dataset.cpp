@@ -409,7 +409,7 @@ int verify_alignments(sharg::parser& parser) {
         });
     }
 
-    fmt::print("result = [\n");
+    fmt::print("queries = [\n");
 
     for (auto const& [query_id, alignments] : alignments_by_query_id) {
         auto const origin = parse_query_id(query_id);
