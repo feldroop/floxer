@@ -386,6 +386,7 @@ int verify_alignments(sharg::parser& parser) {
     };
 
     std::filesystem::path input_path{};
+    size_t allowed_pos_diff{};
 
     parser.add_option(input_path, sharg::config{
         .short_id = 'a',
@@ -393,6 +394,12 @@ int verify_alignments(sharg::parser& parser) {
         .description = "The sam file that should be analyzed.",
         .required = true,
         .validator = sharg::input_file_validator{}
+    });
+
+    parser.add_option(allowed_pos_diff, sharg::config{
+        .short_id = 'p',
+        .long_id = "allowed-pos_diff",
+        .description = "If an alignment position is shifted by this amount, it counts as found optimal."
     });
 
     parser.parse();
@@ -441,7 +448,7 @@ int verify_alignments(sharg::parser& parser) {
 
         fmt::print("    {{ id = \"{}\", status = {{ ", query_id);
 
-        if (pos_diff == 0) {
+        if (pos_diff <= allowed_pos_diff) {
             fmt::print("FoundOptimal = {{}}");
         } else if (pos_diff == std::numeric_limits<size_t>::max() && pos_diff_higher_num_errors == std::numeric_limits<size_t>::max()) {
             fmt::print("NotFound = {{}}");
