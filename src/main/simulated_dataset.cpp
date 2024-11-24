@@ -414,8 +414,8 @@ int verify_alignments(sharg::parser& parser) {
     for (auto const& [query_id, alignments] : alignments_by_query_id) {
         auto const origin = parse_query_id(query_id);
 
-        size_t pos_diff = std::numeric_limits<size_t>::max();
-        size_t pos_diff_higher_num_errors = std::numeric_limits<size_t>::max();
+        size_t pos_diff = std::numeric_limits<uint32_t>::max();
+        size_t pos_diff_higher_num_errors = std::numeric_limits<uint32_t>::max();
 
         for (auto const& alignment : alignments) {
             if (origin.chromosome_id != alignment.chromosome_id) {
@@ -442,16 +442,18 @@ int verify_alignments(sharg::parser& parser) {
         fmt::print("    {{ id = \"{}\", status = {{ ", query_id);
 
         if (pos_diff == 0) {
-            fmt::print("FoundOptimal = {{}} }} }},\n");
+            fmt::print("FoundOptimal = {{}}");
         } else if (pos_diff == std::numeric_limits<size_t>::max() && pos_diff_higher_num_errors == std::numeric_limits<size_t>::max()) {
-            fmt::print("NotFound = {{}} }} }},\n");
+            fmt::print("NotFound = {{}}");
         } else {
             fmt::print(
-                "FoundSuboptimal = {{ pos_diff_expected_num_errors = {}, pos_diff_higher_num_errors = {} }} }} }},\n",
+                "FoundSuboptimal = {{ pos_diff_expected_num_errors = {}, pos_diff_higher_num_errors = {} }}",
                 pos_diff,
                 pos_diff_higher_num_errors
             );
         }
+
+        fmt::print(" }} }},\n")
     }
 
     fmt::print("]\n");
