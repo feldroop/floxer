@@ -439,7 +439,7 @@ int verify_alignments(sharg::parser& parser) {
             }
         }
 
-        fmt::print("    {{ id = {}, status = ", query_id);
+        fmt::print("    {{ id = \"{}\", status = ", query_id);
 
         if (pos_diff == 0) {
             fmt::print("FoundOptimal }},\n");
