@@ -439,12 +439,12 @@ int verify_alignments(sharg::parser& parser) {
             }
         }
 
-        fmt::print("    {{ id = \"{}\", status = {{", query_id);
+        fmt::print("    {{ id = \"{}\", status = {{ ", query_id);
 
         if (pos_diff == 0) {
-            fmt::print("FoundOptimal }} }},\n");
+            fmt::print("FoundOptimal = {{}} }} }},\n");
         } else if (pos_diff == std::numeric_limits<size_t>::max() && pos_diff_higher_num_errors == std::numeric_limits<size_t>::max()) {
-            fmt::print("NotFound }} }},\n");
+            fmt::print("NotFound = {{}} }} }},\n");
         } else {
             fmt::print(
                 "FoundSuboptimal = {{ pos_diff_expected_num_errors = {}, pos_diff_higher_num_errors = {} }} }} }},\n",
