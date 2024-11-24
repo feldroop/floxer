@@ -453,7 +453,7 @@ int verify_alignments(sharg::parser& parser) {
             );
         }
 
-        fmt::print(" }} }},\n")
+        fmt::print(" }} }},\n");
     }
 
     fmt::print("]\n");
