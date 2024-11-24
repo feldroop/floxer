@@ -398,7 +398,7 @@ int verify_alignments(sharg::parser& parser) {
 
     parser.add_option(allowed_pos_diff, sharg::config{
         .short_id = 'p',
-        .long_id = "allowed-pos_diff",
+        .long_id = "allowed-pos-diff",
         .description = "If an alignment position is shifted by this amount, it counts as found optimal."
     });
 
