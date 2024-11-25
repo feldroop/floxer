@@ -99,8 +99,9 @@ struct alignment_data_for_query_t {
     std::vector<alignment_record_t> supplementary_alignments{};
 
     // secondary alignments could actually also be representative of secondary chimeric alignment (and thus not really linear)
-    std::vector<alignment_record_t> secondary_linear_alignments{};
+    std::vector<alignment_record_t> secondary_linear_basic_alignments{};
     std::vector<alignment_record_t> secondary_linear_high_edit_distance_alignments{};
+    std::vector<alignment_record_t> secondary_linear_clipped_alignments{};
     std::vector<alignment_record_t> secondary_inverted_alignments{};
     std::vector<alignment_record_t> secondary_supplementary_alignments{};
 
@@ -163,7 +164,11 @@ struct alignment_data_for_query_t {
             f(primary_alignment.value());
         }
 
-        for (auto const& record : secondary_linear_alignments) {
+        for (auto const& record : secondary_linear_basic_alignments) {
+            f(record);
+        }
+
+        for (auto const& record : secondary_linear_clipped_alignments) {
             f(record);
         }
 
@@ -189,14 +194,15 @@ struct alignment_data_for_query_t {
     bool is_multiple_mapping() const {
         return is_mapped &&
             (
-                !secondary_linear_alignments.empty() ||
+                !secondary_linear_basic_alignments.empty() ||
+                !secondary_linear_clipped_alignments.empty() ||
                 !secondary_linear_high_edit_distance_alignments.empty() ||
                 !secondary_inverted_alignments.empty()
             );
     }
 
-    bool is_primary_chimeric() const {
-        return !supplementary_alignments.empty();
+    bool has_primary_chimeric() const {
+        return is_mapped && !supplementary_alignments.empty();
     }
 
     bool has_primary_inversion() const {
@@ -204,45 +210,48 @@ struct alignment_data_for_query_t {
     }
 
     bool has_primary_linear() const {
-        return is_mapped && !is_primary_chimeric() && !has_primary_inversion();
+        return is_mapped && !has_primary_chimeric() && !has_primary_inversion();
     }
 
-    bool has_primary_high_edit_distance(double const floxer_allowed_error_rate) const {
-        return has_primary_linear() &&
-            primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate);
+    bool has_primary_linear_basic(double const floxer_allowed_error_rate) const {
+        return has_primary_linear()
+            && !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate)
+            && !primary_alignment.value().is_significantly_clipped(floxer_allowed_error_rate);
     }
 
-    bool has_primary_linear_significantly_clipped(double const floxer_allowed_error_rate) const {
-        return has_primary_linear() &&
-            !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate) &&
-            primary_alignment.value().is_significantly_clipped(floxer_allowed_error_rate);
+    bool best_is_chimeric_or_inversion(double const floxer_allowed_error_rate) const {
+        return is_mapped
+            && !has_basic(floxer_allowed_error_rate)
+            && !best_is_high_edit_distance(floxer_allowed_error_rate)
+            && !best_is_significantly_clipped(floxer_allowed_error_rate);
     }
 
-     // basic = linear, not high edit distance, not signficantly clipped
-    bool has_primary_basic(double const floxer_allowed_error_rate) const {
-        return has_primary_linear() &&
-            !primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate) &&
-            !primary_alignment.value().is_significantly_clipped(floxer_allowed_error_rate);
-    }
-    bool has_primary_not_basic_and_secondary_basic(double const floxer_allowed_error_rate) const {
-        if (
-            has_primary_basic(floxer_allowed_error_rate) ||
-            !is_multiple_mapping() ||
-            !secondary_supplementary_alignments.empty()
-        ) {
+    // significantly clipped is defined as "better" than chimeric or inversion
+    bool best_is_significantly_clipped(double const floxer_allowed_error_rate) const {
+        if (has_basic(floxer_allowed_error_rate) || best_is_high_edit_distance(floxer_allowed_error_rate)) {
             return false;
         }
 
-        for (auto const& alignment_record : secondary_linear_alignments) {
-            if (
-                !alignment_record.is_high_edit_distance(floxer_allowed_error_rate) &&
-                !alignment_record.is_significantly_clipped(floxer_allowed_error_rate)
-            ) {
-                return true;
-            }
+        return has_primary_linear() || !secondary_linear_clipped_alignments.empty();
+    }
+
+    // high edit distance is defined as "better" than significantly clipped
+    bool best_is_high_edit_distance(double const floxer_allowed_error_rate) const {
+        if (has_basic(floxer_allowed_error_rate)) {
+            return false;
         }
 
-        return false;
+        return (
+            has_primary_linear()
+            && primary_alignment.value().is_high_edit_distance(floxer_allowed_error_rate)
+            && !primary_alignment.value().is_significantly_clipped(floxer_allowed_error_rate)
+        ) || !secondary_linear_high_edit_distance_alignments.empty();
+    }
+
+    // basic = linear, not high edit distance, not signficantly clipped
+    bool has_basic(double const floxer_allowed_error_rate) const {
+        return has_primary_linear_basic(floxer_allowed_error_rate)
+            || !secondary_linear_basic_alignments.empty();
     }
 };
 
@@ -450,15 +459,14 @@ void read_alignments(
             continue;
         }
 
-        if (is_inversion) {
+        if (extracted_record.is_inversion) {
             alignment_data.secondary_inverted_alignments.emplace_back(extracted_record);
-            continue;
-        }
-
-        if (extracted_record.is_high_edit_distance(floxer_allowed_error_rate)) {
+        } else if (extracted_record.is_significantly_clipped(floxer_allowed_error_rate)) {
+            alignment_data.secondary_linear_clipped_alignments.emplace_back(extracted_record);
+        } else if (extracted_record.is_high_edit_distance(floxer_allowed_error_rate)) {
             alignment_data.secondary_linear_high_edit_distance_alignments.emplace_back(extracted_record);
         } else {
-            alignment_data.secondary_linear_alignments.emplace_back(extracted_record);
+            alignment_data.secondary_linear_basic_alignments.emplace_back(extracted_record);
         }
     }
 }
@@ -544,48 +552,38 @@ void print_alignment_statistics(
 ) {
     fmt::print("[{}]\n", title);
 
-    size_t num_primary_chimeric = 0;
-    size_t num_primary_basic = 0;
-    size_t num_primary_linear_clipped = 0;
-    size_t num_primary_high_edit_distance = 0;
-    size_t num_primary_inversion = 0;
+    size_t num_best_chimeric_or_inversion = 0;
+    size_t num_best_significantly_clipped = 0;
+    size_t num_best_high_edit_distance = 0;
+    size_t num_basic = 0;
 
     size_t num_multiple_mapping = 0;
-    size_t num_primary_not_basic_and_secondary_basic = 0;
 
     size_t longest_indel_sum = 0;
-    double primary_basic_error_rate_sum = 0.0;
+    double basic_alignments_error_rate_sum = 0.0;
 
     size_t num_subset_queries = 0;
 
     for (auto const& alignment_data : alignments) {
-        if (alignment_data.is_primary_chimeric()) {
-            ++num_primary_chimeric;
+        if (alignment_data.best_is_chimeric_or_inversion(floxer_allowed_error_rate)) {
+            ++num_best_chimeric_or_inversion;
         }
 
-        if (alignment_data.has_primary_basic(floxer_allowed_error_rate)) {
-            primary_basic_error_rate_sum += alignment_data.primary_error_rate().value();
-            ++num_primary_basic;
+        if (alignment_data.best_is_significantly_clipped(floxer_allowed_error_rate)) {
+            ++num_best_significantly_clipped;
         }
 
-        if (alignment_data.has_primary_linear_significantly_clipped(floxer_allowed_error_rate)) {
-            ++num_primary_linear_clipped;
+        if (alignment_data.best_is_high_edit_distance(floxer_allowed_error_rate)) {
+            ++num_best_high_edit_distance;
         }
 
-        if (alignment_data.has_primary_high_edit_distance(floxer_allowed_error_rate)) {
-            ++num_primary_high_edit_distance;
-        }
-
-        if (alignment_data.has_primary_inversion()) {
-            ++num_primary_inversion;
+        if (alignment_data.has_basic(floxer_allowed_error_rate)) {
+            basic_alignments_error_rate_sum += alignment_data.primary_error_rate().value();
+            ++num_basic;
         }
 
         if (alignment_data.is_multiple_mapping()) {
             ++num_multiple_mapping;
-        }
-
-        if (alignment_data.has_primary_not_basic_and_secondary_basic(floxer_allowed_error_rate)) {
-            ++num_primary_not_basic_and_secondary_basic;
         }
 
         longest_indel_sum += alignment_data.longest_indel;
@@ -593,22 +591,15 @@ void print_alignment_statistics(
     }
     // basic = not significantly clipped
     fmt::print("num_queries = {}\n", num_subset_queries);
-    print_value("primary_chimeric", num_primary_chimeric, num_subset_queries, num_queries);
-    print_value("primary_linear_basic", num_primary_basic, num_subset_queries, num_queries);
-    print_value("primary_linear_clipped", num_primary_linear_clipped, num_subset_queries, num_queries);
-    print_value("primary_high_edit_distance", num_primary_high_edit_distance, num_subset_queries, num_queries);
-    print_value("primary_inversion", num_primary_inversion, num_subset_queries, num_queries);
+    print_value("num_best_chimeric_or_inversion", num_best_chimeric_or_inversion, num_subset_queries, num_queries);
+    print_value("num_best_significantly_clipped", num_best_significantly_clipped, num_subset_queries, num_queries);
+    print_value("num_best_high_edit_distance", num_best_high_edit_distance, num_subset_queries, num_queries);
+    print_value("num_basic", num_basic, num_subset_queries, num_queries);
     print_value("multiple_mapping", num_multiple_mapping, num_subset_queries, num_queries);
-    print_value(
-        "primary_not_basic_secondary_basic",
-        num_primary_not_basic_and_secondary_basic,
-        num_subset_queries,
-        num_queries
-    );
     fmt::print("average_longest_indel = {:.2f}\n", longest_indel_sum / static_cast<double>(num_subset_queries));
     fmt::print(
-        "average_error_rate_of_primary_basic_alignments = {:.4f}\n",
-        primary_basic_error_rate_sum / static_cast<double>(num_primary_basic)
+        "basic_alignments_error_rate_sum = {:.4f}\n",
+        basic_alignments_error_rate_sum / static_cast<double>(num_basic)
     );
 }
 
