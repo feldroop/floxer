@@ -409,6 +409,10 @@ int verify_alignments(sharg::parser& parser) {
 
     using namespace seqan3::literals;
     for (auto const& record : input) {
+        if (static_cast<bool>(record.flag() & seqan3::sam_flag::unmapped)) {
+            continue;
+        }
+
         alignments_by_query_id[record.id()].push_back(alignment_data {
             .chromosome_id = parse_chromosome_id(input.header().ref_ids()[record.reference_id().value()]),
             .position = static_cast<size_t>(record.reference_position().value()),
