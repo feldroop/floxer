@@ -62,7 +62,7 @@ CPMDeclarePackage (
     seqan3
     NAME seqan3
     GITHUB_REPOSITORY seqan/seqan3
-    GIT_TAG 3b4f6442f632b0b64f0a7d3172f2d71307b6af1d
+    GIT_TAG bfa237e284756df64860d8bc42dd3b0bd7053266
     EXCLUDE_FROM_ALL TRUE
     SYSTEM TRUE
     OPTIONS
