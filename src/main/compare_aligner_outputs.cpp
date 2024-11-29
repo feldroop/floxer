@@ -559,8 +559,8 @@ void print_alignment_statistics(
 
     size_t num_multiple_mapping = 0;
 
-    size_t longest_indel_sum = 0;
-    double basic_alignments_error_rate_sum = 0.0;
+    size_t primary_basic_longest_indel_sum = 0;
+    double primary_basic_alignments_error_rate_sum = 0.0;
 
     size_t num_subset_queries = 0;
 
@@ -577,8 +577,9 @@ void print_alignment_statistics(
             ++num_best_high_edit_distance;
         }
 
-        if (alignment_data.has_basic(floxer_allowed_error_rate)) {
-            basic_alignments_error_rate_sum += alignment_data.primary_error_rate().value();
+        if (alignment_data.has_primary_linear_basic(floxer_allowed_error_rate)) {
+            primary_basic_alignments_error_rate_sum += alignment_data.primary_error_rate().value();
+            primary_basic_longest_indel_sum += alignment_data.longest_indel;
             ++num_basic;
         }
 
@@ -586,7 +587,6 @@ void print_alignment_statistics(
             ++num_multiple_mapping;
         }
 
-        longest_indel_sum += alignment_data.longest_indel;
         ++num_subset_queries;
     }
     // basic = not significantly clipped
@@ -596,10 +596,13 @@ void print_alignment_statistics(
     print_value("num_best_high_edit_distance", num_best_high_edit_distance, num_subset_queries, num_queries);
     print_value("num_basic", num_basic, num_subset_queries, num_queries);
     print_value("multiple_mapping", num_multiple_mapping, num_subset_queries, num_queries);
-    fmt::print("average_longest_indel = {:.2f}\n", longest_indel_sum / static_cast<double>(num_subset_queries));
     fmt::print(
-        "basic_alignments_error_rate_sum = {:.4f}\n",
-        basic_alignments_error_rate_sum / static_cast<double>(num_basic)
+        "primary_basic_average_longest_indel = {}\n",
+        primary_basic_longest_indel_sum / static_cast<double>(num_basic)
+    );
+    fmt::print(
+        "primary_basic_alignments_average_error_rate = {}\n",
+        primary_basic_alignments_error_rate_sum / static_cast<double>(num_basic)
     );
 }
 
