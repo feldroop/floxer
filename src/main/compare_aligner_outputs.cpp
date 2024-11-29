@@ -54,6 +54,8 @@ struct alignment_record_t {
 
     bool const is_inversion;
 
+    size_t const longest_indel;
+
     // possible extensions:
     // - edit distance including clipped
     // - distance function with affine/convex gap costs
@@ -104,8 +106,6 @@ struct alignment_data_for_query_t {
     std::vector<alignment_record_t> secondary_linear_clipped_alignments{};
     std::vector<alignment_record_t> secondary_inverted_alignments{};
     std::vector<alignment_record_t> secondary_supplementary_alignments{};
-
-    size_t longest_indel{0};
 
     void check_floxer_expectations() const {
         if (!secondary_linear_high_edit_distance_alignments.empty()) {
@@ -253,6 +253,41 @@ struct alignment_data_for_query_t {
         return has_primary_linear_basic(floxer_allowed_error_rate)
             || !secondary_linear_basic_alignments.empty();
     }
+
+    // gives values for primary or average amongst secondary basics
+    double basic_error_rate(double const floxer_allowed_error_rate) const {
+        if (!has_basic(floxer_allowed_error_rate)) {
+            throw std::runtime_error("alignment data has no basic alignment");
+        }
+
+        if (has_primary_linear_basic(floxer_allowed_error_rate)) {
+            return primary_alignment.value().edit_distance_error_rate;
+        }
+
+        double sum = 0.0;
+        for (auto const& alignment : secondary_linear_basic_alignments) {
+            sum += alignment.edit_distance_error_rate;
+        }
+
+        return sum / secondary_linear_basic_alignments.size();
+    }
+
+    double basic_longest_indel(double const floxer_allowed_error_rate) const {
+        if (!has_basic(floxer_allowed_error_rate)) {
+            throw std::runtime_error("alignment data has no basic alignment");
+        }
+
+        if (has_primary_linear_basic(floxer_allowed_error_rate)) {
+            return primary_alignment.value().longest_indel;
+        }
+
+        double sum = 0.0;
+        for (auto const& alignment : secondary_linear_basic_alignments) {
+            sum += alignment.longest_indel;
+        }
+
+        return sum / secondary_linear_basic_alignments.size();
+    }
 };
 
 struct query_data_t {
@@ -345,6 +380,8 @@ void read_alignments(
         size_t num_soft_clipped_bases = 0;
         size_t num_hard_clipped_bases = 0;
 
+        size_t longest_indel = 0;
+
         for (auto const [count, operation] : record.cigar_sequence()) {
             if (
                 operation == 'I'_cigar_operation || operation == 'M'_cigar_operation ||
@@ -381,7 +418,7 @@ void read_alignments(
             }
 
             if (operation == 'I'_cigar_operation || operation == 'D'_cigar_operation) {
-                alignment_data.longest_indel = std::max(alignment_data.longest_indel, static_cast<size_t>(count));
+                longest_indel = std::max(longest_indel, static_cast<size_t>(count));
             }
         }
 
@@ -434,7 +471,9 @@ void read_alignments(
             .edit_distance = edit_distance,
             .edit_distance_error_rate = edit_distance_error_rate,
 
-            .is_inversion = is_inversion
+            .is_inversion = is_inversion,
+
+            .longest_indel = longest_indel
         };
 
         if (
@@ -559,8 +598,8 @@ void print_alignment_statistics(
 
     size_t num_multiple_mapping = 0;
 
-    size_t primary_basic_longest_indel_sum = 0;
-    double primary_basic_alignments_error_rate_sum = 0.0;
+    double basic_longest_indel_sum = 0;
+    double basic_alignments_error_rate_sum = 0.0;
 
     size_t num_subset_queries = 0;
 
@@ -577,9 +616,9 @@ void print_alignment_statistics(
             ++num_best_high_edit_distance;
         }
 
-        if (alignment_data.has_primary_linear_basic(floxer_allowed_error_rate)) {
-            primary_basic_alignments_error_rate_sum += alignment_data.primary_error_rate().value();
-            primary_basic_longest_indel_sum += alignment_data.longest_indel;
+        if (alignment_data.has_basic(floxer_allowed_error_rate)) {
+            basic_alignments_error_rate_sum += alignment_data.basic_error_rate(floxer_allowed_error_rate);
+            basic_longest_indel_sum += alignment_data.basic_longest_indel(floxer_allowed_error_rate);
             ++num_basic;
         }
 
@@ -589,7 +628,8 @@ void print_alignment_statistics(
 
         ++num_subset_queries;
     }
-    // basic = not significantly clipped
+
+    // basic = linear, not significantly clipped, not higher error rate than in floxer config
     fmt::print("num_queries = {}\n", num_subset_queries);
     print_value("num_best_chimeric_or_inversion", num_best_chimeric_or_inversion, num_subset_queries, num_queries);
     print_value("num_best_significantly_clipped", num_best_significantly_clipped, num_subset_queries, num_queries);
@@ -597,12 +637,12 @@ void print_alignment_statistics(
     print_value("num_basic", num_basic, num_subset_queries, num_queries);
     print_value("multiple_mapping", num_multiple_mapping, num_subset_queries, num_queries);
     fmt::print(
-        "primary_basic_average_longest_indel = {}\n",
-        primary_basic_longest_indel_sum / static_cast<double>(num_basic)
+        "basic_average_longest_indel = {}\n",
+        basic_longest_indel_sum / static_cast<double>(num_basic)
     );
     fmt::print(
-        "primary_basic_alignments_average_error_rate = {}\n",
-        primary_basic_alignments_error_rate_sum / static_cast<double>(num_basic)
+        "basic_alignments_average_error_rate = {}\n",
+        basic_alignments_error_rate_sum / static_cast<double>(num_basic)
     );
 }
 
