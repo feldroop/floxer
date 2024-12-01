@@ -42,6 +42,7 @@ struct shared_verification_data {
     input::query_record const query;
     input::references const& references;
     pex::pex_tree const pex_tree;
+    cli::command_line_input const& cli_input;
     pex::pex_verification_config const config;
     intervals::verified_intervals_for_all_references verified_intervals_forward;
     intervals::verified_intervals_for_all_references verified_intervals_reverse_complement;

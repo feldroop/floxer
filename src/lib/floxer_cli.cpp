@@ -102,7 +102,11 @@ std::optional<size_t> command_line_input::timeout_seconds() const {
 }
 
 std::optional<std::string> command_line_input::stats_target() const {
-    return stats_target_.value;
+    return stats_target_.value.empty() ? std::nullopt : std::make_optional(stats_target_.value);
+}
+
+std::string command_line_input::stats_input_hint() const {
+    return stats_input_hint_.value;
 }
 
 std::string command_line_input::command_line_call() const {
@@ -132,7 +136,8 @@ std::string command_line_input::command_line_call() const {
 
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
-        stats_target().has_value() ? stats_target_.command_line_call() : ""
+        stats_target().has_value() ? stats_target_.command_line_call() : "",
+        stats_input_hint().empty() ? "" : stats_input_hint_.command_line_call()
     };
 
     return fmt::format("{}", fmt::join(individual_calls, ""));
@@ -339,6 +344,15 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
             "will be written to stderr. Otherwise it can be a path to a file and the stats are written to this "
             "location in TOML format.",
         .advanced = true
+    });
+
+    parser.add_option(stats_input_hint_.value, sharg::config{
+        .short_id = stats_input_hint_.short_id,
+        .long_id = stats_input_hint_.long_id,
+        .description = "Hint for the stats generation to use for the histogram binning. The allowed values "
+        "lead to hardcoded parameters that fit specific data sets this program was evaluated with at some point.",
+        .advanced = true,
+        .validator = sharg::value_list_validator{ std::vector{ "real_nanopore", "simulated" } }
     });
 
     parser.parse();

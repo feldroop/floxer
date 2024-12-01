@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
         references.records
     );
 
-    mutex_guarded<statistics::search_and_alignment_statistics> global_stats;
+    mutex_guarded<statistics::search_and_alignment_statistics> global_stats(cli_input.stats_input_hint());
     std::atomic_bool threads_should_stop = false;
 
     if (cli_input.timeout_seconds().has_value()) {

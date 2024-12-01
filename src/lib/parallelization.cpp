@@ -101,7 +101,7 @@ void spawn_search_task(
                     forward_search_result, reverse_complement_search_result, cli_input
                 );
 
-                statistics::search_and_alignment_statistics local_stats;
+                statistics::search_and_alignment_statistics local_stats(cli_input.stats_input_hint());
                 local_stats.add_query_length(query.rank_sequence.size());
                 local_stats.add_statistics_for_seeds(forward_seeds, reverse_complement_seeds);
                 local_stats.add_statistics_for_search_result(forward_search_result, reverse_complement_search_result);
@@ -161,7 +161,7 @@ shared_verification_data::shared_verification_data(
     input::query_record const query_,
     input::references const& references_,
     pex::pex_tree const pex_tree_,
-    cli::command_line_input const& cli_input,
+    cli::command_line_input const& cli_input_,
     mutex_guarded<output::alignment_output>& alignment_output_,
     size_t const num_verification_tasks_,
     mutex_guarded<statistics::search_and_alignment_statistics>& global_stats_,
@@ -169,6 +169,7 @@ shared_verification_data::shared_verification_data(
 ) : query{std::move(query_)},
     references{references_},
     pex_tree{std::move(pex_tree_)},
+    cli_input(cli_input_),
     config(cli_input),
     verified_intervals_forward(intervals::create_thread_safe_verified_intervals(
         references.records.size(),
@@ -211,7 +212,7 @@ void spawn_verification_task(
                 );
                 spdlog::stopwatch const stopwatch;
 
-                statistics::search_and_alignment_statistics local_stats;
+                statistics::search_and_alignment_statistics local_stats(data->cli_input.stats_input_hint());
 
                 auto const& query = package.orientation == alignment::query_orientation::forward ?
                             data->query.rank_sequence : data->query.reverse_complement_rank_sequence;

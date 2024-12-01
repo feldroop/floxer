@@ -62,6 +62,7 @@ class command_line_input {
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
     cli_option<std::string> stats_target_{ 'a', "stats", "" };
+    cli_option<std::string> stats_input_hint_{ 'u', "stats-input-hint", "" };
 
 public:
     void parse_and_validate(int argc, char ** argv);
@@ -90,6 +91,7 @@ public:
     size_t num_threads() const;
     std::optional<size_t> timeout_seconds() const;
     std::optional<std::string> stats_target() const;
+    std::string stats_input_hint() const;
 
     // not the exact one, but a sanitized and canonical version
     std::string command_line_call() const;

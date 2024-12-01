@@ -6,6 +6,60 @@
 
 namespace statistics {
 
+static const search_and_alignment_statistics::histogram_config_set configs_for_real_nanopore_wgs {
+    .small_values_linear_scale{
+        .thresholds = internal::linear_range(30, 100)
+    },
+    .medium_values_linear_scale{
+        .thresholds = internal::linear_range(30, 1000)
+    },
+    .tiny_values_linear_scale{
+        .thresholds = { 0, 1, 2, 3, 4 }
+    },
+    .practical_query_length_scale{
+        .thresholds = internal::linear_range(30, 150'000)
+    },
+    .practical_anchor_scale{
+        .thresholds = internal::linear_range(30, 10'000)
+    },
+    .kept_anchor_per_seed_scale{
+        .thresholds = internal::linear_range(30, 200)
+    },
+    .edit_distance_scale{
+        .thresholds = internal::linear_range(30, 3000)
+    },
+    .practical_time_scale{
+        .thresholds = internal::linear_range(30, 20'000)
+    },
+};
+
+static const search_and_alignment_statistics::histogram_config_set configs_for_simulated {
+    .small_values_linear_scale{
+        .thresholds = internal::linear_range(30, 100)
+    },
+    .medium_values_linear_scale{
+        .thresholds = internal::linear_range(30, 1000)
+    },
+    .tiny_values_linear_scale{
+        .thresholds = { 0, 1, 2, 3, 4 }
+    },
+    .practical_query_length_scale{
+        .thresholds = internal::linear_range(30, 10'000)
+    },
+    .practical_anchor_scale{
+        .thresholds = internal::linear_range(30, 1000)
+    },
+    .kept_anchor_per_seed_scale{
+        .thresholds = internal::linear_range(30, 200)
+    },
+    .edit_distance_scale{
+        .thresholds = internal::linear_range(30, 1000)
+    },
+    .practical_time_scale{
+        .thresholds = internal::linear_range(30, 3000)
+    },
+};
+
 std::string search_and_alignment_statistics::count::format_to_string_for_stdout() const {
     return fmt::format("number of {}: {}", name, value);
 }
@@ -150,6 +204,37 @@ search_and_alignment_statistics::histogram_by_name(std::string const& name) cons
     }
 
     return *iter;
+}
+
+search_and_alignment_statistics::search_and_alignment_statistics(std::string_view const input_hint) {
+    histogram_config_set configs = configs_for_real_nanopore_wgs;
+
+    if (input_hint == "real_nanopore" || input_hint.empty()) {
+        // do nothing, this is default
+    } else if (input_hint == "simulated") {
+        configs = configs_for_simulated;
+    } else {
+        throw std::runtime_error("unknown stats input hint");
+    }
+
+    histograms = std::vector<histogram>{
+        histogram{configs.practical_query_length_scale, query_lengths_name},
+        histogram{configs.small_values_linear_scale, seed_lengths_name},
+        histogram{configs.tiny_values_linear_scale, errors_per_seed_name},
+        histogram{configs.medium_values_linear_scale, seeds_per_query_name},
+        histogram{configs.kept_anchor_per_seed_scale, anchors_per_seed_name},
+        histogram{configs.kept_anchor_per_seed_scale, kept_anchors_per_partly_excluded_seed_name},
+        histogram{configs.practical_anchor_scale, raw_anchors_per_excluded_seed_name},
+        histogram{configs.practical_anchor_scale, anchors_per_query_name},
+        histogram{configs.practical_anchor_scale, excluded_raw_anchors_per_query_name},
+        histogram{configs.practical_query_length_scale, reference_span_sizes_aligned_inner_nodes_name},
+        histogram{configs.practical_query_length_scale, reference_span_sizes_aligned_root_name},
+        histogram{configs.practical_query_length_scale, reference_span_sizes_avoided_root_name},
+        histogram{configs.small_values_linear_scale, alignments_per_query_name},
+        histogram{configs.edit_distance_scale, alignments_edit_distance_name},
+        histogram{configs.practical_time_scale, milliseconds_spent_in_search_per_query_name},
+        histogram{configs.practical_time_scale, milliseconds_spent_in_verification_per_query_name}
+    };
 }
 
 void search_and_alignment_statistics::increment_count(std::string const& target_name) {

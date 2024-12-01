@@ -8,6 +8,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <spdlog/fmt/fmt.h>
@@ -21,38 +22,23 @@ std::vector<size_t> linear_range(size_t const num_steps, size_t const max);
 } // namespace internal
 
 class search_and_alignment_statistics {
+public:
     struct histogram_config {
         std::vector<size_t> thresholds;
     };
 
-    static inline const histogram_config small_values_linear_scale{
-        .thresholds = internal::linear_range(30, 100)
+    struct histogram_config_set {
+        histogram_config small_values_linear_scale;
+        histogram_config medium_values_linear_scale;
+        histogram_config tiny_values_linear_scale;
+        histogram_config practical_query_length_scale;
+        histogram_config practical_anchor_scale;
+        histogram_config kept_anchor_per_seed_scale;
+        histogram_config edit_distance_scale;
+        histogram_config practical_time_scale;
     };
 
-    static inline const histogram_config medium_values_linear_scale{
-        .thresholds = internal::linear_range(30, 1000)
-    };
-
-    static inline const histogram_config tiny_values_linear_scale{
-        .thresholds = { 0, 1, 2, 3, 4 }
-    };
-
-    static inline const histogram_config practical_query_length_scale{
-        .thresholds = internal::linear_range(30, 150'000)
-    };
-
-    static inline const histogram_config practical_anchor_scale{
-        .thresholds = internal::linear_range(30, 10'000)
-    };
-
-    static inline const histogram_config kept_anchor_per_seed_scale{
-        .thresholds = internal::linear_range(30, 200)
-    };
-
-    static inline const histogram_config edit_distance_scale{
-        .thresholds = internal::linear_range(30, 3000)
-    };
-
+private:
     struct count {
         std::string const name;
         size_t value = 0;
@@ -106,24 +92,7 @@ class search_and_alignment_statistics {
     static inline const std::string milliseconds_spent_in_search_per_query_name = "milliseconds spent in search per query";
     static inline const std::string milliseconds_spent_in_verification_per_query_name = "milliseconds spent in verification per query";
 
-    std::vector<histogram> histograms{
-        histogram{practical_query_length_scale, query_lengths_name},
-        histogram{small_values_linear_scale, seed_lengths_name},
-        histogram{tiny_values_linear_scale, errors_per_seed_name},
-        histogram{medium_values_linear_scale, seeds_per_query_name},
-        histogram{kept_anchor_per_seed_scale, anchors_per_seed_name},
-        histogram{kept_anchor_per_seed_scale, kept_anchors_per_partly_excluded_seed_name},
-        histogram{practical_anchor_scale, raw_anchors_per_excluded_seed_name},
-        histogram{practical_anchor_scale, anchors_per_query_name},
-        histogram{practical_anchor_scale, excluded_raw_anchors_per_query_name},
-        histogram{practical_query_length_scale, reference_span_sizes_aligned_inner_nodes_name},
-        histogram{practical_query_length_scale, reference_span_sizes_aligned_root_name},
-        histogram{practical_query_length_scale, reference_span_sizes_avoided_root_name},
-        histogram{small_values_linear_scale, alignments_per_query_name},
-        histogram{edit_distance_scale, alignments_edit_distance_name},
-        histogram{practical_query_length_scale, milliseconds_spent_in_search_per_query_name},
-        histogram{practical_query_length_scale, milliseconds_spent_in_verification_per_query_name}
-    };
+    std::vector<histogram> histograms;
 
     count& count_by_name(std::string const& name);
     count const& count_by_name(std::string const& name) const;
@@ -135,6 +104,8 @@ class search_and_alignment_statistics {
     void insert_value_to(std::string const& target_name, size_t const value);
 
 public:
+    search_and_alignment_statistics(std::string_view const input_hint);
+
     void increment_num_completely_excluded_queries();
 
     void add_query_length(size_t const value);
