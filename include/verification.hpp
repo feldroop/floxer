@@ -72,7 +72,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    bool const use_cigar,
+    bool const reduced_output,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 );

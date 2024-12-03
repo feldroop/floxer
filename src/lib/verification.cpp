@@ -206,9 +206,9 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     auto mode = alignment::alignment_mode::only_verify_existance;
     if (pex_node.is_root()) {
         if (reduced_output) {
-            mode = alignment::alignment_mode::verify_and_return_alignment_with_cigar;
-        } else {
             mode = alignment::alignment_mode::verify_and_return_alignment_without_cigar;
+        } else {
+            mode = alignment::alignment_mode::verify_and_return_alignment_with_cigar;
         }
     }
 
