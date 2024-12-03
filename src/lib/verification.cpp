@@ -5,7 +5,7 @@
 
 namespace verification {
 
-void query_verifier::verify(pex::verification_kind_t const kind) {
+void query_verifier::verify() {
     switch (kind) {
         case pex::verification_kind_t::direct_full:
             direct_full_verification();
@@ -26,12 +26,13 @@ void query_verifier::direct_full_verification() {
     }
 
     auto const root_reference_span_config = compute_root_reference_span_config();
-    [[maybe_unused]] auto const outcome = internal::try_to_align_pex_node_query_with_reference_span(
+    internal::try_to_align_pex_node_query_with_reference_span(
         pex_tree.root(),
         reference,
         root_reference_span_config,
         query,
         orientation,
+        reduced_output,
         alignments,
         stats
     );
@@ -55,6 +56,7 @@ void query_verifier::hierarchical_verification() {
             root_reference_span_config,
             query,
             orientation,
+            reduced_output,
             alignments,
             stats
         );
@@ -96,6 +98,7 @@ void query_verifier::hierarchical_verification() {
             reference_span_config,
             query,
             orientation,
+            reduced_output,
             alignments,
             stats
         );
@@ -186,6 +189,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
+    bool const reduced_output,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 ) {
@@ -199,13 +203,20 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
         reference_span_config.length
     );
 
+    auto mode = alignment::alignment_mode::only_verify_existance;
+    if (pex_node.is_root()) {
+        if (reduced_output) {
+            mode = alignment::alignment_mode::verify_and_return_alignment_with_cigar;
+        } else {
+            mode = alignment::alignment_mode::verify_and_return_alignment_without_cigar;
+        }
+    }
+
     auto const config = alignment::alignment_config {
         .reference_span_offset = reference_span_config.offset,
         .num_allowed_errors = pex_node.num_errors,
         .orientation = orientation,
-        .mode = pex_node.is_root() ?
-            alignment::alignment_mode::verify_and_return_alignment :
-            alignment::alignment_mode::only_verify_existance
+        .mode = mode
     };
 
     auto const alignment_result = alignment::align(

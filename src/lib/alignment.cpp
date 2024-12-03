@@ -111,6 +111,35 @@ alignment_result align(
         };
     }
 
+    // need to duplicate code, because the config difference is encoded on type level and affects all of the returned types as well
+    if (config.mode == alignment_mode::verify_and_return_alignment_without_cigar) {
+        auto without_cigar_config = seqan3::align_cfg::output_score{} | seqan3::align_cfg::output_begin_position{};
+
+        auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | without_cigar_config);
+        auto const alignment = *alignment_results.begin();
+
+        // if no alignment could be found, the score is set to this value by the min_score configuration
+        auto const infinite = std::numeric_limits<decltype(alignment.score())>::max();
+
+        if (alignment.score() == infinite) {
+            return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
+        }
+
+        assert(alignment.sequence2_begin_position() == 0);
+
+        return alignment_result {
+            .outcome = alignment_outcome::alignment_exists,
+            .alignment = query_alignment {
+                .start_in_reference = config.reference_span_offset + alignment.sequence1_begin_position(),
+                .num_errors = static_cast<size_t>(std::abs(alignment.score())),
+                .orientation = config.orientation,
+                .cigar{}
+            }
+        };
+    }
+
+    assert(config.mode == alignment_mode::verify_and_return_alignment_with_cigar);
+
     size_t const reference_surplus_size = reference.size() >= query.size() ? reference.size() - query.size() : 0;
     size_t const estimated_band_size = 2 * config.num_allowed_errors + reference_surplus_size;
     size_t const estimated_matrix_size = reference.size() * estimated_band_size;

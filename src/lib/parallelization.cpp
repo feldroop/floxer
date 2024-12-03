@@ -234,13 +234,15 @@ void spawn_verification_task(
                         .query = query,
                         .orientation = package.orientation,
                         .reference = data->references.records[anchor.reference_id],
+                        .kind = data->config.verification_kind,
                         .already_verified_intervals = verified_intervals_for_all_references.at(anchor.reference_id),
                         .extra_verification_ratio = data->config.extra_verification_ratio,
+                        .reduced_output = data->cli_input.reduced_output(),
                         .alignments = this_tasks_alignments,
                         .stats = local_stats
                     };
 
-                    verifier.verify(data->config.verification_kind);
+                    verifier.verify();
                 }
 
                 spdlog::debug("finished verifiying package {} of query {}: {}", package.package_id, data->query.internal_id, data->query.id);

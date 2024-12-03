@@ -93,6 +93,11 @@ size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
 
+bool command_line_input::reduced_output() const {
+    return reduced_output_.value;
+}
+
+
 std::optional<size_t> command_line_input::timeout_seconds() const {
     if (timeout_seconds_.value == 0) {
         return std::nullopt;
@@ -133,6 +138,7 @@ std::string command_line_input::command_line_call() const {
         direct_full_verification() ? direct_full_verification_.command_line_call() : "",
 
         num_anchors_per_verification_task_.command_line_call(),
+        reduced_output() ? reduced_output_.command_line_call() : "",
 
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
@@ -230,8 +236,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     parser.add_flag(console_debug_logs_.value, sharg::config{
         .short_id = console_debug_logs_.short_id,
         .long_id = console_debug_logs_.long_id,
-        .description = "Print debug and trace logs into stderr (usually observable on the console).",
-        .advanced = false
+        .description = "Print debug and trace logs into stderr (usually observable on the console)."
     });
 
     parser.add_option(query_num_errors_.value, sharg::config{
@@ -324,6 +329,13 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .description = "The number of anchors to give each verification task. A lower number means potentially "
             "better work division, but a higher parallelization overhead.",
         .validator = sharg::arithmetic_range_validator{1ul, std::numeric_limits<size_t>::max()}
+    });
+
+    parser.add_flag(reduced_output_.value, sharg::config{
+        .short_id = reduced_output_.short_id,
+        .long_id = reduced_output_.long_id,
+        .description = "Do not include CIGAR strings into output file.",
+        .advanced = true
     });
 
     parser.add_option(timeout_seconds_.value, sharg::config{
