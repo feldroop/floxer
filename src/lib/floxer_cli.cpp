@@ -334,7 +334,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     parser.add_flag(reduced_output_.value, sharg::config{
         .short_id = reduced_output_.short_id,
         .long_id = reduced_output_.long_id,
-        .description = "Do not include CIGAR strings into output file.",
+        .description = "Do not include CIGAR strings into output file and only report approximate mapping position.",
         .advanced = true
     });
 

@@ -51,7 +51,7 @@ public:
 };
 
 enum class alignment_mode {
-    only_verify_existance, verify_and_return_alignment_with_cigar, verify_and_return_alignment_without_cigar
+    only_verify_existance, verify_and_return_alignment_with_cigar, verify_and_return_reduced_output
 };
 
 struct alignment_config {

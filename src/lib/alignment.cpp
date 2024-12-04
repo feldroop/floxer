@@ -95,9 +95,8 @@ alignment_result align(
     | seqan3::align_cfg::edit_scheme
     | seqan3::align_cfg::min_score{min_score};
 
+    auto small_output_config = seqan3::align_cfg::output_score{};
     if (config.mode == alignment_mode::only_verify_existance) {
-        auto small_output_config = seqan3::align_cfg::output_score{};
-
         auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | small_output_config);
         auto const alignment = *alignment_results.begin();
 
@@ -112,10 +111,8 @@ alignment_result align(
     }
 
     // need to duplicate code, because the config difference is encoded on type level and affects all of the returned types as well
-    if (config.mode == alignment_mode::verify_and_return_alignment_without_cigar) {
-        auto without_cigar_config = seqan3::align_cfg::output_score{} | seqan3::align_cfg::output_begin_position{};
-
-        auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | without_cigar_config);
+    if (config.mode == alignment_mode::verify_and_return_reduced_output) {
+        auto alignment_results = seqan3::align_pairwise(std::tie(reference, query), aligner_config | small_output_config);
         auto const alignment = *alignment_results.begin();
 
         // if no alignment could be found, the score is set to this value by the min_score configuration
@@ -125,12 +122,10 @@ alignment_result align(
             return alignment_result { .outcome = alignment_outcome::no_adequate_alignment_exists };
         }
 
-        assert(alignment.sequence2_begin_position() == 0);
-
         return alignment_result {
             .outcome = alignment_outcome::alignment_exists,
             .alignment = query_alignment {
-                .start_in_reference = config.reference_span_offset + alignment.sequence1_begin_position(),
+                .start_in_reference = config.reference_span_offset, // sequence1 begin position missing here, approx. output
                 .num_errors = static_cast<size_t>(std::abs(alignment.score())),
                 .orientation = config.orientation,
                 .cigar{}
