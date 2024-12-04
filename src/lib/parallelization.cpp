@@ -237,7 +237,7 @@ void spawn_verification_task(
                         .kind = data->config.verification_kind,
                         .already_verified_intervals = verified_intervals_for_all_references.at(anchor.reference_id),
                         .extra_verification_ratio = data->config.extra_verification_ratio,
-                        .reduced_output = data->cli_input.reduced_output(),
+                        .without_cigar = data->cli_input.without_cigar(),
                         .alignments = this_tasks_alignments,
                         .stats = local_stats
                     };

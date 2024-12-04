@@ -93,8 +93,8 @@ size_t command_line_input::num_threads() const {
     return num_threads_.value;
 }
 
-bool command_line_input::reduced_output() const {
-    return reduced_output_.value;
+bool command_line_input::without_cigar() const {
+    return without_cigar_.value;
 }
 
 
@@ -138,7 +138,7 @@ std::string command_line_input::command_line_call() const {
         direct_full_verification() ? direct_full_verification_.command_line_call() : "",
 
         num_anchors_per_verification_task_.command_line_call(),
-        reduced_output() ? reduced_output_.command_line_call() : "",
+        without_cigar() ? without_cigar_.command_line_call() : "",
 
         num_threads_.command_line_call(),
         timeout_seconds().has_value() ? timeout_seconds_.command_line_call() : "",
@@ -331,10 +331,10 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .validator = sharg::arithmetic_range_validator{1ul, std::numeric_limits<size_t>::max()}
     });
 
-    parser.add_flag(reduced_output_.value, sharg::config{
-        .short_id = reduced_output_.short_id,
-        .long_id = reduced_output_.long_id,
-        .description = "Do not include CIGAR strings into output file and only report approximate mapping position.",
+    parser.add_flag(without_cigar_.value, sharg::config{
+        .short_id = without_cigar_.short_id,
+        .long_id = without_cigar_.long_id,
+        .description = "Do not include CIGAR strings into output file. This reduces running time, and memory a lot.",
         .advanced = true
     });
 

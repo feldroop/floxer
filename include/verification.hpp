@@ -42,7 +42,7 @@ public:
     pex::verification_kind_t const kind;
     shared_mutex_guarded<intervals::verified_intervals>& already_verified_intervals;
     double const extra_verification_ratio;
-    bool const reduced_output;
+    bool const without_cigar;
     alignment::query_alignments& alignments;
     statistics::search_and_alignment_statistics& stats;
 };
@@ -72,7 +72,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    bool const reduced_output,
+    bool const without_cigar,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 );

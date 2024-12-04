@@ -58,7 +58,7 @@ class command_line_input {
     cli_option<bool> direct_full_verification_{ 'd', "direct-full-verification", false };
 
     cli_option<size_t> num_anchors_per_verification_task_{ 'u', "num-anchors-per-task", 3000 };
-    cli_option<bool> reduced_output_{ 'z', "reduced-output", false };
+    cli_option<bool> without_cigar_{ 'w', "without-cigar", false };
 
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
@@ -88,7 +88,7 @@ public:
     bool direct_full_verification() const;
 
     size_t num_anchors_per_verification_task() const;
-    bool reduced_output() const;
+    bool without_cigar() const;
 
     size_t num_threads() const;
     std::optional<size_t> timeout_seconds() const;

@@ -32,7 +32,7 @@ void query_verifier::direct_full_verification() {
         root_reference_span_config,
         query,
         orientation,
-        reduced_output,
+        without_cigar,
         alignments,
         stats
     );
@@ -56,7 +56,7 @@ void query_verifier::hierarchical_verification() {
             root_reference_span_config,
             query,
             orientation,
-            reduced_output,
+            without_cigar,
             alignments,
             stats
         );
@@ -98,7 +98,7 @@ void query_verifier::hierarchical_verification() {
             reference_span_config,
             query,
             orientation,
-            reduced_output,
+            without_cigar,
             alignments,
             stats
         );
@@ -189,7 +189,7 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
     span_config const reference_span_config,
     std::span<const uint8_t> const query,
     alignment::query_orientation const orientation,
-    bool const reduced_output,
+    bool const without_cigar,
     alignment::query_alignments& alignments,
     statistics::search_and_alignment_statistics& stats
 ) {
@@ -205,8 +205,8 @@ alignment::alignment_outcome try_to_align_pex_node_query_with_reference_span(
 
     auto mode = alignment::alignment_mode::only_verify_existance;
     if (pex_node.is_root()) {
-        if (reduced_output) {
-            mode = alignment::alignment_mode::verify_and_return_reduced_output;
+        if (without_cigar) {
+            mode = alignment::alignment_mode::verify_and_return_alignment_without_cigar;
         } else {
             mode = alignment::alignment_mode::verify_and_return_alignment_with_cigar;
         }
