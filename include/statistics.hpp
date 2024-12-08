@@ -76,19 +76,27 @@ private:
     };
 
     static inline const std::string query_lengths_name = "query lengths";
+
     static inline const std::string seed_lengths_name = "seed lengths";
     static inline const std::string errors_per_seed_name = "errors per seed";
     static inline const std::string seeds_per_query_name = "seeds per query";
-    static inline const std::string anchors_per_seed_name = "anchors per non excluded seed";
-    static inline const std::string kept_anchors_per_partly_excluded_seed_name = "kept anchors per partly excluded seed";
-    static inline const std::string raw_anchors_per_excluded_seed_name = "raw anchors per fully excluded seed";
-    static inline const std::string anchors_per_query_name = "anchors per query from non excluded seeds";
-    static inline const std::string excluded_raw_anchors_per_query_name = "excluded raw anchors per query";
+
+    static inline const std::string fully_excluded_seeds_per_query_name = "fully excluded seeds per query";
+    static inline const std::string kept_anchors_per_query_name = "anchors per query from non excluded seeds";
+    static inline const std::string excluded_raw_anchors_by_soft_cap_per_query_name = "excluded raw anchors by soft cap per query";
+    static inline const std::string excluded_raw_anchors_by_erase_useless_per_query_name = "excluded raw anchors by erase useless per query";
+
+    static inline const std::string kept_anchors_per_kept_seed_name = "kept anchors per kept seed";
+    static inline const std::string excluded_raw_anchors_by_soft_cap_per_kept_seed_name = "excluded raw anchors by soft cap per kept seed";
+    static inline const std::string excluded_raw_anchors_by_erase_useless_per_kept_seed_name = "excluded raw anchors by erase useless per kept seed";
+
     static inline const std::string reference_span_sizes_aligned_inner_nodes_name = "reference span sizes aligned of inner nodes";
     static inline const std::string reference_span_sizes_aligned_root_name = "reference span sizes aligned of roots";
     static inline const std::string reference_span_sizes_avoided_root_name = "reference span sizes alignment avoided of roots";
+
     static inline const std::string alignments_per_query_name = "alignments per query";
     static inline const std::string alignments_edit_distance_name = "alignments edit distance";
+
     static inline const std::string milliseconds_spent_in_search_per_query_name = "milliseconds spent in search per query";
     static inline const std::string milliseconds_spent_in_verification_per_query_name = "milliseconds spent in verification per query";
 
@@ -102,7 +110,6 @@ private:
 
     void increment_count(std::string const& target_name);
     void insert_value_to(std::string const& target_name, size_t const value);
-
 public:
     search_and_alignment_statistics(std::string_view const input_hint);
 
@@ -121,15 +128,19 @@ public:
         std::vector<search::seed> const& reverse_complement_seeds
     );
 
-    void add_num_anchors_per_seed(size_t const value);
+    void add_num_fully_excluded_seeds_per_query(size_t const value);
 
-    void add_num_kept_anchors_per_partly_excluded_seed(size_t const value);
+    void add_num_kept_anchors_per_query(size_t const value);
 
-    void add_num_raw_anchors_per_excluded_seed(size_t const value);
+    void add_num_excluded_raw_anchors_by_soft_cap_per_query(size_t const value);
 
-    void add_num_anchors_per_query(size_t const value);
+    void add_num_excluded_raw_anchors_by_erase_useless_per_query(size_t const value);
 
-    void add_num_excluded_raw_anchors_per_query(size_t const value);
+    void add_num_kept_anchors_per_kept_seed(size_t const value);
+
+    void add_num_excluded_raw_anchors_by_soft_cap_per_kept_seed(size_t const value);
+
+    void add_num_excluded_raw_anchors_by_erase_useless_per_kept_seed(size_t const value);
 
     void add_reference_span_size_aligned_inner_node(size_t const value);
 

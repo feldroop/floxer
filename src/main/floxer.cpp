@@ -111,8 +111,12 @@ int main(int argc, char** argv) {
         .index = index,
         .num_reference_sequences = references.records.size(),
         .config = search::search_config{
-            .max_num_anchors = cli_input.max_num_anchors(),
-            .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order())
+            .max_num_anchors_hard = cli_input.max_num_anchors_hard(),
+            .max_num_anchors_soft = cli_input.max_num_anchors_soft(),
+            .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order()),
+            .anchor_choice_strategy = search::anchor_choice_strategy_from_string(
+                cli_input.anchor_choice_strategy()
+            )
         }
     };
 

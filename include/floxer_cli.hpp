@@ -49,11 +49,14 @@ class command_line_input {
     cli_option<double> query_error_probability_{ 'p', "error-probability", NAN };
     cli_option<size_t> pex_seed_num_errors_{ 's', "seed-errors", 2 };
 
-    cli_option<size_t> max_num_anchors_{ 'm', "max-anchors", 100 };
-    cli_option<std::string> anchor_group_order_{ 'g', "anchor-group-order", "hybrid" };
+    cli_option<size_t> max_num_anchors_hard_{ 'M', "max-anchors-hard", 500 };
+    cli_option<size_t> max_num_anchors_soft_{ 'm', "max-anchors-soft", 50 };
+    cli_option<std::string> anchor_group_order_{ 'g', "anchor-group-order", "count_first" };
+    cli_option<std::string> anchor_choice_strategy_{ 'y', "anchor-choice-strategy", "round_robin" };
+    cli_option<size_t> seed_sampling_step_size_{ 'C', "seed-sampling-step-size", 1 };
 
     cli_option<bool> bottom_up_pex_tree_building_{ 'b', "bottom-up-pex-tree", false };
-    cli_option<bool> use_interval_optimization_{ 'n', "interval-optimization", false };
+    cli_option<bool> use_interval_optimization_{ 'I', "interval-optimization", false };
     cli_option<double> extra_verification_ratio_{ 'v', "extra-verification-ratio", 0.05 };
     cli_option<bool> direct_full_verification_{ 'd', "direct-full-verification", false };
 
@@ -62,8 +65,8 @@ class command_line_input {
 
     cli_option<size_t> num_threads_{ 't', "threads", 1 };
     cli_option<size_t> timeout_seconds_{ 'x', "timeout", 0 };
-    cli_option<std::string> stats_target_{ 'a', "stats", "" };
-    cli_option<std::string> stats_input_hint_{ 'y', "stats-input-hint", "" };
+    cli_option<std::string> stats_target_{ 'S', "stats", "" };
+    cli_option<std::string> stats_input_hint_{ 'H', "stats-input-hint", "" };
 
 public:
     void parse_and_validate(int argc, char ** argv);
@@ -79,8 +82,11 @@ public:
     std::optional<double> query_error_probability() const;
     size_t pex_seed_num_errors() const;
 
-    size_t max_num_anchors() const;
+    size_t max_num_anchors_hard() const;
+    size_t max_num_anchors_soft() const;
     std::string anchor_group_order() const;
+    std::string anchor_choice_strategy() const;
+    size_t seed_sampling_step_size() const;
 
     bool bottom_up_pex_tree_building() const;
     bool use_interval_optimization() const;

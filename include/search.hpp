@@ -42,18 +42,22 @@ bool operator==(anchor_t const& lhs, anchor_t const& rhs);
 using anchors_t = std::vector<anchor_t>;
 
 enum class anchor_group_order_t {
-    num_errors_first, count_first, hybrid
+    num_errors_first, count_first
 };
 
 anchor_group_order_t anchor_group_order_from_string(std::string_view const s);
 
-struct search_config {
-    size_t const max_num_anchors;
-    anchor_group_order_t const anchor_group_order;
+enum class anchor_choice_strategy_t {
+    round_robin, full_groups
 };
 
-enum class seed_status {
-    fully_excluded, partly_excluded, not_excluded
+anchor_choice_strategy_t anchor_choice_strategy_from_string(std::string_view const s);
+
+struct search_config {
+    size_t const max_num_anchors_hard;
+    size_t const max_num_anchors_soft;
+    anchor_group_order_t const anchor_group_order;
+    anchor_choice_strategy_t const anchor_choice_strategy;
 };
 
 struct anchor_package {
@@ -73,9 +77,9 @@ struct search_result {
     };
 
     struct anchors_of_seed {
-        seed_status status;
         size_t num_kept_useful_anchors;
-        size_t num_excluded_raw_anchors;
+        size_t num_kept_raw_anchors;
+        size_t num_excluded_raw_anchors_by_soft_cap;
 
         // empty if fully excluded
         std::vector<anchors_t> anchors_by_reference;

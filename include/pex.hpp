@@ -85,7 +85,10 @@ public:
     std::vector<node> const& get_leaves() const;
 
     // returns seeds in the same order as the leaves are stored in the tree (index in vector = seed_id)
-    std::vector<search::seed> generate_seeds(std::span<const uint8_t> const query) const;
+    std::vector<search::seed> generate_seeds(
+        std::span<const uint8_t> const query,
+        size_t const seed_sampling_step_size
+    ) const;
 
     std::string dot_statement() const;
 

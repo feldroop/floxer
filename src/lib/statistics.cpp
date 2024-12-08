@@ -20,7 +20,7 @@ static const search_and_alignment_statistics::histogram_config_set configs_for_r
         .thresholds = internal::linear_range(30, 150'000)
     },
     .practical_anchor_scale{
-        .thresholds = internal::linear_range(30, 10'000)
+        .thresholds = internal::linear_range(30, 30'000)
     },
     .kept_anchor_per_seed_scale{
         .thresholds = internal::linear_range(30, 200)
@@ -219,19 +219,27 @@ search_and_alignment_statistics::search_and_alignment_statistics(std::string_vie
 
     histograms = std::vector<histogram>{
         histogram{configs.practical_query_length_scale, query_lengths_name},
+
         histogram{configs.small_values_linear_scale, seed_lengths_name},
         histogram{configs.tiny_values_linear_scale, errors_per_seed_name},
         histogram{configs.medium_values_linear_scale, seeds_per_query_name},
-        histogram{configs.kept_anchor_per_seed_scale, anchors_per_seed_name},
-        histogram{configs.kept_anchor_per_seed_scale, kept_anchors_per_partly_excluded_seed_name},
-        histogram{configs.practical_anchor_scale, raw_anchors_per_excluded_seed_name},
-        histogram{configs.practical_anchor_scale, anchors_per_query_name},
-        histogram{configs.practical_anchor_scale, excluded_raw_anchors_per_query_name},
+
+        histogram{configs.medium_values_linear_scale, fully_excluded_seeds_per_query_name},
+        histogram{configs.practical_anchor_scale, kept_anchors_per_query_name},
+        histogram{configs.practical_anchor_scale, excluded_raw_anchors_by_soft_cap_per_query_name},
+        histogram{configs.practical_anchor_scale, excluded_raw_anchors_by_erase_useless_per_query_name},
+
+        histogram{configs.kept_anchor_per_seed_scale, kept_anchors_per_kept_seed_name},
+        histogram{configs.kept_anchor_per_seed_scale, excluded_raw_anchors_by_soft_cap_per_kept_seed_name},
+        histogram{configs.kept_anchor_per_seed_scale, excluded_raw_anchors_by_erase_useless_per_kept_seed_name},
+
         histogram{configs.practical_query_length_scale, reference_span_sizes_aligned_inner_nodes_name},
         histogram{configs.practical_query_length_scale, reference_span_sizes_aligned_root_name},
         histogram{configs.practical_query_length_scale, reference_span_sizes_avoided_root_name},
+
         histogram{configs.small_values_linear_scale, alignments_per_query_name},
         histogram{configs.edit_distance_scale, alignments_edit_distance_name},
+
         histogram{configs.practical_time_scale, milliseconds_spent_in_search_per_query_name},
         histogram{configs.practical_time_scale, milliseconds_spent_in_verification_per_query_name}
     };
@@ -285,24 +293,33 @@ void search_and_alignment_statistics::add_statistics_for_seeds(
     }
 }
 
-void search_and_alignment_statistics::add_num_anchors_per_seed(size_t const value) {
-    insert_value_to(anchors_per_seed_name, value);
+// -----------------------
+void search_and_alignment_statistics::add_num_fully_excluded_seeds_per_query(size_t const value) {
+    insert_value_to(fully_excluded_seeds_per_query_name, value);
 }
 
-void search_and_alignment_statistics::add_num_kept_anchors_per_partly_excluded_seed(size_t const value) {
-    insert_value_to(kept_anchors_per_partly_excluded_seed_name, value);
+void search_and_alignment_statistics::add_num_kept_anchors_per_query(size_t const value) {
+    insert_value_to(kept_anchors_per_query_name, value);
 }
 
-void search_and_alignment_statistics::add_num_raw_anchors_per_excluded_seed(size_t const value) {
-    insert_value_to(raw_anchors_per_excluded_seed_name, value);
+void search_and_alignment_statistics::add_num_excluded_raw_anchors_by_soft_cap_per_query(size_t const value) {
+    insert_value_to(excluded_raw_anchors_by_soft_cap_per_query_name, value);
 }
 
-void search_and_alignment_statistics::add_num_anchors_per_query(size_t const value) {
-    insert_value_to(anchors_per_query_name, value);
+void search_and_alignment_statistics::add_num_excluded_raw_anchors_by_erase_useless_per_query(size_t const value) {
+    insert_value_to(excluded_raw_anchors_by_erase_useless_per_query_name, value);
 }
 
-void search_and_alignment_statistics::add_num_excluded_raw_anchors_per_query(size_t const value) {
-    insert_value_to(excluded_raw_anchors_per_query_name, value);
+void search_and_alignment_statistics::add_num_kept_anchors_per_kept_seed(size_t const value) {
+    insert_value_to(kept_anchors_per_kept_seed_name, value);
+}
+
+void search_and_alignment_statistics::add_num_excluded_raw_anchors_by_soft_cap_per_kept_seed(size_t const value) {
+    insert_value_to(excluded_raw_anchors_by_soft_cap_per_kept_seed_name, value);
+}
+
+void search_and_alignment_statistics::add_num_excluded_raw_anchors_by_erase_useless_per_kept_seed(size_t const value) {
+    insert_value_to(excluded_raw_anchors_by_erase_useless_per_kept_seed_name, value);
 }
 
 void search_and_alignment_statistics::add_reference_span_size_aligned_inner_node(size_t const value) {
@@ -337,57 +354,60 @@ void search_and_alignment_statistics::add_statistics_for_search_result(
     search::search_result const& forward_search_result,
     search::search_result const& reverse_complement_search_result
 ) {
-    size_t num_anchors_of_whole_query = 0;
-    size_t num_excluded_anchors_of_whole_query = 0;
-    bool all_excluded = true;
+    size_t num_fully_excluded_seeds_of_whole_query = 0;
+    size_t num_kept_anchors_of_whole_query = 0;
+    size_t num_excluded_raw_anchors_by_soft_cap_of_whole_query = 0;
+    size_t num_excluded_raw_anchors_by_erase_useless_of_whole_query = 0;
+    bool all_seeds_fully_excluded = true;
 
     for (auto const& anchors_of_seed : forward_search_result.anchors_by_seed) {
-        switch (anchors_of_seed.status) {
-            case search::seed_status::fully_excluded :
-                add_num_raw_anchors_per_excluded_seed(anchors_of_seed.num_excluded_raw_anchors);
-                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
-                break;
-            case search::seed_status::partly_excluded :
-                add_num_kept_anchors_per_partly_excluded_seed(anchors_of_seed.num_kept_useful_anchors);
-                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
-                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
-                all_excluded = false;
-                break;
-            case search::seed_status::not_excluded :
-                add_num_anchors_per_seed(anchors_of_seed.num_kept_useful_anchors);
-                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
-                all_excluded = false;
-                break;
-            default:
-                throw std::runtime_error("(should be unreachable) internal bug in statistics gathering");
+        if (anchors_of_seed.num_kept_useful_anchors == 0) {
+            ++num_fully_excluded_seeds_of_whole_query;
+        } else {
+            all_seeds_fully_excluded = false;
+
+            num_kept_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
+            add_num_kept_anchors_per_kept_seed(anchors_of_seed.num_kept_useful_anchors);
+
+            num_excluded_raw_anchors_by_soft_cap_of_whole_query += anchors_of_seed.num_excluded_raw_anchors_by_soft_cap;
+            add_num_excluded_raw_anchors_by_soft_cap_per_kept_seed(anchors_of_seed.num_excluded_raw_anchors_by_soft_cap);
+
+            size_t const num_excluded_raw_anchors_by_erase_useless_of_seed = anchors_of_seed.num_kept_raw_anchors
+                - anchors_of_seed.num_kept_useful_anchors;
+            num_excluded_raw_anchors_by_erase_useless_of_whole_query += num_excluded_raw_anchors_by_erase_useless_of_seed;
+            add_num_excluded_raw_anchors_by_erase_useless_per_kept_seed(num_excluded_raw_anchors_by_erase_useless_of_seed);
         }
     }
 
     for (auto const& anchors_of_seed : reverse_complement_search_result.anchors_by_seed) {
-        switch (anchors_of_seed.status) {
-            case search::seed_status::fully_excluded :
-                add_num_raw_anchors_per_excluded_seed(anchors_of_seed.num_excluded_raw_anchors);
-                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
-                break;
-            case search::seed_status::partly_excluded :
-                add_num_kept_anchors_per_partly_excluded_seed(anchors_of_seed.num_kept_useful_anchors);
-                num_excluded_anchors_of_whole_query += anchors_of_seed.num_excluded_raw_anchors;
-                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
-                all_excluded = false;
-                break;
-            case search::seed_status::not_excluded :
-                add_num_anchors_per_seed(anchors_of_seed.num_kept_useful_anchors);
-                num_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
-                all_excluded = false;
-                break;
-            default:
-                throw std::runtime_error("(should be unreachable) internal bug in statistics gathering");
+        if (anchors_of_seed.num_kept_useful_anchors == 0) {
+            ++num_fully_excluded_seeds_of_whole_query;
+        } else {
+            all_seeds_fully_excluded = false;
+
+            num_kept_anchors_of_whole_query += anchors_of_seed.num_kept_useful_anchors;
+            add_num_kept_anchors_per_kept_seed(anchors_of_seed.num_kept_useful_anchors);
+
+            num_excluded_raw_anchors_by_soft_cap_of_whole_query += anchors_of_seed.num_excluded_raw_anchors_by_soft_cap;
+            add_num_excluded_raw_anchors_by_soft_cap_per_kept_seed(anchors_of_seed.num_excluded_raw_anchors_by_soft_cap);
+
+            size_t const num_excluded_raw_anchors_by_erase_useless_of_seed = anchors_of_seed.num_kept_raw_anchors
+                - anchors_of_seed.num_kept_useful_anchors;
+            num_excluded_raw_anchors_by_erase_useless_of_whole_query += num_excluded_raw_anchors_by_erase_useless_of_seed;
+            add_num_excluded_raw_anchors_by_erase_useless_per_kept_seed(num_excluded_raw_anchors_by_erase_useless_of_seed);
         }
     }
 
-    add_num_anchors_per_query(num_anchors_of_whole_query);
-    add_num_excluded_raw_anchors_per_query(num_excluded_anchors_of_whole_query);
-    if (all_excluded) {
+    add_num_fully_excluded_seeds_per_query(num_fully_excluded_seeds_of_whole_query);
+    add_num_kept_anchors_per_query(num_kept_anchors_of_whole_query);
+    add_num_excluded_raw_anchors_by_soft_cap_per_query(
+        num_excluded_raw_anchors_by_soft_cap_of_whole_query
+    );
+    add_num_excluded_raw_anchors_by_erase_useless_per_query(
+        num_excluded_raw_anchors_by_erase_useless_of_whole_query
+    );
+
+    if (all_seeds_fully_excluded) {
         increment_num_completely_excluded_queries();
     }
 }

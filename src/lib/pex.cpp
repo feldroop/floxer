@@ -267,12 +267,13 @@ pex_tree::node pex_tree::create_parent_node(std::span<pex_tree::node> const chil
 }
 
 std::vector<search::seed> pex_tree::generate_seeds(
-    std::span<const uint8_t> const query
+    std::span<const uint8_t> const query,
+    size_t const seed_sampling_step_size
 ) const {
     std::vector<search::seed> seeds{};
     seeds.reserve(leaves.size());
 
-    for (size_t pex_leaf_index = 0; pex_leaf_index < leaves.size(); ++pex_leaf_index) {
+    for (size_t pex_leaf_index = 0; pex_leaf_index < leaves.size(); pex_leaf_index += seed_sampling_step_size) {
         auto const& leaf = leaves[pex_leaf_index];
         auto const seed_span = query.subspan(leaf.query_index_from, leaf.length_of_query_span());
         seeds.emplace_back(search::seed {

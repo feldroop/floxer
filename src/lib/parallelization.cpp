@@ -91,8 +91,11 @@ void spawn_search_task(
                 pex::pex_tree_config const pex_tree_config(query.rank_sequence.size(), cli_input);
                 pex::pex_tree const pex_tree(pex_tree_config);
 
-                auto const forward_seeds = pex_tree.generate_seeds(query.rank_sequence);
-                auto const reverse_complement_seeds = pex_tree.generate_seeds(query.reverse_complement_rank_sequence);
+                auto const forward_seeds = pex_tree.generate_seeds(query.rank_sequence, cli_input.seed_sampling_step_size());
+                auto const reverse_complement_seeds = pex_tree.generate_seeds(
+                    query.reverse_complement_rank_sequence,
+                    cli_input.seed_sampling_step_size()
+                );
 
                 auto const forward_search_result = searcher.search_seeds(forward_seeds);
                 auto const reverse_complement_search_result = searcher.search_seeds(reverse_complement_seeds);

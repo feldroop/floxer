@@ -61,13 +61,26 @@ size_t command_line_input::pex_seed_num_errors() const {
     return pex_seed_num_errors_.value;
 }
 
-size_t command_line_input::max_num_anchors() const {
-    return max_num_anchors_.value;
+size_t command_line_input::max_num_anchors_hard() const {
+    return max_num_anchors_hard_.value;
+}
+
+size_t command_line_input::max_num_anchors_soft() const {
+    return max_num_anchors_soft_.value;
 }
 
 std::string command_line_input::anchor_group_order() const {
     return anchor_group_order_.value;
 }
+
+std::string command_line_input::anchor_choice_strategy() const {
+    return anchor_choice_strategy_.value;
+}
+
+size_t command_line_input::seed_sampling_step_size() const {
+    return seed_sampling_step_size_.value;
+}
+
 
 bool command_line_input::bottom_up_pex_tree_building() const {
     return bottom_up_pex_tree_building_.value;
@@ -129,8 +142,11 @@ std::string command_line_input::command_line_call() const {
         query_error_probability().has_value() ? query_error_probability_.command_line_call() : "",
         pex_seed_num_errors_.command_line_call(),
 
-        max_num_anchors_.command_line_call(),
+        max_num_anchors_hard_.command_line_call(),
+        max_num_anchors_soft_.command_line_call(),
         anchor_group_order_.command_line_call(),
+        anchor_choice_strategy_.command_line_call(),
+        seed_sampling_step_size_.command_line_call(),
 
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
@@ -166,6 +182,17 @@ void command_line_input::validate() const {
                 "in the PEX tree leaves ({}).",
                 query_num_errors().value(),
                 pex_seed_num_errors()
+            )
+        );
+    }
+
+    if (max_num_anchors_hard() < max_num_anchors_soft()) {
+        throw std::runtime_error(
+            fmt::format(
+                "The hard maximum number of anchors ({}) should not be smaller than "
+                "the soft maximum number of anchors ({}).",
+                max_num_anchors_hard(),
+                max_num_anchors_soft()
             )
         );
     }
@@ -267,12 +294,19 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .validator = sharg::arithmetic_range_validator{0, 3}
     });
 
-    parser.add_option(max_num_anchors_.value, sharg::config{
-        .short_id = max_num_anchors_.short_id,
-        .long_id = max_num_anchors_.long_id,
-        .description = "The maximum number of anchors that are located by the FM index. "
-            "This should be increased only carfully, as it is detremental for performance and "
-            "might not improve accuracy.",
+    parser.add_option(max_num_anchors_hard_.value, sharg::config{
+        .short_id = max_num_anchors_hard_.short_id,
+        .long_id = max_num_anchors_hard_.long_id,
+        .description = "Seeds with at least this number of (raw) anchors are completely excluded from further steps of the algorithm. "
+            "Raw anchors are anchors that might not be locally optimal and repetitive.",
+        .advanced = true
+    });
+
+    parser.add_option(max_num_anchors_soft_.value, sharg::config{
+        .short_id = max_num_anchors_soft_.short_id,
+        .long_id = max_num_anchors_soft_.long_id,
+        .description = "At most this number of anchors per seed will be included into further steps of the algorithm. "
+            "The anchor group order and anchor choice strategy determine how the anchors are chosen.",
         .advanced = true
     });
 
@@ -280,9 +314,29 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .short_id = anchor_group_order_.short_id,
         .long_id = anchor_group_order_.long_id,
         .description = "The way in which anchor groups returned from the FM Index search are ordered. "
-            "The first anchor groups in the ordering are more likely to be included for verification.",
+            "The first anchor groups in the ordering are more likely to be included for verification. "
+            "The exact way how anchors are chosen from groups depends on the anchor group order.",
         .advanced = true,
-        .validator = sharg::value_list_validator{ std::vector{ "errors_first", "count_first", "hybrid" } }
+        .validator = sharg::value_list_validator{ std::vector{ "count_first" , "errors_first" } }
+    });
+
+    parser.add_option(anchor_choice_strategy_.value, sharg::config{
+        .short_id = anchor_choice_strategy_.short_id,
+        .long_id = anchor_choice_strategy_.long_id,
+        .description = "The way in which anchors are chosen from anchor groups. First, the groups are ordered depending on "
+            "the anchor group order. Then, either a single anchor is repetitively chosen from each group in that order (round_robin) "
+            "or every anchor from the first group is chosen, then every anchors from the second, and so on (full_groups).",
+        .advanced = true,
+        .validator = sharg::value_list_validator{ std::vector{ "round_robin", "full_groups" } }
+    });
+
+    parser.add_option(seed_sampling_step_size_.value, sharg::config{
+        .short_id = seed_sampling_step_size_.short_id,
+        .long_id = seed_sampling_step_size_.long_id,
+        .description = "How many seeds from the PEX tree leaves are chosen. 1 means all of them, 2 means every second, "
+            "3 means every third, and so on.",
+        .advanced = true,
+        .validator = sharg::arithmetic_range_validator{0ul, std::numeric_limits<size_t>::max() }
     });
 
     parser.add_flag(bottom_up_pex_tree_building_.value, sharg::config{

@@ -6,6 +6,7 @@
 #include <functional>
 #include <limits>
 #include <ranges>
+#include <set>
 
 #include <fmindex-collection/search/SearchNg21.h>
 #include <search_schemes/generator/optimum.h>
@@ -56,7 +57,17 @@ anchor_group_order_t anchor_group_order_from_string(std::string_view const s) {
     } else if (s == "count_first") {
         return anchor_group_order_t::count_first;
     } else {
-        return anchor_group_order_t::hybrid;
+        throw std::runtime_error("unexpected anchor group order value");
+    }
+}
+
+anchor_choice_strategy_t anchor_choice_strategy_from_string(std::string_view const s) {
+    if (s == "round_robin") {
+        return anchor_choice_strategy_t::round_robin;
+    } else if (s == "full_groups") {
+        return anchor_choice_strategy_t::full_groups;
+    } else {
+        throw std::runtime_error("unexpected anchor choice strategy value");
     }
 }
 
@@ -134,31 +145,52 @@ search_result searcher::search_seeds(
     size_t num_fully_excluded_seeds = 0;
 
     auto const seeds_span = std::span(seeds);
+    // this scheme cache exists, because the seeds are not necessarily the same length.
+    // the creation of the expanded search scheme in not completely free, therefore we
+    // want to reuse them as much as possible. But to be honest, this likely doesn't really
+    // matter for the running time of the whole program.
     internal::search_scheme_cache scheme_cache;
 
-    for (size_t seed_id = 0; seed_id < seeds.size(); ++seed_id) {
-        auto const& seed = seeds[seed_id];
+    for (size_t seed_index = 0; seed_index < seeds.size(); ++seed_index) {
+        auto const& seed = seeds[seed_index];
         auto const& search_scheme = scheme_cache.get(
             seed.sequence.size(),
             seed.num_errors
         );
 
         // wrapper for the search interface that expects a range
-        auto const seed_single_span = seeds_span.subspan(seed_id, 1)
+        auto const seed_single_span = seeds_span.subspan(seed_index, 1)
             | std::views::transform(&search::seed::sequence);
 
         std::vector<anchor_group> anchor_groups{};
         size_t total_num_raw_anchors = 0;
 
-        fmindex_collection::search_ng21::search(
+        // search_n here searches at most max_num_anchors_hard many anchors
+        fmindex_collection::search_ng21::search_n(
             index,
             seed_single_span,
             search_scheme,
-            [&anchor_groups, &total_num_raw_anchors] ([[maybe_unused]] size_t const seed_id, auto cursor, size_t const errors) {
+            config.max_num_anchors_hard,
+            [&anchor_groups, &total_num_raw_anchors] (
+                [[maybe_unused]] size_t const _seed_index_in_wrapper_range,
+                auto cursor,
+                size_t const errors
+            ) {
                 anchor_groups.emplace_back(cursor, errors);
                 total_num_raw_anchors += cursor.count();
             }
         );
+
+        if (total_num_raw_anchors == config.max_num_anchors_hard) {
+            anchors_by_seed.emplace_back(search_result::anchors_of_seed{
+                .num_kept_useful_anchors = 0,
+                .num_kept_raw_anchors = 0,
+                .num_excluded_raw_anchors_by_soft_cap = 0,
+                .anchors_by_reference{}
+            });
+
+            continue;
+        }
 
         switch (config.anchor_group_order) {
             case anchor_group_order_t::count_first:
@@ -181,13 +213,6 @@ search_result searcher::search_seeds(
                 });
                 break;
 
-            case anchor_group_order_t::hybrid:
-                std::ranges::sort(anchor_groups, [] (anchor_group const& group1, anchor_group const& group2) {
-                    return (group1.num_errors + 1) * group1.cursor.count() <
-                        (group2.num_errors + 1) * group2.cursor.count();
-                });
-                break;
-
             default:
                 throw std::runtime_error("(Should be unreachable) internal bug in anchor group order config.");
         }
@@ -197,45 +222,79 @@ search_result searcher::search_seeds(
 
         size_t num_kept_raw_anchors = 0;
         std::vector<anchors_t> anchors_by_reference(num_reference_sequences);
-        size_t i = 0;
-        while (
-            i < anchor_groups.size() &&
-            num_kept_raw_anchors + anchor_groups[i].cursor.count() <= config.max_num_anchors
-        ) {
-            auto const& cursor = anchor_groups[i].cursor;
-            size_t const group_count = cursor.count();
+        size_t anchor_group_index = 0;
 
-            for (auto const& anchor: cursor) {
-                auto const [reference_id, position] = index.locate(anchor);
+        // switch case didn't work here, not sure why
+        if (config.anchor_choice_strategy == anchor_choice_strategy_t::round_robin) {
+            // this is a somewhat complicated implementation using std::set to make sure that
+            // the running time is not quadratic in the number of anchor groups
+            size_t round = 0;
+            std::ranges::iota_view init{0ul, anchor_groups.size()};
+            std::set<size_t> remaining_group_indices(init.begin(), init.end());
+            auto remaining_group_indices_iter = remaining_group_indices.begin();
+
+            while (
+                num_kept_raw_anchors != config.max_num_anchors_soft &&
+                !remaining_group_indices.empty()
+            ) {
+                auto const& [cursor, num_errors] = anchor_groups[*remaining_group_indices_iter];
+                // this assumes that cursors are not empty in the beginning
+                auto const [reference_id, position] = index.locate(cursor.lb + round);
                 anchors_by_reference[reference_id].emplace_back(anchor_t {
                     .pex_leaf_index = seed.pex_leaf_index,
                     .reference_id = reference_id,
                     .reference_position = position,
-                    .num_errors = anchor_groups[i].num_errors
+                    .num_errors = num_errors
                 });
-            }
+                ++num_kept_raw_anchors;
 
-            num_kept_raw_anchors += group_count;
-            ++i;
+                auto previous_iter = remaining_group_indices_iter;
+                ++remaining_group_indices_iter;
+                if (cursor.len == round + 1) {
+                    remaining_group_indices.erase(previous_iter);
+                }
+
+                if (remaining_group_indices_iter == remaining_group_indices.end()) {
+                    remaining_group_indices_iter = remaining_group_indices.begin();
+                    ++round;
+                }
+            }
+        } else if (config.anchor_choice_strategy == anchor_choice_strategy_t::full_groups) {
+            while (
+                num_kept_raw_anchors != config.max_num_anchors_soft &&
+                anchor_group_index < anchor_groups.size()
+            ) {
+                auto const& [cursor, num_errors] = anchor_groups[anchor_group_index];
+
+                for (auto const& anchor: cursor) {
+                    auto const [reference_id, position] = index.locate(anchor);
+                    anchors_by_reference[reference_id].emplace_back(anchor_t {
+                        .pex_leaf_index = seed.pex_leaf_index,
+                        .reference_id = reference_id,
+                        .reference_position = position,
+                        .num_errors = num_errors
+                    });
+
+                    ++num_kept_raw_anchors;
+                    if (num_kept_raw_anchors == config.max_num_anchors_soft) {
+                        break;
+                    }
+                }
+
+                ++anchor_group_index;
+            }
+        } else {
+            throw std::runtime_error("(Should be unreachable) internal bug in anchor choice strategy config.");
         }
 
-        size_t const num_excluded_raw_anchors = total_num_raw_anchors - num_kept_raw_anchors;
+        size_t const num_excluded_raw_anchors_by_soft_cap = total_num_raw_anchors - num_kept_raw_anchors;
 
         size_t num_kept_useful_anchors = erase_useless_anchors(anchors_by_reference);
 
-        seed_status status;
-        if (num_kept_useful_anchors == 0) {
-            status = seed_status::fully_excluded;
-        } else if (num_excluded_raw_anchors == 0 && num_kept_useful_anchors == num_kept_raw_anchors) {
-            status = seed_status::not_excluded;
-        } else {
-            status = seed_status::partly_excluded;
-        }
-
         anchors_by_seed.emplace_back(search_result::anchors_of_seed{
-            .status = status,
             .num_kept_useful_anchors = num_kept_useful_anchors,
-            .num_excluded_raw_anchors = num_excluded_raw_anchors,
+            .num_kept_raw_anchors = num_kept_raw_anchors,
+            .num_excluded_raw_anchors_by_soft_cap = num_excluded_raw_anchors_by_soft_cap,
             .anchors_by_reference = std::move(anchors_by_reference)
         });
     }
