@@ -82,7 +82,7 @@ private:
     static inline const std::string seeds_per_query_name = "seeds per query";
 
     static inline const std::string fully_excluded_seeds_per_query_name = "fully excluded seeds per query";
-    static inline const std::string kept_anchors_per_query_name = "anchors per query from non excluded seeds";
+    static inline const std::string kept_anchors_per_query_name = "kept anchors per query";
     static inline const std::string excluded_raw_anchors_by_soft_cap_per_query_name = "excluded raw anchors by soft cap per query";
     static inline const std::string excluded_raw_anchors_by_erase_useless_per_query_name = "excluded raw anchors by erase useless per query";
 
