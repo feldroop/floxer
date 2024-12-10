@@ -317,7 +317,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
             "The first anchor groups in the ordering are more likely to be included for verification. "
             "The exact way how anchors are chosen from groups depends on the anchor group order.",
         .advanced = true,
-        .validator = sharg::value_list_validator{ std::vector{ "count_first" , "errors_first" } }
+        .validator = sharg::value_list_validator{ std::vector{ "count_first" , "errors_first", "none" } }
     });
 
     parser.add_option(anchor_choice_strategy_.value, sharg::config{

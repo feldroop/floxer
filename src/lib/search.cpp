@@ -56,6 +56,8 @@ anchor_group_order_t anchor_group_order_from_string(std::string_view const s) {
         return anchor_group_order_t::num_errors_first;
     } else if (s == "count_first") {
         return anchor_group_order_t::count_first;
+    } else if (s == "none") {
+        return anchor_group_order_t::none;
     } else {
         throw std::runtime_error("unexpected anchor group order value");
     }
@@ -211,6 +213,8 @@ search_result searcher::search_seeds(
                         return group1.num_errors < group2.num_errors;
                     }
                 });
+                break;
+            case anchor_group_order_t::none:
                 break;
 
             default:

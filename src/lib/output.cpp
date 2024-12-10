@@ -45,6 +45,7 @@ alignment_output::alignment_output(
 ) : out(internal::create_seqan_alignment_output(output_path, references_)), references(references_)
 {}
 
+// at some point in the future it would make sense to limit the number of alignments that are written to the output
 void alignment_output::write_alignments_for_query(
     input::query_record const& query,
     alignment::query_alignments alignments

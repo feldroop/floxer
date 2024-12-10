@@ -42,7 +42,7 @@ bool operator==(anchor_t const& lhs, anchor_t const& rhs);
 using anchors_t = std::vector<anchor_t>;
 
 enum class anchor_group_order_t {
-    num_errors_first, count_first
+    num_errors_first, count_first, none
 };
 
 anchor_group_order_t anchor_group_order_from_string(std::string_view const s);
