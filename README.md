@@ -32,7 +32,7 @@ make check
 
 Basic usage:
 ```
-./floxer --reference hg38.fasta --query reads.fastq --error-probability 0.07 --output mapped_reads.bam
+./floxer --reference hg38.fasta --queries reads.fastq --error-probability 0.07 --output mapped_reads.bam
 ```
 
 For a list and descriptions of the basic command line options, run:
