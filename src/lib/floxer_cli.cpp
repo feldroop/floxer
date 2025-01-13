@@ -207,7 +207,7 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
     parser.info.url = about_floxer::url;
     parser.info.short_description = about_floxer::short_description;
     parser.info.synopsis = {
-        "./floxer --reference hg38.fasta --query reads.fastq --error-probability 0.07 --output mapped_reads.bam",
+        "./floxer --reference hg38.fasta --queries reads.fastq --error-probability 0.07 --output mapped_reads.bam",
     };
     parser.info.version = about_floxer::version;
     parser.info.date = about_floxer::version_date;
