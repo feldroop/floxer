@@ -65,6 +65,7 @@ int main(int argc, char** argv) {
         std::filesystem::exists(cli_input.index_path().value())
     ) {
         auto const index_path = cli_input.index_path().value();
+        spdlog::info("loading index from {}", index_path);
 
         try {
             index = input::load_index(index_path);

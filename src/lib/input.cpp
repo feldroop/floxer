@@ -148,8 +148,6 @@ std::optional<query_record> queries::next() {
 }
 
 fmindex load_index(std::filesystem::path const& index_path) {
-    spdlog::info("loading index from {}", index_path);
-
     auto ifs     = std::ifstream(index_path, std::ios::binary);
     auto archive = cereal::BinaryInputArchive{ifs};
     auto index = fmindex{};
