@@ -171,14 +171,7 @@ void pex_tree::add_nodes_bottom_up(pex_tree_config const& config) {
         return;
     }
 
-    // If we round up in the divison for num_desired_leaves, we actually allow too many errors
-    // when setting the number of allowed errors of all leaves to config.leaf_max_num_errors.
-    // To avoid this inefficiency, we reduce the number of allowed error in some of the leaves.
-    size_t const num_leaves_with_less_errors = ((config.query_num_errors + 1) % base_leaf_weight) > 0 ?
-        base_leaf_weight - ((config.query_num_errors + 1) % base_leaf_weight) :
-        0;
-
-    create_leaves(config, num_desired_leaves, num_leaves_with_less_errors);
+    create_leaves(config, num_desired_leaves);
 
     // this reserve is NECESSARY to avoid the vector reallocating and moving element when growing,
     // because we keep a reference to it (current_level_nodes) while calling emplace_back
@@ -220,8 +213,7 @@ void pex_tree::add_nodes_bottom_up(pex_tree_config const& config) {
 
 void pex_tree::create_leaves(
     pex_tree_config const& config,
-    size_t const num_desired_leaves,
-    size_t const num_leaves_with_less_errors
+    size_t const num_desired_leaves
 ) {
     size_t const base_seed_length = config.total_query_length / num_desired_leaves;
     size_t const seed_length_remainder = config.total_query_length % num_desired_leaves;
@@ -234,15 +226,11 @@ void pex_tree::create_leaves(
             base_seed_length + 1 :
             base_seed_length;
 
-        size_t const num_errors = i < num_leaves_with_less_errors ?
-            config.leaf_max_num_errors - 1 :
-            config.leaf_max_num_errors;
-
         leaves.emplace_back(node{
             .parent_id = 0, // will be set later
             .query_index_from = current_start_index,
             .query_index_to = current_start_index + curr_leaf_length - 1,
-            .num_errors = num_errors
+            .num_errors = config.leaf_max_num_errors
         });
 
         current_start_index += curr_leaf_length;

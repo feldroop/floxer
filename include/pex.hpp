@@ -110,8 +110,7 @@ private:
     // for bottom_up build strategy
     void create_leaves(
         pex_tree_config const& config,
-        size_t const num_desired_leaves,
-        size_t const num_leaves_with_less_errors
+        size_t const num_desired_leaves
     );
 
     // for bottom up build strategy, returns parent node for nodes in child_nodes and sets their parent_id
