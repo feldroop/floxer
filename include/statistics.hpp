@@ -111,7 +111,7 @@ private:
     void increment_count(std::string const& target_name);
     void insert_value_to(std::string const& target_name, size_t const value);
 public:
-    search_and_alignment_statistics(std::string_view const input_hint);
+    search_and_alignment_statistics(std::string_view const input_hint = "");
 
     void increment_num_completely_excluded_queries();
 

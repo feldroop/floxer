@@ -14,7 +14,7 @@ TEST(alignment, small_wrapped_seqan3) {
         .reference_span_offset = 0,
         .num_allowed_errors = 2,
         .orientation = query_orientation::forward,
-        .mode = alignment_mode::verify_and_return_alignment
+        .mode = alignment_mode::verify_and_return_alignment_with_cigar
     };
 
     auto const result = align(reference, query, config);

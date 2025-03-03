@@ -63,13 +63,15 @@ TEST(verification, verify) {
         .query = query,
         .orientation = alignment::query_orientation::reverse_complement,
         .reference = reference,
+        .kind = pex::verification_kind_t::hierarchical,
         .already_verified_intervals = already_verified_intervals,
         .extra_verification_ratio = extra_verification_ratio,
+        .without_cigar = false,
         .alignments = alignments,
         .stats = stats
     };
 
-    verifier.verify(pex::verification_kind_t::hierarchical);
+    verifier.verify();
 
     EXPECT_EQ(alignments.size(), 1);
     auto const& alignment = alignments.to_reference(0).at(0);
@@ -79,7 +81,7 @@ TEST(verification, verify) {
     EXPECT_EQ(alignment.orientation, alignment::query_orientation::reverse_complement);
     EXPECT_EQ(alignment.start_in_reference, 50);
 
-    verifier.verify(pex::verification_kind_t::hierarchical);
+    verifier.verify();
 
     // nothing should change because of already_verified_intervals
     EXPECT_EQ(alignments.size(), 1);
@@ -96,13 +98,15 @@ TEST(verification, verify) {
         .query = query,
         .orientation = alignment::query_orientation::reverse_complement,
         .reference = reference,
+        .kind = pex::verification_kind_t::direct_full,
         .already_verified_intervals = deactivated_already_verified_intervals,
         .extra_verification_ratio = extra_verification_ratio,
+        .without_cigar = false,
         .alignments = alignments,
         .stats = stats
     };
 
-    direct_verifier.verify(pex::verification_kind_t::direct_full);
+    direct_verifier.verify();
 
     EXPECT_EQ(alignments.size(), 2);
     EXPECT_EQ(alignments.to_reference(0).at(1), alignments.to_reference(0).at(0));
@@ -113,7 +117,7 @@ TEST(verification, verify) {
     query[11] = 3;
     query[20] = 2;
 
-    direct_verifier.verify(pex::verification_kind_t::direct_full);
+    direct_verifier.verify();
 
     EXPECT_EQ(alignments.size(), 2);
 }
@@ -208,6 +212,7 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
         span_config,
         std::span(query),
         alignment::query_orientation::forward,
+        false,
         alignments,
         stats
     );
@@ -230,6 +235,7 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
         span_config,
         std::span(query),
         alignment::query_orientation::forward,
+        false,
         alignments,
         stats
     );
@@ -245,6 +251,7 @@ TEST(verification, try_to_align_pex_node_query_with_reference_span) {
         span_config,
         std::span(query),
         alignment::query_orientation::forward,
+        false,
         alignments,
         stats
     );

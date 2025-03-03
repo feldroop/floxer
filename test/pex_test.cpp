@@ -19,7 +19,7 @@ TEST(pex, generate_seeds_from_recursive) {
 
     std::vector<uint8_t> const query{ 0,0,0,1,1,1,2,2,2,3,3,3 };
     std::span<const uint8_t> query_span(query);
-    auto const seeds = tree.generate_seeds(query_span);
+    auto const seeds = tree.generate_seeds(query_span, 1);
 
     std::vector<search::seed> expected_seeds{
         search::seed {
@@ -57,7 +57,7 @@ TEST(pex, generate_seeds_from_recursive) {
         pex::pex_tree_build_strategy::recursive
     );
     auto const adjusted1_tree = pex::pex_tree(adjusted1_config);
-    auto const adjusted1_seeds = adjusted1_tree.generate_seeds(query_span);
+    auto const adjusted1_seeds = adjusted1_tree.generate_seeds(query_span, 1);
 
     std::vector<search::seed> expected_seeds_adjusted {
         search::seed {
@@ -83,7 +83,7 @@ TEST(pex, generate_seeds_from_recursive) {
         pex::pex_tree_build_strategy::recursive
     );
     auto const adjusted2_tree = pex::pex_tree(adjusted2_config);
-    auto const adjusted2_seeds = adjusted2_tree.generate_seeds(query_span);
+    auto const adjusted2_seeds = adjusted2_tree.generate_seeds(query_span, 1);
 
     EXPECT_EQ(adjusted2_seeds, expected_seeds_adjusted);
 
@@ -105,7 +105,7 @@ TEST(pex, generate_seeds_from_bottom_up) {
         2,3,3,3,0,0,0,1,1,1
     };
     std::span<const uint8_t> query_span(query);
-    auto const seeds = tree.generate_seeds(query_span);
+    auto const seeds = tree.generate_seeds(query_span, 1);
 
     std::vector<search::seed> expected_seeds{
         search::seed {

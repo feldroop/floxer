@@ -5,8 +5,10 @@
 
 TEST(search, search_seeds) {
     search::search_config config {
-        .max_num_anchors = 10,
-        .anchor_group_order = search::anchor_group_order_t::hybrid
+        .max_num_anchors_hard = 10,
+        .max_num_anchors_soft = 10,
+        .anchor_group_order = search::anchor_group_order_t::count_first,
+        .anchor_choice_strategy = search::anchor_choice_strategy_t::round_robin
     };
 
     search::internal::search_scheme_cache scheme_cache;
@@ -73,9 +75,9 @@ TEST(search, search_seeds) {
     using anchors_of_seed = search::search_result::anchors_of_seed;
     std::vector<anchors_of_seed> const expected_anchors_by_seed {
         anchors_of_seed {
-            .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 1,
-            .num_excluded_raw_anchors = 0,
+            .num_kept_raw_anchors = 1,
+            .num_excluded_raw_anchors_by_soft_cap = 0,
             .anchors_by_reference = std::vector<search::anchors_t> {
                 search::anchors_t {
                     search::anchor_t {
@@ -89,9 +91,9 @@ TEST(search, search_seeds) {
             }
         },
         anchors_of_seed {
-            .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 1,
-            .num_excluded_raw_anchors = 0,
+            .num_kept_raw_anchors = 1,
+            .num_excluded_raw_anchors_by_soft_cap = 0,
             .anchors_by_reference = std::vector<search::anchors_t> {
                 search::anchors_t {
                     search::anchor_t {
@@ -105,9 +107,9 @@ TEST(search, search_seeds) {
             }
         },
         anchors_of_seed {
-            .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 1,
-            .num_excluded_raw_anchors = 0,
+            .num_kept_raw_anchors = 1,
+            .num_excluded_raw_anchors_by_soft_cap = 0,
             .anchors_by_reference = std::vector<search::anchors_t> {
                 {},
                 search::anchors_t {
@@ -121,9 +123,9 @@ TEST(search, search_seeds) {
             }
         },
         anchors_of_seed {
-            .status = search::seed_status::not_excluded,
             .num_kept_useful_anchors = 0,
-            .num_excluded_raw_anchors = 0,
+            .num_kept_raw_anchors = 0,
+            .num_excluded_raw_anchors_by_soft_cap = 0,
             .anchors_by_reference = std::vector<search::anchors_t> {
                 {},
                 {}
