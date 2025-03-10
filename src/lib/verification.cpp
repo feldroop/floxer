@@ -79,7 +79,7 @@ void query_verifier::hierarchical_verification() {
             curr_pex_node,
             seed_query_index_from,
             reference.rank_sequence.size(),
-            extra_verification_ratio
+            curr_pex_node.is_root() ? extra_verification_ratio : 0.0
         );
 
         static constexpr size_t MAX_REF_SPAN_LENGTH_WITHOUT_CHECKING_INTERVALS = 512;
