@@ -102,14 +102,14 @@ int main(int argc, char** argv) {
         floating_point_aware_num_errors(total_query_length, query_error_probability) :
         given_query_num_errors;
 
-    auto const config = pex::pex_tree_config{
-        .total_query_length = total_query_length,
-        .query_num_errors = query_num_errors,
-        .leaf_max_num_errors = leaf_max_num_errors,
-        .build_strategy = use_bottom_up ?
+    auto const config = pex::pex_tree_config(
+        total_query_length,
+        query_num_errors,
+        leaf_max_num_errors,
+        use_bottom_up ?
             pex::pex_tree_build_strategy::bottom_up :
             pex::pex_tree_build_strategy::recursive
-    };
+    );
 
     auto const tree = pex::pex_tree(config);
 
