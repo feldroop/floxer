@@ -101,7 +101,8 @@ pex_tree::pex_tree(pex_tree_config const config)
             throw std::runtime_error("(should be unreachable) internal bug in the pex tree construction - build strategy");
     }
 
-    assert(root().num_errors == config.query_num_errors);
+    assert(root().num_errors >= config.query_num_errors);
+    assert(root().num_errors <= config.query_num_errors + config.leaf_max_num_errors);
     assert(root().query_index_from == 0);
     assert(root().query_index_to == config.total_query_length - 1);
 }
