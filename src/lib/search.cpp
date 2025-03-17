@@ -68,6 +68,8 @@ anchor_choice_strategy_t anchor_choice_strategy_from_string(std::string_view con
         return anchor_choice_strategy_t::round_robin;
     } else if (s == "full_groups") {
         return anchor_choice_strategy_t::full_groups;
+    } else if (s == "first_reported") {
+        return anchor_choice_strategy_t::first_reported;
     } else {
         throw std::runtime_error("unexpected anchor choice strategy value");
     }
@@ -172,7 +174,7 @@ search_result searcher::search_seeds(
             index,
             seed_single_span,
             search_scheme,
-            config.max_num_anchors_hard,
+            config.anchor_choice_strategy == anchor_choice_strategy_t::first_reported ? config.max_num_anchors_soft : config.max_num_anchors_hard,
             [&anchor_groups, &total_num_raw_anchors] (
                 [[maybe_unused]] size_t const _seed_index_in_wrapper_range,
                 auto cursor,
@@ -183,7 +185,10 @@ search_result searcher::search_seeds(
             }
         );
 
-        if (total_num_raw_anchors == config.max_num_anchors_hard) {
+        if (
+            total_num_raw_anchors == config.max_num_anchors_hard
+            && config.anchor_choice_strategy != anchor_choice_strategy_t::first_reported
+        ) {
             anchors_by_seed.emplace_back(search_result::anchors_of_seed{
                 .num_kept_useful_anchors = 0,
                 .num_kept_raw_anchors = 0,
@@ -263,7 +268,10 @@ search_result searcher::search_seeds(
                     ++round;
                 }
             }
-        } else if (config.anchor_choice_strategy == anchor_choice_strategy_t::full_groups) {
+        } else if (
+            config.anchor_choice_strategy == anchor_choice_strategy_t::full_groups
+            || config.anchor_choice_strategy == anchor_choice_strategy_t::first_reported
+        ) {
             while (
                 num_kept_raw_anchors != config.max_num_anchors_soft &&
                 anchor_group_index < anchor_groups.size()

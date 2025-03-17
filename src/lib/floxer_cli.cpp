@@ -325,9 +325,10 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
         .long_id = anchor_choice_strategy_.long_id,
         .description = "The way in which anchors are chosen from anchor groups. First, the groups are ordered depending on "
             "the anchor group order. Then, either a single anchor is repetitively chosen from each group in that order (round_robin) "
-            "or every anchor from the first group is chosen, then every anchors from the second, and so on (full_groups).",
+            "or every anchor from the first group is chosen, then every anchors from the second, and so on (full_groups). If simply the "
+            "first reported anchors are chosen (first_reported), the max num anchors hard will be ignored, because the search is aborted early.",
         .advanced = true,
-        .validator = sharg::value_list_validator{ std::vector{ "round_robin", "full_groups" } }
+        .validator = sharg::value_list_validator{ std::vector{ "round_robin", "full_groups", "first_reported" } }
     });
 
     parser.add_option(seed_sampling_step_size_.value, sharg::config{

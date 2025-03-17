@@ -48,7 +48,7 @@ enum class anchor_group_order_t {
 anchor_group_order_t anchor_group_order_from_string(std::string_view const s);
 
 enum class anchor_choice_strategy_t {
-    round_robin, full_groups
+    round_robin, full_groups, first_reported
 };
 
 anchor_choice_strategy_t anchor_choice_strategy_from_string(std::string_view const s);
