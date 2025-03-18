@@ -174,7 +174,9 @@ search_result searcher::search_seeds(
             index,
             seed_single_span,
             search_scheme,
-            config.anchor_choice_strategy == anchor_choice_strategy_t::first_reported ? config.max_num_anchors_soft : config.max_num_anchors_hard,
+            config.anchor_choice_strategy == anchor_choice_strategy_t::first_reported ?
+                config.max_num_anchors_soft
+                : config.max_num_anchors_hard + 1,
             [&anchor_groups, &total_num_raw_anchors] (
                 [[maybe_unused]] size_t const _seed_index_in_wrapper_range,
                 auto cursor,
@@ -186,7 +188,7 @@ search_result searcher::search_seeds(
         );
 
         if (
-            total_num_raw_anchors == config.max_num_anchors_hard
+            total_num_raw_anchors > config.max_num_anchors_hard
             && config.anchor_choice_strategy != anchor_choice_strategy_t::first_reported
         ) {
             anchors_by_seed.emplace_back(search_result::anchors_of_seed{
