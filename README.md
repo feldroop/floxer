@@ -17,7 +17,7 @@ This is an experimental research prototype (for my master's thesis) and currentl
 
 Requires a C++20-capable compiler and CMake.
 ```
-git clone --recurse-submodules https://github.com/feldroop/floxer
+git clone https://github.com/feldroop/floxer
 mkdir floxer/build && cd floxer/build
 cmake .. -DCMAKE_BUILD_TYPE:STRING=Release
 make
@@ -32,7 +32,7 @@ make check
 
 Basic usage:
 ```
-./floxer --reference hg38.fasta --queries reads.fastq --error-probability 0.07 --output mapped_reads.bam
+./floxer --reference hg38.fasta --queries reads.fastq --error-probability 0.08 --output mapped_reads.bam
 ```
 
 For a list and descriptions of the basic command line options, run:
