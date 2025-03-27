@@ -1,4 +1,4 @@
-# floxer: FM-index longread PEX-based aligner
+# floxer: FM-Index longread PEX-based aligner
 
 An *exact*\* longread aligner applying the following techniques to not be orders of magnitude slower than more approximate tools like [minimap](https://github.com/lh3/minimap2).
 
