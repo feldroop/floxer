@@ -54,6 +54,7 @@ class command_line_input {
     cli_option<std::string> anchor_group_order_{ 'g', "anchor-group-order", "count_first" };
     cli_option<std::string> anchor_choice_strategy_{ 'y', "anchor-choice-strategy", "round_robin" };
     cli_option<size_t> seed_sampling_step_size_{ 'C', "seed-sampling-step-size", 1 };
+    cli_option<bool> dont_erase_useless_anchors_{ 'E', "dont-erase-useless-anchors", false };
 
     cli_option<bool> bottom_up_pex_tree_building_{ 'b', "bottom-up-pex-tree", false };
     cli_option<bool> use_interval_optimization_{ 'I', "interval-optimization", false };
@@ -87,6 +88,7 @@ public:
     std::string anchor_group_order() const;
     std::string anchor_choice_strategy() const;
     size_t seed_sampling_step_size() const;
+    bool dont_erase_useless_anchors() const;
 
     bool bottom_up_pex_tree_building() const;
     bool use_interval_optimization() const;

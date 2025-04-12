@@ -81,6 +81,10 @@ size_t command_line_input::seed_sampling_step_size() const {
     return seed_sampling_step_size_.value;
 }
 
+bool command_line_input::dont_erase_useless_anchors() const {
+    return dont_erase_useless_anchors_.value;
+}
+
 
 bool command_line_input::bottom_up_pex_tree_building() const {
     return bottom_up_pex_tree_building_.value;
@@ -147,6 +151,7 @@ std::string command_line_input::command_line_call() const {
         anchor_group_order_.command_line_call(),
         anchor_choice_strategy_.command_line_call(),
         seed_sampling_step_size_.command_line_call(),
+        dont_erase_useless_anchors() ? dont_erase_useless_anchors_.command_line_call() : "",
 
         bottom_up_pex_tree_building() ? bottom_up_pex_tree_building_.command_line_call() : "",
         use_interval_optimization() ? use_interval_optimization_.command_line_call() : "",
@@ -338,6 +343,13 @@ void command_line_input::parse_and_validate(int argc, char ** argv) {
             "3 means every third, and so on.",
         .advanced = true,
         .validator = sharg::arithmetic_range_validator{0ul, std::numeric_limits<size_t>::max() }
+    });
+
+    parser.add_flag(dont_erase_useless_anchors_.value, sharg::config{
+        .short_id = dont_erase_useless_anchors_.short_id,
+        .long_id = dont_erase_useless_anchors_.long_id,
+        .description = "If given, useless (a.k.a. locally suboptimal) anchors are not erased before the verification.",
+        .advanced = true
     });
 
     parser.add_flag(bottom_up_pex_tree_building_.value, sharg::config{

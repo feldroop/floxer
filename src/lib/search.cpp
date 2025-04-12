@@ -303,7 +303,11 @@ search_result searcher::search_seeds(
 
         size_t const num_excluded_raw_anchors_by_soft_cap = total_num_raw_anchors - num_kept_raw_anchors;
 
-        size_t num_kept_useful_anchors = erase_useless_anchors(anchors_by_reference);
+        size_t num_kept_useful_anchors = num_kept_raw_anchors;
+
+        if (config.erase_useless_anchors) {
+            num_kept_useful_anchors = erase_useless_anchors(anchors_by_reference);
+        }
 
         anchors_by_seed.emplace_back(search_result::anchors_of_seed{
             .num_kept_useful_anchors = num_kept_useful_anchors,

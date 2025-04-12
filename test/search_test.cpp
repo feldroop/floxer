@@ -8,7 +8,8 @@ TEST(search, search_seeds) {
         .max_num_anchors_hard = 10,
         .max_num_anchors_soft = 10,
         .anchor_group_order = search::anchor_group_order_t::count_first,
-        .anchor_choice_strategy = search::anchor_choice_strategy_t::round_robin
+        .anchor_choice_strategy = search::anchor_choice_strategy_t::round_robin,
+        .erase_useless_anchors = true
     };
 
     search::internal::search_scheme_cache scheme_cache;

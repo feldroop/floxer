@@ -58,6 +58,7 @@ struct search_config {
     size_t const max_num_anchors_soft;
     anchor_group_order_t const anchor_group_order;
     anchor_choice_strategy_t const anchor_choice_strategy;
+    bool const erase_useless_anchors;
 };
 
 struct anchor_package {

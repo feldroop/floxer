@@ -117,7 +117,8 @@ int main(int argc, char** argv) {
             .anchor_group_order = search::anchor_group_order_from_string(cli_input.anchor_group_order()),
             .anchor_choice_strategy = search::anchor_choice_strategy_from_string(
                 cli_input.anchor_choice_strategy()
-            )
+            ),
+            .erase_useless_anchors = !cli_input.dont_erase_useless_anchors()
         }
     };
 
