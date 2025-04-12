@@ -176,14 +176,14 @@ search_result searcher::search_seeds(
             search_scheme,
             config.anchor_choice_strategy == anchor_choice_strategy_t::first_reported ?
                 config.max_num_anchors_soft
-                : config.max_num_anchors_hard + 1,
+                : std::max(config.max_num_anchors_hard, config.max_num_anchors_hard + 1),
             [&anchor_groups, &total_num_raw_anchors] (
                 [[maybe_unused]] size_t const _seed_index_in_wrapper_range,
                 auto cursor,
                 size_t const errors
             ) {
-                anchor_groups.emplace_back(cursor, errors);
                 total_num_raw_anchors += cursor.count();
+                anchor_groups.emplace_back(cursor, errors);
             }
         );
 
@@ -239,10 +239,10 @@ search_result searcher::search_seeds(
         if (config.anchor_choice_strategy == anchor_choice_strategy_t::round_robin) {
             // this is a somewhat complicated implementation using std::set to make sure that
             // the running time is not quadratic in the number of anchor groups
-            size_t round = 0;
             std::ranges::iota_view init{0ul, anchor_groups.size()};
             std::set<size_t> remaining_group_indices(init.begin(), init.end());
             auto remaining_group_indices_iter = remaining_group_indices.begin();
+            size_t round = 0;
 
             while (
                 num_kept_raw_anchors != config.max_num_anchors_soft &&
